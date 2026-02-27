@@ -59,12 +59,10 @@ builder.Services.AddAWSService<IAmazonSQS>();
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowReact", policy =>
-        policy.WithOrigins(
-            "http://localhost:5173",
-            "http://localhost:3000"
-        )
-        .AllowAnyHeader()
-        .AllowAnyMethod()
+        policy
+            .AllowAnyOrigin()
+            .AllowAnyHeader()
+            .AllowAnyMethod()
     );
 });
 
