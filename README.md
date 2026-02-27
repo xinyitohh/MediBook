@@ -44,7 +44,7 @@ Make sure you have these installed:
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/YOURTEAM/MediBook.git
+git clone https://github.com/xinyitohh/MediBook.git
 cd MediBook
 ```
 
