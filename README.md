@@ -3,7 +3,6 @@ Online Healthcare Appointment & Patient Management System
 
 Built with **React** (Frontend) + **ASP.NET Core Web API** (Backend) + **AWS** (Cloud)
 
-[Go to the Frontend Section](#medibook-frontend-🏥)
 
 ## 📑 Table of Contents
 * [Team Members](#-team-members)
