@@ -3,6 +3,33 @@ Online Healthcare Appointment & Patient Management System
 
 Built with **React** (Frontend) + **ASP.NET Core Web API** (Backend) + **AWS** (Cloud)
 
+[Go to the Frontend Section](#medibook-frontend-🏥)
+
+## 📑 Table of Contents
+* [Team Members](#-team-members)
+* [Project Structure](#-project-structure)
+* [Prerequisites](#prerequisites)
+* [Getting Started (Backend)](#-getting-started)
+* [Test Accounts](#-test-accounts)
+* [API Endpoints](#-api-endpoints)
+* [Git Workflow](#-git-workflow)
+* [Tech Stack](#-tech-stack)
+* [Common Issues](#-common-issues)
+* [Questions?](#-questions)
+* [MediBook Frontend](#medibook-frontend-)
+  * [Prerequisites (Frontend)](#-prerequisites-1)
+  * [Getting Started (Frontend)](#-getting-started-1)
+  * [Project Structure (Frontend)](#-project-structure-1)
+  * [Pages & Routes](#-pages--routes)
+  * [How Authentication Works](#-how-authentication-works)
+  * [How to Call APIs](#-how-to-call-apis)
+  * [How to Add a New Page](#-how-to-add-a-new-page)
+  * [Styling Guide](#-styling-guide)
+  * [Git Workflow (Frontend)](#-git-workflow-1)
+  * [Dependencies](#-dependencies)
+  * [Common Issues (Frontend)](#-common-issues-1)
+  * [Build for Production](#-build-for-production)
+
 ---
 
 ## 👥 Team Members
@@ -24,7 +51,7 @@ MediBook/
 ```
 
 ---
-
+<a id="prerequisites"></a>
 ## ⚙️ Prerequisites
 
 Make sure you have these installed:
@@ -194,7 +221,7 @@ docs: update readme
 ```
 
 ---
-
+<a id="-tech-stack"></a>
 ## 🛠️ Tech Stack
 
 ### Frontend
@@ -252,3 +279,317 @@ docs: update readme
 
 ## 📞 Questions?
 Contact your team lead or message the group chat.
+
+
+# MediBook Frontend 🏥
+
+React frontend for MediBook — Online Healthcare Appointment System.
+
+Built with **React 18 + Vite + Bootstrap 5**
+
+---
+<a id="-prerequisites-1"></a>
+## ⚙️ Prerequisites - F
+
+| Tool | Version | Download |
+|------|---------|----------|
+| Node.js | 18+ | https://nodejs.org |
+| npm | 9+ | comes with Node.js |
+| VS Code | Latest | https://code.visualstudio.com |
+
+### Recommended VS Code Extensions
+- **ES7+ React/Redux/React-Native snippets** — React shortcuts
+- **Prettier** — code formatting
+- **Auto Rename Tag** — renames JSX tags automatically
+- **ESLint** — catches errors as you type
+
+---
+
+## 🚀 Getting Started
+
+### 1. Navigate to frontend folder
+```bash
+cd MediBook/frontend
+```
+
+### 2. Install dependencies
+```bash
+npm install
+```
+
+### 3. Create environment file
+Create a `.env` file inside the `frontend/` folder:
+```
+VITE_API_URL=
+```
+> Leave VITE_API_URL empty — API calls are proxied through Vite to the backend automatically.
+
+### 4. Make sure backend is running first
+- Open backend in Visual Studio
+- Press F5
+- Confirm Swagger is accessible at `https://localhost:44355/swagger`
+
+### 5. Run the frontend
+```bash
+npm run dev
+```
+App opens at `http://localhost:5173` ✅
+
+---
+
+## 📁 Project Structure
+
+```
+frontend/
+├── public/
+├── src/
+│   ├── components/             ← Reusable UI components
+│   │   ├── Navbar.jsx          ← Top navigation bar
+│   │   └── ProtectedRoute.jsx  ← Guards pages that require login
+│   ├── context/
+│   │   └── AuthContext.jsx     ← Global auth state (logged in user)
+│   ├── pages/                  ← One file per page/route
+│   │   ├── Home.jsx
+│   │   ├── Login.jsx
+│   │   ├── Register.jsx
+│   │   ├── Doctors.jsx
+│   │   ├── Appointments.jsx
+│   │   ├── Profile.jsx
+│   │   └── AdminDashboard.jsx
+│   ├── services/               ← All API calls (never call API directly in pages)
+│   │   ├── api.js              ← Axios instance with JWT interceptor
+│   │   ├── authService.js      ← Login, register
+│   │   ├── doctorService.js    ← Doctor CRUD
+│   │   └── appointmentService.js ← Appointment booking
+│   ├── App.jsx                 ← Routes setup
+│   └── main.jsx                ← Entry point
+├── .env                        ← gitignored, your local config
+├── vite.config.js              ← Vite + proxy config
+└── package.json
+```
+
+---
+
+## 🌐 Pages & Routes
+
+| Route | Page | Access |
+|-------|------|--------|
+| `/` | Home | Public |
+| `/login` | Login | Public |
+| `/register` | Register | Public |
+| `/doctors` | Doctor Listing | Public |
+| `/appointments` | My Appointments | Login required |
+| `/profile` | My Profile | Login required |
+| `/admin` | Admin Dashboard | Admin only |
+
+---
+
+## 🔑 How Authentication Works
+
+1. User logs in → backend returns a **JWT token**
+2. Token is stored in `localStorage`
+3. Every API call automatically includes the token via axios interceptor in `api.js`
+4. If token expires (401 response) → user is redirected to login automatically
+5. `AuthContext` provides user info to any component via `useAuth()` hook
+
+### Using the auth hook in any component:
+```jsx
+import { useAuth } from '../context/AuthContext'
+
+function MyComponent() {
+  const { user, logoutUser } = useAuth()
+
+  return (
+    <div>
+      <p>Welcome {user.fullName}</p>
+      <p>Role: {user.role}</p>
+      <button onClick={logoutUser}>Logout</button>
+    </div>
+  )
+}
+```
+
+---
+
+## 📡 How to Call APIs
+
+Never use `fetch()` directly. Always use the service files:
+
+```javascript
+// ✅ Correct way
+import { getDoctors } from '../services/doctorService'
+
+useEffect(() => {
+  getDoctors()
+    .then(res => setDoctors(res.data))
+    .catch(err => console.error(err))
+}, [])
+
+// ❌ Wrong way - don't do this
+fetch('https://localhost:44355/api/doctor')
+```
+
+### Adding a new API call:
+Add it to the relevant service file:
+```javascript
+// In doctorService.js
+export const searchDoctors = (specialty) =>
+  api.get(`/api/doctor/search?specialty=${specialty}`)
+```
+
+---
+
+## 🧩 How to Add a New Page
+
+1. Create the page file in `src/pages/`:
+```jsx
+// src/pages/MyNewPage.jsx
+export default function MyNewPage() {
+  return (
+    <div>
+      <h2>My New Page</h2>
+    </div>
+  )
+}
+```
+
+2. Add the route in `App.jsx`:
+```jsx
+import MyNewPage from './pages/MyNewPage'
+
+// Inside <Routes>:
+<Route path="/my-new-page" element={<MyNewPage />} />
+
+// If login required:
+<Route
+  path="/my-new-page"
+  element={
+    <ProtectedRoute>
+      <MyNewPage />
+    </ProtectedRoute>
+  }
+/>
+```
+
+3. Add a link in `Navbar.jsx`:
+```jsx
+<li className="nav-item">
+  <Link className="nav-link" to="/my-new-page">My New Page</Link>
+</li>
+```
+
+---
+
+## 🎨 Styling Guide
+
+We use **Bootstrap 5** for all styling. No custom CSS files unless absolutely necessary.
+
+### Common Bootstrap classes used:
+```
+Layout:     container, row, col-md-4, d-flex, justify-content-center
+Cards:      card, card-body, card-title, card-footer, shadow-sm
+Buttons:    btn, btn-primary, btn-outline-danger, btn-sm, w-100
+Forms:      form-control, form-label, form-select
+Alerts:     alert, alert-danger, alert-success
+Badges:     badge, bg-success, bg-warning, bg-danger
+Text:       text-muted, text-center, fw-bold, small
+Spacing:    mt-4, mb-3, p-4, g-3, gap-2
+```
+
+### Example card component:
+```jsx
+<div className="card shadow-sm">
+  <div className="card-body p-4">
+    <h5 className="card-title">Title</h5>
+    <p className="card-text text-muted">Content</p>
+    <button className="btn btn-primary w-100">Action</button>
+  </div>
+</div>
+```
+
+---
+
+## 🌿 Git Workflow
+
+Never commit directly to `main`. Always use feature branches.
+
+```bash
+# Before starting, pull latest
+git pull origin main
+
+# Create your branch
+git checkout -b feature/your-feature-name
+
+# Examples:
+git checkout -b feature/profile-page
+git checkout -b feature/admin-dashboard
+git checkout -b fix/appointment-bug
+
+# After changes:
+git add .
+git commit -m "feat: complete profile page"
+git push origin feature/your-feature-name
+
+# Then open Pull Request on GitHub to merge into main
+```
+
+### Commit message format:
+```
+feat: add new feature
+fix: bug fix
+style: UI/styling changes
+refactor: code cleanup
+```
+
+---
+
+## 📦 Dependencies
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| react | 18.x | UI framework |
+| react-dom | 18.x | DOM rendering |
+| react-router-dom | 6.x | Page routing |
+| axios | 1.x | HTTP API calls |
+| bootstrap | 5.x | CSS styling |
+| vite | 5.x | Build tool & dev server |
+
+---
+
+## ❓ Common Issues
+
+**Login/Register fails with Network Error**
+→ Make sure backend is running at `https://localhost:44355`
+→ Check `vite.config.js` has the correct port in the proxy target
+
+**`npm install` fails**
+→ Run `node --version` — must be 18+
+→ Try deleting `node_modules/` folder and running `npm install` again
+
+**Page shows but API data doesn't load**
+→ Open DevTools (F12) → Console tab → look for red error messages
+→ Check backend is running
+→ Check you are logged in for protected endpoints
+
+**Blank page after changes**
+→ Check DevTools Console for JavaScript errors
+→ Make sure all imports are correct (file names are case sensitive)
+
+**Changes not showing**
+→ Vite hot reloads automatically — if not working, restart with `npm run dev`
+
+---
+<a id="-build-for-production"></a>
+## 🏗️ Build for Production
+
+When ready to deploy to AWS S3:
+```bash
+npm run build
+```
+This creates a `dist/` folder with static files ready to upload to S3.
+
+> Remember to update `VITE_API_URL` in `.env` to your AWS Elastic Beanstalk URL before building:
+> ```
+> VITE_API_URL=http://your-app.elasticbeanstalk.com
+> ```
+> And remove the proxy from `vite.config.js` for production build.
