@@ -41,6 +41,113 @@ Built with **React** (Frontend) + **ASP.NET Core Web API** (Backend) + **AWS** (
 
 ---
 
+
+---
+
+## Balanced Distribution
+
+### Member 1 — Auth + Patient Profile + My Appointments
+**Difficulty: ★★★☆☆ (Medium)**
+
+You build the foundation everyone depends on, then the patient's "view & manage" side.
+
+| Feature | Frontend | Backend | Complexity |
+|---------|----------|---------|------------|
+| Register page | Form with validation | `POST /api/auth/register` (Identity handles hashing) | Low |
+| Login page | Form, store JWT, redirect by role | `POST /api/auth/login` (generate JWT) | Low-Med |
+| Role-based routing | PrivateRoute component, redirect unauthorized | Auth middleware + `[Authorize(Roles)]` | Medium |
+| Navbar + Layout | Dynamic navbar based on role (Patient/Doctor/Admin) | — | Low |
+| Patient profile setup | Form: name, DOB, gender, phone, address | `POST /api/patient/profile` | Low |
+| Edit patient profile | Pre-filled form, update | `PUT /api/patient/profile` | Low |
+| **My Appointments page** | List with status badges, filter by status, cancel button with confirmation | `GET /api/appointment/my`, `PUT /api/appointment/{id}/cancel` | **Medium** |
+| Seed data script | Create test accounts for all 4 roles + sample doctors | DbContext seed in migration | Low |
+
+**Total: ~8 pages, ~8 API endpoints**
+
+Why this is fair: Auth is critical-path (must finish first) which adds pressure. My Appointments has filtering logic and cancel flow with validation (can't cancel completed/already cancelled). You finish the core auth early, then build My Appointments while others build their features. If teammates need help, you're free to assist.
+
+---
+
+### Member 2 — Doctor Listing + Booking Flow
+**Difficulty: ★★★☆☆ (Medium)**
+
+Previously this was the hardest role. Now it's lighter because My Appointments was moved to Member 1.
+
+| Feature | Frontend | Backend | Complexity |
+|---------|----------|---------|------------|
+| Browse doctors page | Doctor cards grid with photo, specialty, availability badge | `GET /api/doctor` with query params | Medium |
+| Search & filter | Search by name + filter by specialty dropdown | Query filtering in LINQ | Low-Med |
+| Doctor detail page | Full profile, description, reviews placeholder | `GET /api/doctor/{id}` | Low |
+| Available time slots | Date picker → fetch & display open slots for that date | `GET /api/doctor/{id}/slots?date=` — **must calculate which slots are already booked** | **Hard** |
+| Book appointment | Select slot, add notes, confirm → save | `POST /api/appointment` with double-booking validation | **Medium-Hard** |
+| Booking confirmation | Success message with appointment details | — (frontend only) | Low |
+
+**Total: ~6 pages, ~5 API endpoints**
+
+Why this is fair: The time slot calculation + booking validation is still the single hardest piece of logic in the app, but now this member only has 6 pages instead of 8+. No My Appointments to worry about.
+
+---
+
+### Member 3 — Doctor Dashboard + Appointment Management + Medical Reports
+**Difficulty: ★★★☆☆ (Medium)**
+
+Previously too easy. Now has Medical Reports (upload/view/download) added, which involves file handling logic.
+
+| Feature | Frontend | Backend | Complexity |
+|---------|----------|---------|------------|
+| Doctor dashboard | Today's count, upcoming appointments list | `GET /api/doctor/my-schedule` with date filters | Low-Med |
+| Doctor schedule view | Full list of appointments, filter by date/status | Query params + LINQ filtering | Medium |
+| Confirm appointment | Button → status change → (placeholder for SQS later) | `PUT /api/appointment/{id}/confirm` | Low |
+| Complete appointment | Button + doctor notes textarea | `PUT /api/appointment/{id}/complete` | Low |
+| Cancel appointment (doctor) | Button + reason field, validation | `PUT /api/appointment/{id}/doctor-cancel` | Low-Med |
+| **Medical report upload** | File input, drag & drop area, file type validation (PDF/JPG/PNG), size limit (10MB), progress bar | `POST /api/upload/medical-report` — handle multipart form, save to local folder (swap to S3 in Task 2) | **Medium-Hard** |
+| **My medical reports list** | Table of uploaded files with download links, delete button | `GET /api/medical-report/my`, `POST /api/medical-report`, `DELETE /api/medical-report/{id}` | **Medium** |
+| **View patient reports (doctor)** | View patient's reports within appointment context | `GET /api/medical-report/patient/{id}` | Low-Med |
+
+**Total: ~8 pages, ~10 API endpoints**
+
+Why this is fair: The doctor appointment management is simple logic (status updates), but the medical report upload/download system adds real complexity — file type validation, size limits, building a reusable upload component, download via pre-signed URLs later. This person also has the most API endpoints.
+
+---
+
+### Member 4 — Admin Panel + Doctor Profile & Availability
+**Difficulty: ★★★☆☆ (Medium)**
+
+Previously had too many CRUD tables. Now Doctor Profile + Availability is moved here (from the old Member 3), which adds more interesting logic. Some simpler admin features are kept to balance volume.
+
+| Feature | Frontend | Backend | Complexity |
+|---------|----------|---------|------------|
+| Admin dashboard | Stats cards: total patients, doctors, appointments today, pending count | `GET /api/admin/dashboard` — aggregate queries | Medium |
+| Manage doctors (admin) | Table + Add/Edit modal with form + Delete with confirmation | `POST/PUT/DELETE /api/admin/doctors` | Medium (volume) |
+| Manage patients (admin) | Table with search + deactivate toggle | `GET /api/admin/patients`, `PUT .../deactivate` | Low-Med |
+| Manage all appointments | Full list, filter by doctor/patient/date/status | `GET /api/admin/appointments` with multi-filter | Medium |
+| **Doctor profile edit** | Edit form: name, specialty, description, phone, profile image upload | `GET /api/doctor/profile`, `PUT /api/doctor/profile` | Low-Med |
+| **Doctor availability management** | Day-of-week toggles, start/end time pickers, slot duration setting | `GET/PUT /api/doctor/availability` — DoctorSchedule CRUD | **Medium-Hard** |
+| Manage specialties | Simple CRUD list (for dropdown options across app) | `CRUD /api/admin/specialties` | Low |
+
+**Total: ~8 pages, ~12 API endpoints**
+
+Why this is fair: The admin CRUD is repetitive but high volume (lots of endpoints). The availability management adds real complexity — building the schedule UI with day toggles and time pickers, storing/retrieving DoctorSchedule records, and this ties directly into Member 2's time slot calculation (they need this data). Most API endpoints of anyone.
+
+---
+
+## Difficulty Comparison
+
+| Member | Hard Features | Medium Features | Easy Features | Total Pages | Total APIs | Overall |
+|--------|--------------|-----------------|---------------|-------------|------------|---------|
+| 1 (You) | — | Auth + routing, My Appointments (cancel logic, filters) | Profile CRUD, seed data | ~8 | ~8 | ★★★☆☆ |
+| 2 | Time slot calc, booking validation | Doctor listing + search | Doctor detail, confirmation | ~6 | ~5 | ★★★☆☆ |
+| 3 | File upload component (drag & drop, validation, progress) | Report list + download, doctor schedule view | Status updates (confirm/complete/cancel) | ~8 | ~10 | ★★★☆☆ |
+| 4 | Availability management (schedule UI) | Admin dashboard (aggregate queries), manage doctors | Manage patients, specialties | ~8 | ~12 | ★★★☆☆ |
+
+**The tradeoffs:**
+- Member 2 has fewer pages but the single hardest logic (slot calculation)
+- Member 3 has more API endpoints and the file upload complexity
+- Member 4 has the most API endpoints but they're mostly repetitive CRUD
+- Member 1 has the time pressure of going first, plus you'll be helping others as team lead
+
+---
+
 ## 📁 Project Structure
 ```
 MediBook/
