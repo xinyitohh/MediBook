@@ -30,21 +30,8 @@ Built with **React** (Frontend) + **ASP.NET Core Web API** (Backend) + **AWS** (
   * [Build for Production](#-build-for-production)
 
 ---
-
-## 👥 Team Members
-| Name | Student ID | Role |
-|------|-----------|------|
-| Member 1 | TP0XXXXX | Frontend Developer |
-| Member 2 | TP0XXXXX | Frontend Developer |
-| Member 3 | TP0XXXXX | Backend Developer |
-| Member 4 | TP0XXXXX | Backend Developer / AWS |
-
----
-
-
----
-
-## Balanced Distribution
+<a id="-team-members"></a>
+## 👥 Team Members Tasks Distribution
 
 ### Member 1 — Auth + Patient Profile + My Appointments
 **Difficulty: ★★★☆☆ (Medium)**
