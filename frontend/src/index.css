@@ -1,0 +1,186 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import "tailwindcss";
+
+/* ── Custom theme ────────────────────────────────────── */
+@theme {
+  --font-sans: 'Plus Jakarta Sans', system-ui, sans-serif;
+
+  /* Brand blues */
+  --color-brand-50:  #E8F1FF;
+  --color-brand-100: #D0E3FF;
+  --color-brand-200: #A1C7FF;
+  --color-brand-300: #5C9FFF;
+  --color-brand-400: #2B82FF;
+  --color-brand-500: #0F6FFF;
+  --color-brand-600: #0A5AD4;
+  --color-brand-700: #0A4FBF;
+
+  /* Mint / accent greens */
+  --color-mint-50:  #E6FAF3;
+  --color-mint-100: #C0F2E0;
+  --color-mint-400: #2DD4A8;
+  --color-mint-500: #00C48C;
+  --color-mint-600: #00A677;
+
+  /* Dark shades for sidebar & headings */
+  --color-sidebar:  #1A1D26;
+  --color-heading:  #2D3142;
+}
+
+/* ── Base ────────────────────────────────────────────── */
+@layer base {
+  body {
+    @apply font-sans text-gray-700 bg-gray-50 antialiased;
+  }
+}
+
+/* ── Reusable utility classes ────────────────────────── */
+@utility card {
+  @apply bg-white rounded-2xl border border-gray-100 shadow-sm;
+}
+@utility card-padded {
+  @apply bg-white rounded-2xl border border-gray-100 shadow-sm p-5;
+}
+@utility card-hover {
+  @apply bg-white rounded-2xl border border-gray-100 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md;
+}
+@utility btn-primary {
+  @apply bg-brand-500 text-white font-semibold rounded-xl px-5 py-2.5 hover:bg-brand-600 active:scale-[0.98] transition-all duration-150 shadow-[0_4px_15px_rgba(15,111,255,0.25)] cursor-pointer;
+}
+@utility btn-outline {
+  @apply border-[1.5px] border-gray-300 bg-transparent font-semibold rounded-xl px-5 py-2.5 hover:border-gray-400 active:scale-[0.98] transition-all duration-150 text-gray-700 cursor-pointer;
+}
+@utility btn-danger-outline {
+  @apply border-[1.5px] border-red-400 text-red-500 font-semibold rounded-lg px-4 py-1.5 hover:bg-red-50 transition-colors text-xs cursor-pointer;
+}
+@utility input-field {
+  @apply w-full px-3.5 py-2.5 border-[1.5px] border-gray-300 rounded-xl text-sm outline-none transition-colors duration-200 focus:border-brand-500 focus:ring-2 focus:ring-brand-100 placeholder:text-gray-400;
+}
+@utility input-label {
+  @apply block text-xs font-semibold text-gray-600 mb-1.5;
+}
+
+/* Status badges */
+@utility badge {
+  @apply px-3 py-1 rounded-full text-xs font-semibold;
+}
+@utility badge-confirmed {
+  @apply px-3 py-1 rounded-full text-xs font-semibold bg-mint-50 text-mint-500;
+}
+@utility badge-pending {
+  @apply px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-500;
+}
+@utility badge-completed {
+  @apply px-3 py-1 rounded-full text-xs font-semibold bg-brand-50 text-brand-500;
+}
+@utility badge-cancelled {
+  @apply px-3 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-500;
+}
+
+/* ── react-datepicker overrides ─────────────────────── */
+.react-datepicker-popper {
+  z-index: 30 !important;
+}
+.react-datepicker {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif !important;
+  border: 1px solid #f3f4f6 !important;
+  border-radius: 1rem !important;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.08) !important;
+  overflow: hidden;
+}
+.react-datepicker__header {
+  background: white !important;
+  border-bottom: 1px solid #f3f4f6 !important;
+  padding-top: 12px !important;
+}
+.react-datepicker__current-month {
+  font-weight: 700 !important;
+  font-size: 0.875rem !important;
+  color: #2D3142 !important;
+}
+.react-datepicker__day-name {
+  color: #9ca3af !important;
+  font-weight: 600 !important;
+  font-size: 0.7rem !important;
+  width: 2.2rem !important;
+  line-height: 2.2rem !important;
+}
+.react-datepicker__day {
+  width: 2.2rem !important;
+  line-height: 2.2rem !important;
+  border-radius: 0.5rem !important;
+  font-size: 0.8125rem !important;
+  font-weight: 500 !important;
+  color: #374151 !important;
+  transition: all 0.15s !important;
+}
+.react-datepicker__day:hover {
+  background: #f3f4f6 !important;
+}
+.react-datepicker__day--selected,
+.react-datepicker__day--keyboard-selected {
+  background: #0F6FFF !important;
+  color: white !important;
+  font-weight: 600 !important;
+}
+.react-datepicker__day--selected:hover {
+  background: #0A5AD4 !important;
+}
+.react-datepicker__day--today {
+  font-weight: 700 !important;
+  background: #E8F1FF !important;
+  color: #0F6FFF !important;
+}
+.react-datepicker__day--today.react-datepicker__day--selected {
+  background: #0F6FFF !important;
+  color: white !important;
+}
+.react-datepicker__day--outside-month {
+  color: #d1d5db !important;
+}
+.react-datepicker__navigation {
+  top: 10px !important;
+}
+.react-datepicker__navigation-icon::before {
+  border-color: #9ca3af !important;
+  border-width: 2px 2px 0 0 !important;
+  height: 7px !important;
+  width: 7px !important;
+}
+.react-datepicker__navigation:hover .react-datepicker__navigation-icon::before {
+  border-color: #374151 !important;
+}
+/* Year & month dropdowns */
+.react-datepicker__month-dropdown-container,
+.react-datepicker__year-dropdown-container {
+  margin: 0 4px !important;
+}
+.react-datepicker__month-select,
+.react-datepicker__year-select {
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif !important;
+  font-size: 0.8125rem !important;
+  font-weight: 600 !important;
+  color: #2D3142 !important;
+  padding: 2px 4px !important;
+  border: 1.5px solid #e5e7eb !important;
+  border-radius: 0.5rem !important;
+  background: white !important;
+  cursor: pointer !important;
+  outline: none !important;
+}
+.react-datepicker__month-select:focus,
+.react-datepicker__year-select:focus {
+  border-color: #0F6FFF !important;
+}
+/* Clear button */
+.react-datepicker__close-icon::after {
+  background: #e5e7eb !important;
+  color: #6b7280 !important;
+  font-size: 14px !important;
+  height: 18px !important;
+  width: 18px !important;
+  line-height: 1 !important;
+}
+.react-datepicker__close-icon:hover::after {
+  background: #d1d5db !important;
+}

@@ -1,15 +1,13 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
-// Wraps pages that require login
-export default function ProtectedRoute({ children, adminOnly = false }) {
+export default function ProtectedRoute({ children, roles }) {
   const { user } = useAuth();
 
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
+  if (!user) return <Navigate to="/login" replace />;
 
-  if (adminOnly && user.role !== "Admin") {
+  // Optional role check: <ProtectedRoute roles={["Admin"]}>
+  if (roles && !roles.includes(user.role)) {
     return <Navigate to="/" replace />;
   }
 

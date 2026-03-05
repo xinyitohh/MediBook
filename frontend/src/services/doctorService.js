@@ -1,7 +1,8 @@
 import api from "./api";
 
-export const getDoctors = () => api.get("/api/doctor");
+export const getDoctors = (params) => api.get("/api/doctor", { params });
 export const getDoctorById = (id) => api.get(`/api/doctor/${id}`);
-export const createDoctor = (data) => api.post("/api/doctor", data);
-export const updateDoctor = (id, data) => api.put(`/api/doctor/${id}`, data);
-export const deleteDoctor = (id) => api.delete(`/api/doctor/${id}`);
+export const getDoctorSlots = (id, date) =>
+  api.get(`/api/doctor/${id}/slots`, { params: { date } });
+export const updateDoctorProfile = (data) => api.put("/api/doctor/profile", data);
+export const updateAvailability = (data) => api.put("/api/doctor/availability", data);

@@ -1,71 +1,87 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { Search } from "lucide-react";
 import { getDoctors } from "../services/doctorService";
-import { useAuth } from "../context/AuthContext";
+import PageHeader from "../components/PageHeader";
+import DoctorCard from "../components/DoctorCard";
+
+const SPECIALTIES = [
+  "All",
+  "Cardiology",
+  "General Practice",
+  "Dermatology",
+  "Orthopedics",
+  "Pediatrics",
+  "Neurology",
+];
 
 export default function Doctors() {
   const [doctors, setDoctors] = useState([]);
   const [loading, setLoading] = useState(true);
-  const { user } = useAuth();
-  const navigate = useNavigate();
+  const [search, setSearch] = useState("");
+  const [specialty, setSpecialty] = useState("All");
 
   useEffect(() => {
     getDoctors()
       .then((res) => setDoctors(res.data))
-      .catch((err) => console.error(err))
+      .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading)
-    return <div className="text-center mt-5">Loading doctors...</div>;
+  const filtered = doctors.filter((d) => {
+    const matchSearch = d.fullName
+      .toLowerCase()
+      .includes(search.toLowerCase());
+    const matchSpec =
+      specialty === "All" || d.specialty === specialty;
+    return matchSearch && matchSpec;
+  });
 
   return (
     <div>
-      <h2 className="mb-4">👨‍⚕️ Our Doctors</h2>
-      <div className="row g-4">
-        {doctors.map((doctor) => (
-          <div key={doctor.id} className="col-md-4">
-            <div className="card h-100 shadow-sm">
-              <div className="card-body">
-                <div className="text-center mb-3">
-                  <div
-                    className="rounded-circle bg-primary text-white d-inline-flex align-items-center justify-content-center"
-                    style={{ width: 80, height: 80, fontSize: 32 }}
-                  >
-                    👨‍⚕️
-                  </div>
-                </div>
-                <h5 className="card-title text-center">{doctor.fullName}</h5>
-                <p className="text-center text-primary fw-semibold">
-                  {doctor.specialty}
-                </p>
-                <p className="card-text text-muted small">
-                  {doctor.description}
-                </p>
-                <p className="small">📞 {doctor.phone}</p>
-                <p className="small">✉️ {doctor.email}</p>
-              </div>
-              <div className="card-footer bg-transparent">
-                {user ? (
-                  <button
-                    className="btn btn-primary w-100"
-                    onClick={() => navigate("/appointments")}
-                  >
-                    Book Appointment
-                  </button>
-                ) : (
-                  <button
-                    className="btn btn-outline-primary w-100"
-                    onClick={() => navigate("/login")}
-                  >
-                    Login to Book
-                  </button>
-                )}
-              </div>
-            </div>
-          </div>
-        ))}
+      <PageHeader
+        title="Find a Doctor"
+        subtitle="Book appointments with our experienced specialists"
+      />
+
+      {/* Search & Filter */}
+      <div className="card flex items-center gap-2 p-1.5 mb-6">
+        <div className="flex-1 flex items-center gap-2.5 px-3.5 bg-gray-50 rounded-xl">
+          <Search size={18} className="text-gray-400 shrink-0" />
+          <input
+            type="text"
+            placeholder="Search doctors by name..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="flex-1 py-3 bg-transparent border-none outline-none text-sm placeholder:text-gray-400"
+          />
+        </div>
+        <select
+          value={specialty}
+          onChange={(e) => setSpecialty(e.target.value)}
+          className="px-4 py-3 bg-gray-50 rounded-xl border-none outline-none text-sm text-gray-600 font-medium cursor-pointer"
+        >
+          {SPECIALTIES.map((s) => (
+            <option key={s} value={s}>
+              {s === "All" ? "All Specialties" : s}
+            </option>
+          ))}
+        </select>
       </div>
+
+      {/* Doctor grid */}
+      {loading ? (
+        <div className="text-center py-20 text-gray-400">Loading doctors...</div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-20 text-gray-400">
+          No doctors found. Try a different search.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {filtered.map((doc) => (
+            <DoctorCard key={doc.id} doctor={doc} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

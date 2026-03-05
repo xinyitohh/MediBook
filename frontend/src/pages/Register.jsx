@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { User, Mail, Lock, Eye, EyeOff } from "lucide-react";
 import { register } from "../services/authService";
 
 export default function Register() {
@@ -9,6 +10,7 @@ export default function Register() {
     password: "",
     role: "Patient",
   });
+  const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -17,7 +19,6 @@ export default function Register() {
     e.preventDefault();
     setLoading(true);
     setError("");
-
     try {
       await register(form);
       navigate("/login");
@@ -29,75 +30,98 @@ export default function Register() {
   };
 
   return (
-    <div className="row justify-content-center">
-      <div className="col-md-5">
-        <div className="card shadow-sm">
-          <div className="card-body p-4">
-            <h3 className="card-title text-center mb-4">📝 Register</h3>
-
-            {error && <div className="alert alert-danger">{error}</div>}
-
-            <form onSubmit={handleSubmit}>
-              <div className="mb-3">
-                <label className="form-label">Full Name</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  value={form.fullName}
-                  onChange={(e) =>
-                    setForm({ ...form, fullName: e.target.value })
-                  }
-                  required
-                />
-              </div>
-              <div className="mb-3">
-                <label className="form-label">Email</label>
-                <input
-                  type="email"
-                  className="form-control"
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  required
-                />
-              </div>
-              <div className="mb-3">
-                <label className="form-label">Password</label>
-                <input
-                  type="password"
-                  className="form-control"
-                  value={form.password}
-                  onChange={(e) =>
-                    setForm({ ...form, password: e.target.value })
-                  }
-                  required
-                  minLength={6}
-                />
-              </div>
-              <div className="mb-3">
-                <label className="form-label">Register as</label>
-                <select
-                  className="form-select"
-                  value={form.role}
-                  onChange={(e) => setForm({ ...form, role: e.target.value })}
-                >
-                  <option value="Patient">Patient</option>
-                  <option value="Doctor">Doctor</option>
-                </select>
-              </div>
-              <button
-                type="submit"
-                className="btn btn-primary w-100"
-                disabled={loading}
-              >
-                {loading ? "Registering..." : "Register"}
-              </button>
-            </form>
-
-            <p className="text-center mt-3 mb-0">
-              Already have an account? <Link to="/login">Login here</Link>
-            </p>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-8">
+      <div className="w-full max-w-md">
+        {/* Logo */}
+        <div className="flex items-center gap-3 mb-8">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-mint-500 flex items-center justify-center font-extrabold text-white">
+            M
           </div>
+          <span className="font-bold text-xl text-heading">MediBook</span>
         </div>
+
+        <h2 className="text-[28px] font-extrabold text-heading mb-1">
+          Create an account
+        </h2>
+        <p className="text-gray-500 mb-8">
+          Join MediBook to start booking appointments
+        </p>
+
+        {error && (
+          <div className="mb-5 px-4 py-3 rounded-xl bg-red-50 text-red-600 text-sm font-medium">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div>
+            <label className="input-label">Full Name</label>
+            <div className="relative">
+              <User size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={form.fullName}
+                onChange={(e) => setForm({ ...form, fullName: e.target.value })}
+                placeholder="John Doe"
+                className="input-field pl-10"
+                required
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="input-label">Email</label>
+            <div className="relative">
+              <Mail size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                placeholder="john@example.com"
+                className="input-field pl-10"
+                required
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="input-label">Password</label>
+            <div className="relative">
+              <Lock size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type={showPw ? "text" : "password"}
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                placeholder="Min. 6 characters"
+                className="input-field pl-10 pr-10"
+                required
+                minLength={6}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPw(!showPw)}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="btn-primary w-full py-3 text-[15px] disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {loading ? "Creating account..." : "Create Account"}
+          </button>
+        </form>
+
+        <p className="text-center mt-6 text-sm text-gray-500">
+          Already have an account?{" "}
+          <Link to="/login" className="text-brand-500 font-semibold hover:underline">
+            Sign in
+          </Link>
+        </p>
       </div>
     </div>
   );
