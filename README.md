@@ -122,7 +122,7 @@ Why this is fair: The admin CRUD is repetitive but high volume (lots of endpoint
 
 | Member | Hard Features | Medium Features | Easy Features | Total Pages | Total APIs | Overall |
 |--------|--------------|-----------------|---------------|-------------|------------|---------|
-| 1 (You) | — | Auth + routing, My Appointments (cancel logic, filters) | Profile CRUD, seed data | ~8 | ~8 | ★★★☆☆ |
+| 1 | — | Auth + routing, My Appointments (cancel logic, filters) | Profile CRUD, seed data | ~8 | ~8 | ★★★☆☆ |
 | 2 | Time slot calc, booking validation | Doctor listing + search | Doctor detail, confirmation | ~6 | ~5 | ★★★☆☆ |
 | 3 | File upload component (drag & drop, validation, progress) | Report list + download, doctor schedule view | Status updates (confirm/complete/cancel) | ~8 | ~10 | ★★★☆☆ |
 | 4 | Availability management (schedule UI) | Admin dashboard (aggregate queries), manage doctors | Manage patients, specialties | ~8 | ~12 | ★★★☆☆ |
