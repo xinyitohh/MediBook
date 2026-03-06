@@ -16,8 +16,9 @@ import Appointments from "./pages/Appointments";
 import MedicalReports from "./pages/MedicalReports";
 import Profile from "./pages/Profile";
 
-// Doctor pages
-import GenerateReport from "./pages/GenerateReport";
+// Doctor pages (lazy — contains @react-pdf/renderer)
+import { lazy, Suspense } from "react";
+const GenerateReport = lazy(() => import("./pages/GenerateReport"));
 
 // Admin pages
 import AdminDashboard from "./pages/AdminDashboard";
@@ -46,7 +47,7 @@ function App() {
             <Route path="/doctors" element={<Doctors />} />
             <Route path="/doctors/:id" element={<DoctorDetail />} />
             <Route path="/appointments" element={<Appointments />} />
-            <Route path="/appointments/:id/report" element={<GenerateReport />} />
+            <Route path="/appointments/:id/report" element={<Suspense fallback={null}><GenerateReport /></Suspense>} />
             <Route path="/medical-reports" element={<MedicalReports />} />
             <Route path="/profile" element={<Profile />} />
 

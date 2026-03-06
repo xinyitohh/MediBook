@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { FileText, Plus, X, Send } from "lucide-react";
+import { FileText, Plus, X, Eye } from "lucide-react";
 import { generateMedicalReport } from "../services/uploadService";
 import PageHeader from "../components/PageHeader";
+
+const ReportPreviewModal = lazy(() => import("../components/ReportPreviewModal"));
 
 export default function GenerateReport() {
   const { id } = useParams();
@@ -11,6 +13,7 @@ export default function GenerateReport() {
   const appt = location.state || {};
 
   const [saving, setSaving] = useState(false);
+  const [preview, setPreview] = useState(false);
   const [form, setForm] = useState({
     diagnosis: "",
     symptoms: "",
@@ -32,11 +35,11 @@ export default function GenerateReport() {
   const removeMed = (idx) =>
     set("medications", form.medications.filter((_, i) => i !== idx));
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleConfirm = async () => {
     setSaving(true);
     try {
       await generateMedicalReport(id, form);
+      setPreview(false);
       navigate("/appointments", { state: { reportGenerated: true } });
     } catch (err) {
       alert(err.response?.data?.message || "Failed to generate report.");
@@ -68,7 +71,7 @@ export default function GenerateReport() {
         </div>
       )}
 
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={(e) => e.preventDefault()}>
         {/* Diagnosis & Symptoms */}
         <div className="card-padded mb-5">
           <h3 className="text-sm font-bold text-heading mb-4">Diagnosis</h3>
@@ -191,12 +194,13 @@ export default function GenerateReport() {
         {/* Actions */}
         <div className="flex items-center gap-3">
           <button
-            type="submit"
-            disabled={saving || !form.diagnosis}
+            type="button"
+            disabled={!form.diagnosis}
+            onClick={() => setPreview(true)}
             className="btn-primary flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            <Send size={16} />
-            {saving ? "Generating..." : "Generate Report"}
+            <Eye size={16} />
+            Preview & Generate
           </button>
           <button
             type="button"
@@ -207,6 +211,18 @@ export default function GenerateReport() {
           </button>
         </div>
       </form>
+
+      {preview && (
+        <Suspense fallback={null}>
+          <ReportPreviewModal
+            form={form}
+            appt={appt}
+            onClose={() => setPreview(false)}
+            onConfirm={handleConfirm}
+            saving={saving}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

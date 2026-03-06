@@ -4,6 +4,9 @@ import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  optimizeDeps: {
+    exclude: ["@react-pdf/renderer"],
+  },
   server: {
     proxy: {
       "/api": {

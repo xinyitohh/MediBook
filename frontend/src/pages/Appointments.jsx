@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import { Plus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import { getMyAppointments, cancelAppointment } from "../services/appointmentService";
+import { mockAppointments, isDev, isDevToken } from "../dev/mockData";
 import PageHeader from "../components/PageHeader";
 import FilterTabs from "../components/FilterTabs";
 import AppointmentRow from "../components/AppointmentRow";
@@ -13,6 +15,7 @@ export default function Appointments() {
   const [filter, setFilter] = useState("All");
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   useEffect(() => {
     fetchAppointments();
@@ -20,6 +23,12 @@ export default function Appointments() {
 
   const fetchAppointments = () => {
     setLoading(true);
+    if (isDev && isDevToken()) {
+      const role = user?.role || "Patient";
+      setAppointments(mockAppointments[role] || []);
+      setLoading(false);
+      return;
+    }
     getMyAppointments()
       .then((res) => setAppointments(res.data))
       .catch(() => {})
@@ -29,9 +38,14 @@ export default function Appointments() {
   const handleCancel = async (id) => {
     if (!window.confirm("Are you sure you want to cancel this appointment?"))
       return;
+    if (isDev && isDevToken()) {
+      setAppointments((prev) =>
+        prev.map((a) => (a.id === id ? { ...a, status: "Cancelled" } : a))
+      );
+      return;
+    }
     try {
       await cancelAppointment(id);
-      // Update locally
       setAppointments((prev) =>
         prev.map((a) => (a.id === id ? { ...a, status: "Cancelled" } : a))
       );

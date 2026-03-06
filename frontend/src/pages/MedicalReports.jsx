@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { FileText, Eye, Trash2 } from "lucide-react";
 import { getMyReports, deleteReport, uploadMedicalReport } from "../services/uploadService";
+import { mockReports, isDev, isDevToken } from "../dev/mockData";
 import PageHeader from "../components/PageHeader";
 import FileUploadZone from "../components/FileUploadZone";
 
@@ -13,6 +14,11 @@ export default function MedicalReports() {
   }, []);
 
   const fetchReports = () => {
+    if (isDev && isDevToken()) {
+      setReports(mockReports);
+      setLoading(false);
+      return;
+    }
     getMyReports()
       .then((res) => setReports(res.data))
       .catch(() => {})
