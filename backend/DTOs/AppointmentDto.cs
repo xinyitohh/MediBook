@@ -1,4 +1,4 @@
-﻿namespace backend.DTOs
+namespace backend.DTOs
 {
     public class CreateAppointmentDto
     {
@@ -11,12 +11,18 @@
     public class AppointmentResponseDto
     {
         public int Id { get; set; }
-        public string DoctorName { get; set; } = string.Empty;
-        public string DoctorSpecialty { get; set; } = string.Empty;
-        public string PatientName { get; set; } = string.Empty;
-        public DateTime AppointmentDate { get; set; }
-        public string TimeSlot { get; set; } = string.Empty;
+        public string Doctor { get; set; } = string.Empty;
+        public string Specialty { get; set; } = string.Empty;
+        public string Patient { get; set; } = string.Empty;
+        public string Date { get; set; } = string.Empty;
+        public string Time { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
         public string Notes { get; set; } = string.Empty;
+        public string DoctorNotes { get; set; } = string.Empty;
+    }
+
+    public class CompleteAppointmentDto
+    {
+        public string DoctorNotes { get; set; } = string.Empty;
     }
 }

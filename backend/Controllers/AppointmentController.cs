@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
@@ -20,12 +20,44 @@ namespace backend.Controllers
             _context = context;
         }
 
-        // GET api/appointment - get logged in user's appointments
-        [HttpGet]
+        // GET api/appointment/my - get logged in user's appointments
+        [HttpGet("my")]
         public async Task<IActionResult> GetMyAppointments()
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var role = User.FindFirstValue(ClaimTypes.Role);
 
+            // If user is a doctor, return appointments assigned to them
+            if (role == "Doctor")
+            {
+                var doctor = await _context.Doctors
+                    .FirstOrDefaultAsync(d => d.UserId == userId);
+
+                if (doctor == null)
+                    return NotFound(new { message = "Doctor profile not found" });
+
+                var doctorAppointments = await _context.Appointments
+                    .Include(a => a.Doctor)
+                    .Include(a => a.Patient)
+                    .Where(a => a.DoctorId == doctor.Id)
+                    .Select(a => new AppointmentResponseDto
+                    {
+                        Id = a.Id,
+                        Doctor = a.Doctor.FullName,
+                        Specialty = a.Doctor.Specialty,
+                        Patient = a.Patient.FullName,
+                        Date = a.AppointmentDate.ToString("yyyy-MM-dd"),
+                        Time = a.TimeSlot,
+                        Status = a.Status,
+                        Notes = a.Notes,
+                        DoctorNotes = a.DoctorNotes
+                    })
+                    .ToListAsync();
+
+                return Ok(doctorAppointments);
+            }
+
+            // Patient flow
             var patient = await _context.Patients
                 .FirstOrDefaultAsync(p => p.UserId == userId);
 
@@ -39,13 +71,14 @@ namespace backend.Controllers
                 .Select(a => new AppointmentResponseDto
                 {
                     Id = a.Id,
-                    DoctorName = a.Doctor.FullName,
-                    DoctorSpecialty = a.Doctor.Specialty,
-                    PatientName = a.Patient.FullName,
-                    AppointmentDate = a.AppointmentDate,
-                    TimeSlot = a.TimeSlot,
+                    Doctor = a.Doctor.FullName,
+                    Specialty = a.Doctor.Specialty,
+                    Patient = a.Patient.FullName,
+                    Date = a.AppointmentDate.ToString("yyyy-MM-dd"),
+                    Time = a.TimeSlot,
                     Status = a.Status,
-                    Notes = a.Notes
+                    Notes = a.Notes,
+                    DoctorNotes = a.DoctorNotes
                 })
                 .ToListAsync();
 
@@ -136,6 +169,23 @@ namespace backend.Controllers
             return Ok(new { message = "Appointment confirmed" });
         }
 
+        // PUT api/appointment/5/complete - doctor/admin marks as completed
+        [HttpPut("{id}/complete")]
+        [Authorize(Roles = "Admin,Doctor")]
+        public async Task<IActionResult> CompleteAppointment(int id, [FromBody] CompleteAppointmentDto dto)
+        {
+            var appointment = await _context.Appointments.FindAsync(id);
+
+            if (appointment == null)
+                return NotFound(new { message = "Appointment not found" });
+
+            appointment.Status = "Completed";
+            appointment.DoctorNotes = dto.DoctorNotes;
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Appointment completed" });
+        }
+
         // GET api/appointment/all - admin sees all
         [HttpGet("all")]
         [Authorize(Roles = "Admin")]
@@ -147,13 +197,14 @@ namespace backend.Controllers
                 .Select(a => new AppointmentResponseDto
                 {
                     Id = a.Id,
-                    DoctorName = a.Doctor.FullName,
-                    DoctorSpecialty = a.Doctor.Specialty,
-                    PatientName = a.Patient.FullName,
-                    AppointmentDate = a.AppointmentDate,
-                    TimeSlot = a.TimeSlot,
+                    Doctor = a.Doctor.FullName,
+                    Specialty = a.Doctor.Specialty,
+                    Patient = a.Patient.FullName,
+                    Date = a.AppointmentDate.ToString("yyyy-MM-dd"),
+                    Time = a.TimeSlot,
                     Status = a.Status,
-                    Notes = a.Notes
+                    Notes = a.Notes,
+                    DoctorNotes = a.DoctorNotes
                 })
                 .ToListAsync();
 
