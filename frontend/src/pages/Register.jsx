@@ -95,7 +95,7 @@ export default function Register() {
                 placeholder="Min. 6 characters"
                 className="input-field pl-10 pr-10"
                 required
-                minLength={6}
+                minLength={1} // TEMP: easier testing
               />
               <button
                 type="button"
