@@ -6,6 +6,7 @@ using System.Security.Claims;
 using System.Text;
 using backend.DTOs;
 using backend.Models;
+using backend.Data;
 
 namespace backend.Controllers
 {
@@ -15,11 +16,13 @@ namespace backend.Controllers
     {
         private readonly UserManager<User> _userManager;
         private readonly IConfiguration _configuration;
+        private readonly AppDbContext _context;
 
-        public AuthController(UserManager<User> userManager, IConfiguration configuration)
+        public AuthController(UserManager<User> userManager, IConfiguration configuration, AppDbContext context)
         {
             _userManager = userManager;
             _configuration = configuration;
+            _context = context;
         }
 
         // POST api/auth/register
@@ -43,6 +46,16 @@ namespace backend.Controllers
 
             if (!result.Succeeded)
                 return BadRequest(new { message = result.Errors.First().Description });
+
+            var patientProfile = new Patient
+            {
+                UserId = user.Id,
+                FullName = dto.FullName,
+                Email = dto.Email,
+            };
+
+            _context.Patients.Add(patientProfile);
+            await _context.SaveChangesAsync();
 
             return Ok(new { message = "Registration successful" });
         }

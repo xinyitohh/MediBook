@@ -34,36 +34,6 @@ namespace backend.Controllers
             return Ok(patient);
         }
 
-        // POST api/patient/profile - create profile after register
-        [HttpPost("profile")]
-        public async Task<IActionResult> CreateProfile([FromBody] Patient dto)
-        {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-            // Check if profile already exists
-            var existing = await _context.Patients
-                .FirstOrDefaultAsync(p => p.UserId == userId);
-
-            if (existing != null)
-                return BadRequest(new { message = "Profile already exists" });
-
-            var patient = new Patient
-            {
-                UserId = userId!,
-                FullName = dto.FullName,
-                Email = dto.Email,
-                Phone = dto.Phone,
-                DateOfBirth = dto.DateOfBirth,
-                Gender = dto.Gender,
-                Address = dto.Address
-            };
-
-            _context.Patients.Add(patient);
-            await _context.SaveChangesAsync();
-
-            return Ok(new { message = "Profile created", id = patient.Id });
-        }
-
         // PUT api/patient/profile - update profile
         [HttpPut("profile")]
         public async Task<IActionResult> UpdateProfile([FromBody] Patient dto)
