@@ -37,7 +37,6 @@ namespace backend.Controllers
                 FullName = dto.FullName,
                 Email = dto.Email,
                 UserName = dto.Email,
-                Role = dto.Role
             };
 
             var result = await _userManager.CreateAsync(user, dto.Password);
@@ -46,6 +45,40 @@ namespace backend.Controllers
                 return BadRequest(new { message = result.Errors.First().Description });
 
             return Ok(new { message = "Registration successful" });
+        }
+
+        // POST api/auth/register-staff
+        [HttpPost("register-staff")]
+        [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
+        public async Task<IActionResult> RegisterStaff([FromBody] StaffRegisterDto dto)
+        {
+            if (dto.Role != "Admin")
+            {
+                return BadRequest(new { message = "Role must be Admin" });
+            }
+
+            var existingUser = await _userManager.FindByEmailAsync(dto.Email);
+            if (existingUser != null)
+            {
+                return BadRequest(new { message = "Email already registered" });
+            }
+
+            var user = new User
+            {
+                FullName = dto.FullName,
+                Email = dto.Email,
+                UserName = dto.Email,
+                Role = dto.Role
+            };
+
+            var result = await _userManager.CreateAsync(user, dto.Password);
+
+            if (!result.Succeeded)
+            {
+                return BadRequest(new { message = result.Errors.First().Description });
+            }
+
+            return Ok(new { message = $"{dto.Role} account created successfully" });
         }
 
         // POST api/auth/login
