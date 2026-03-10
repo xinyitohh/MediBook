@@ -5,7 +5,7 @@ import { CalendarDays } from "lucide-react";
 
 /* Custom input that matches the design system */
 const CustomInput = forwardRef(({ value, onClick, placeholder }, ref) => (
-  <div className="relative cursor-pointer" onClick={onClick} ref={ref}>
+  <div className="relative cursor-pointer w-full" onClick={onClick} ref={ref}>
     <CalendarDays size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
     <div className="input-field pl-10 flex items-center min-h-[42px] select-none">
       <span className={value ? "text-gray-700" : "text-gray-400"}>
@@ -32,6 +32,7 @@ export default function DatePicker({ value, onChange }) {
       selected={selected}
       onChange={handleChange}
       customInput={<CustomInput />}
+      wrapperClassName="w-full"
       dateFormat="d MMM yyyy"
       showMonthDropdown
       showYearDropdown

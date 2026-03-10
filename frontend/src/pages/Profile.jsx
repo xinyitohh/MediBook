@@ -1,10 +1,15 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import DatePicker from "../components/DatePicker";
 import PageHeader from "../components/PageHeader";
+import {
+  getPatientProfile,
+  updatePatientProfile,
+} from "../services/patientService";
 
 export default function Profile() {
   const { user } = useAuth();
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
 
@@ -16,6 +21,33 @@ export default function Profile() {
     gender: "",
     address: "",
   });
+  const [savedForm, setSavedForm] = useState(null);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const response = await getPatientProfile();
+        if (response.data) {
+          const loaded = {
+            fullName: response.data.fullName || user?.fullName || "",
+            email: response.data.email || user?.email || "",
+            phone: response.data.phone || "",
+            dateOfBirth: response.data.dateOfBirth || "",
+            gender: response.data.gender || "",
+            address: response.data.address || "",
+          };
+          setForm(loaded);
+          setSavedForm(loaded);
+        }
+      } catch (error) {
+        console.log("No existing profile found. User needs to create one.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, [user]);
 
   const initials = (user?.fullName || "U")
     .split(" ")
@@ -29,8 +61,8 @@ export default function Profile() {
     setSaving(true);
     setSuccess(false);
     try {
-      // TODO: Call API — await updateProfile(form);
-      await new Promise((r) => setTimeout(r, 500)); // Simulated
+      await updatePatientProfile(form);
+      setSavedForm({ ...form });
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch {
@@ -39,6 +71,10 @@ export default function Profile() {
       setSaving(false);
     }
   };
+
+  const hasChanges = savedForm
+    ? Object.keys(form).some((k) => form[k] !== savedForm[k])
+    : true;
 
   const fields = [
     { key: "fullName", label: "Full Name", type: "text" },
@@ -86,7 +122,7 @@ export default function Profile() {
           <form onSubmit={handleSave}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
               {fields.map((f) => (
-                <div key={f.key}>
+                <div key={f.key} >
                   <label className="input-label">{f.label}</label>
                   {f.type === "select" ? (
                     <select
@@ -114,7 +150,8 @@ export default function Profile() {
                       onChange={(e) =>
                         setForm({ ...form, [f.key]: e.target.value })
                       }
-                      className="input-field"
+                      disabled={f.key === "fullName" || f.key === "email"}
+                      className="input-field disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
                     />
                   )}
                 </div>
@@ -124,7 +161,7 @@ export default function Profile() {
             <div className="flex justify-end">
               <button
                 type="submit"
-                disabled={saving}
+                disabled={saving || !hasChanges}
                 className="btn-primary disabled:opacity-60"
               >
                 {saving ? "Saving..." : "Save Changes"}
