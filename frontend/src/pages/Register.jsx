@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { User, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { User, Mail, Lock, Eye, EyeOff, CheckCircle } from "lucide-react";
 import { register } from "../services/authService";
 
 export default function Register() {
@@ -13,6 +13,7 @@ export default function Register() {
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -21,7 +22,7 @@ export default function Register() {
     setError("");
     try {
       await register(form);
-      navigate("/login");
+      setShowSuccess(true);
     } catch (err) {
       setError(err.response?.data?.message || "Registration failed.");
     } finally {
@@ -31,6 +32,26 @@ export default function Register() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-8">
+      {/* Success Modal */}
+      {showSuccess && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-xl p-8 max-w-sm w-full mx-4 text-center">
+            <div className="flex items-center justify-center w-16 h-16 rounded-full bg-mint-50 mx-auto mb-4">
+              <CheckCircle size={32} className="text-mint-500" />
+            </div>
+            <h3 className="text-xl font-extrabold text-heading mb-2">Account Created!</h3>
+            <p className="text-gray-500 text-sm mb-6">
+              Your account has been successfully created. You can now sign in.
+            </p>
+            <button
+              onClick={() => navigate("/login")}
+              className="btn-primary w-full py-3 text-[15px]"
+            >
+              Go to Login
+            </button>
+          </div>
+        </div>
+      )}
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="flex items-center gap-3 mb-8">
