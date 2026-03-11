@@ -184,3 +184,14 @@
 .react-datepicker__close-icon:hover::after {
   background: #d1d5db !important;
 }
+.react-datepicker__day--disabled,
+.react-datepicker__month-text--disabled,
+.react-datepicker__year-text--disabled {
+  color: #d1d5db !important; /* This is Tailwind's gray-300 */
+  cursor: not-allowed !important;
+  background-color: transparent !important;
+}
+
+.react-datepicker__day--disabled:hover {
+  background-color: transparent !important;
+}

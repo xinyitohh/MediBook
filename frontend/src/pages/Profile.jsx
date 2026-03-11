@@ -122,7 +122,7 @@ export default function Profile() {
           <form onSubmit={handleSave}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
               {fields.map((f) => (
-                <div key={f.key} >
+                <div key={f.key}>
                   <label className="input-label">{f.label}</label>
                   {f.type === "select" ? (
                     <select
@@ -140,6 +140,7 @@ export default function Profile() {
                     </select>
                   ) : f.type === "date" ? (
                     <DatePicker
+                      maxDate={new Date()}
                       value={form[f.key]}
                       onChange={(val) => setForm({ ...form, [f.key]: val })}
                     />

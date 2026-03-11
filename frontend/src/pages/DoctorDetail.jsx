@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { Star, MapPin, Clock, ArrowLeft, CheckCircle } from "lucide-react";
 import { getDoctorById, getDoctorSlots } from "../services/doctorService";
 import { bookAppointment } from "../services/appointmentService";
+import DatePicker from "../components/DatePicker";
 
 export default function DoctorDetail() {
   const { id } = useParams();
@@ -88,10 +89,7 @@ export default function DoctorDetail() {
           >
             View My Appointments
           </button>
-          <button
-            onClick={() => navigate("/doctors")}
-            className="btn-outline"
-          >
+          <button onClick={() => navigate("/doctors")} className="btn-outline">
             Browse Doctors
           </button>
         </div>
@@ -148,7 +146,8 @@ export default function DoctorDetail() {
             )}
 
             <p className="text-sm text-gray-500 leading-relaxed">
-              {doctor.description || "Experienced specialist dedicated to providing quality healthcare."}
+              {doctor.description ||
+                "Experienced specialist dedicated to providing quality healthcare."}
             </p>
           </div>
         </div>
@@ -169,15 +168,13 @@ export default function DoctorDetail() {
             {/* Date picker */}
             <div className="mb-5">
               <label className="input-label">Select Date</label>
-              <input
-                type="date"
-                min={minDate}
+              <DatePicker
+                minDate={new Date()}
                 value={selectedDate}
-                onChange={(e) => {
-                  setSelectedDate(e.target.value);
+                onChange={(val) => {
+                  setSelectedDate(val);
                   setSelectedSlot("");
                 }}
-                className="input-field"
               />
             </div>
 
