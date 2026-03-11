@@ -1,3 +1,5 @@
+using Microsoft.EntityFrameworkCore;
+
 namespace backend.Models
 {
     public class Doctor
@@ -21,5 +23,7 @@ namespace backend.Models
 
         // Navigation property - one doctor has many appointments
         public ICollection<Appointment> Appointments { get; set; } = new List<Appointment>();
+
+        public ICollection<DoctorSchedule> Schedules { get; set; } = new List<DoctorSchedule>();
     }
 }

@@ -71,37 +71,44 @@ namespace backend.Controllers
             });
         }
 
-        // GET api/doctor/5/slots?date=2026-03-10 - get available time slots
         [HttpGet("{id}/slots")]
-        public async Task<IActionResult> GetSlots(int id, [FromQuery] string date)
+        public async Task<IActionResult> GetAvailableSlots(int id, [FromQuery] string date)
         {
-            var doctor = await _context.Doctors.FindAsync(id);
-            if (doctor == null)
-                return NotFound(new { message = "Doctor not found" });
+            var parsedDate = DateTime.SpecifyKind(DateTime.Parse(date), DateTimeKind.Utc);
+            var dayOfWeek = (int)parsedDate.DayOfWeek;  // 0=Sun, 1=Mon, etc.
 
-            if (!DateTime.TryParse(date, out var parsedDate))
-                return BadRequest(new { message = "Invalid date format" });
+            // 1. Get doctor's schedule for this day
+            var schedule = await _context.DoctorSchedules
+                .FirstOrDefaultAsync(s => s.DoctorId == id
+                                       && s.DayOfWeek == dayOfWeek
+                                       && s.IsActive);
 
-            // All possible time slots
-            var allSlots = new[]
+            if (schedule == null)
+                return Ok(new List<string>());  // Doctor doesn't work this day
+
+            // 2. Generate all possible slots
+            var allSlots = new List<string>();
+            var start = TimeSpan.Parse(schedule.StartTime);
+            var end = TimeSpan.Parse(schedule.EndTime);
+            var duration = TimeSpan.FromMinutes(schedule.SlotDurationMinutes);
+
+            for (var time = start; time + duration <= end; time += duration)
             {
-                "09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM",
-                "11:00 AM", "11:30 AM", "02:00 PM", "02:30 PM",
-                "03:00 PM", "03:30 PM", "04:00 PM", "04:30 PM"
-            };
+                allSlots.Add(DateTime.Today.Add(time).ToString("hh:mm tt"));
+                // ? "09:00 AM", "09:30 AM", etc.
+            }
 
-            // Get booked slots for this doctor on this date
+            // 3. Find already-booked slots for this doctor on this date
             var bookedSlots = await _context.Appointments
-                .Where(a => a.DoctorId == id &&
-                            a.AppointmentDate.Date == parsedDate.Date &&
-                            a.Status != "Cancelled")
+                .Where(a => a.DoctorId == id
+                          && a.AppointmentDate.Date == parsedDate.Date
+                          && a.Status != "Cancelled")
                 .Select(a => a.TimeSlot)
                 .ToListAsync();
 
-            // Return only available slots
-            var availableSlots = allSlots.Where(s => !bookedSlots.Contains(s)).ToArray();
-
-            return Ok(availableSlots);
+            // 4. Return only available slots
+            var available = allSlots.Except(bookedSlots).ToList();
+            return Ok(available);
         }
 
         // PUT api/doctor/profile - doctor updates own profile

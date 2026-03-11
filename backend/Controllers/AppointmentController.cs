@@ -104,9 +104,11 @@ namespace backend.Controllers
                 return NotFound(new { message = "Doctor not found" });
 
             // Check time slot not already taken
+            var utcDate = DateTime.SpecifyKind(dto.AppointmentDate, DateTimeKind.Utc);
+
             var slotTaken = await _context.Appointments.AnyAsync(a =>
                 a.DoctorId == dto.DoctorId &&
-                a.AppointmentDate.Date == dto.AppointmentDate.Date &&
+                a.AppointmentDate.Date == utcDate.Date &&
                 a.TimeSlot == dto.TimeSlot &&
                 a.Status != "Cancelled"
             );
@@ -118,7 +120,7 @@ namespace backend.Controllers
             {
                 PatientId = patient.Id,
                 DoctorId = dto.DoctorId,
-                AppointmentDate = dto.AppointmentDate,
+                AppointmentDate = DateTime.SpecifyKind(dto.AppointmentDate, DateTimeKind.Utc),
                 TimeSlot = dto.TimeSlot,
                 Notes = dto.Notes,
                 Status = "Pending"

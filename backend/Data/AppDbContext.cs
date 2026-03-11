@@ -15,6 +15,7 @@ namespace backend.Data
         public DbSet<Patient> Patients { get; set; }
         public DbSet<Appointment> Appointments { get; set; }
         public DbSet<MedicalReport> MedicalReports { get; set; }
+        public DbSet<DoctorSchedule> DoctorSchedules { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -126,6 +127,64 @@ namespace backend.Data
                 .WithMany()
                 .HasForeignKey(r => r.AppointmentId)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            builder.Entity<DoctorSchedule>()
+                .HasOne(s => s.Doctor)
+                .WithMany(d => d.Schedules)
+                .HasForeignKey(s => s.DoctorId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Seed DoctorSchedules
+            // Dr. Sarah Johnson (Id=1): Mon-Fri 9am-5pm, 30min slots
+            // Dr. Michael Chen (Id=2): Mon-Sat 8am-4pm, 30min slots  
+            // Dr. Aisha Rahman (Id=3): Mon-Fri 10am-6pm, 30min slots
+
+            int scheduleId = 1;
+
+            // Dr. Sarah Johnson — Mon to Fri
+            for (int day = 1; day <= 5; day++)
+            {
+                builder.Entity<DoctorSchedule>().HasData(new DoctorSchedule
+                {
+                    Id = scheduleId++,
+                    DoctorId = 1,
+                    DayOfWeek = day,
+                    StartTime = "09:00",
+                    EndTime = "17:00",
+                    SlotDurationMinutes = 30,
+                    IsActive = true
+                });
+            }
+
+            // Dr. Michael Chen — Mon to Sat
+            for (int day = 1; day <= 6; day++)
+            {
+                builder.Entity<DoctorSchedule>().HasData(new DoctorSchedule
+                {
+                    Id = scheduleId++,
+                    DoctorId = 2,
+                    DayOfWeek = day,
+                    StartTime = "08:00",
+                    EndTime = "16:00",
+                    SlotDurationMinutes = 30,
+                    IsActive = true
+                });
+            }
+
+            // Dr. Aisha Rahman — Mon to Fri
+            for (int day = 1; day <= 5; day++)
+            {
+                builder.Entity<DoctorSchedule>().HasData(new DoctorSchedule
+                {
+                    Id = scheduleId++,
+                    DoctorId = 3,
+                    DayOfWeek = day,
+                    StartTime = "10:00",
+                    EndTime = "18:00",
+                    SlotDurationMinutes = 30,
+                    IsActive = true
+                });
+            }
 
             // Seed some doctors for demo
             builder.Entity<Doctor>().HasData(
