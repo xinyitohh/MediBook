@@ -48,7 +48,7 @@ namespace backend.Data
                 Email = "admin@2.com",
                 NormalizedEmail = "ADMIN@2.COM",
                 EmailConfirmed = true,
-                PasswordHash = hasher.HashPassword(null, "1"),
+                PasswordHash = hasher.HashPassword(null, "2"),
                 FullName = "Admin 1",
                 Role = "Admin"
             });
@@ -62,7 +62,7 @@ namespace backend.Data
                 Email = "patient@2.com",
                 NormalizedEmail = "PATIENT@2.COM",
                 EmailConfirmed = true,
-                PasswordHash = hasher.HashPassword(null, "1"),
+                PasswordHash = hasher.HashPassword(null, "2"),
                 FullName = "Patient 1",
                 Role = "Patient"
             });
@@ -75,7 +75,7 @@ namespace backend.Data
                 Email = "doctor@2.com",
                 NormalizedEmail = "DOCTOR@2.COM",
                 EmailConfirmed = true,
-                PasswordHash = hasher.HashPassword(null, "1"),
+                PasswordHash = hasher.HashPassword(null, "2"),
                 FullName = "Doctor 1",
                 Role = "Doctor"
             });
@@ -186,6 +186,21 @@ namespace backend.Data
                 });
             }
 
+            // Doctor 1 — Mon to Fri
+            for (int day = 1; day <= 5; day++)
+            {
+                builder.Entity<DoctorSchedule>().HasData(new DoctorSchedule
+                {
+                    Id = scheduleId++,
+                    DoctorId = 4,
+                    DayOfWeek = day,
+                    StartTime = "10:00",
+                    EndTime = "18:00",
+                    SlotDurationMinutes = 30,
+                    IsActive = true
+                });
+            }
+
             // Seed some doctors for demo
             builder.Entity<Doctor>().HasData(
                 new Doctor
@@ -229,6 +244,21 @@ namespace backend.Data
                     ReviewCount = 156,
                     ConsultationFee = 150,
                     Experience = "10 years"
+                },
+                new Doctor
+                {
+                    Id = 4,
+                    UserId = DOCTOR_USER_ID,
+                    FullName = "Doctor 1",
+                    Specialty = "General Practice",
+                    Email = "doctor@2.com",
+                    Phone = "011-9999999",
+                    Description = "Demo doctor account.",
+                    IsAvailable = true,
+                    Rating = 0,
+                    ReviewCount = 0,
+                    ConsultationFee = 50,
+                    Experience = "1 year"
                 }
             );
         }

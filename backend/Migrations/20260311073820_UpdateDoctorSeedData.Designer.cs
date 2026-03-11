@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using backend.Data;
@@ -11,9 +12,11 @@ using backend.Data;
 namespace backend.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260311073820_UpdateDoctorSeedData")]
+    partial class UpdateDoctorSeedData
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -308,7 +311,7 @@ namespace backend.Migrations
                         {
                             Id = 1,
                             ConsultationFee = 200m,
-                            CreatedAt = new DateTime(2026, 3, 11, 7, 40, 34, 992, DateTimeKind.Utc).AddTicks(184),
+                            CreatedAt = new DateTime(2026, 3, 11, 7, 38, 19, 398, DateTimeKind.Utc).AddTicks(3945),
                             DateOfBirth = "",
                             Description = "Specialist in heart diseases with 10 years experience",
                             Email = "sarah.johnson@medibook.com",
@@ -327,7 +330,7 @@ namespace backend.Migrations
                         {
                             Id = 2,
                             ConsultationFee = 85m,
-                            CreatedAt = new DateTime(2026, 3, 11, 7, 40, 34, 992, DateTimeKind.Utc).AddTicks(229),
+                            CreatedAt = new DateTime(2026, 3, 11, 7, 38, 19, 398, DateTimeKind.Utc).AddTicks(3991),
                             DateOfBirth = "",
                             Description = "General practitioner with focus on preventive care",
                             Email = "michael.chen@medibook.com",
@@ -346,7 +349,7 @@ namespace backend.Migrations
                         {
                             Id = 3,
                             ConsultationFee = 150m,
-                            CreatedAt = new DateTime(2026, 3, 11, 7, 40, 34, 992, DateTimeKind.Utc).AddTicks(235),
+                            CreatedAt = new DateTime(2026, 3, 11, 7, 38, 19, 398, DateTimeKind.Utc).AddTicks(3996),
                             DateOfBirth = "",
                             Description = "Skin specialist with expertise in cosmetic dermatology",
                             Email = "aisha.rahman@medibook.com",
@@ -365,7 +368,7 @@ namespace backend.Migrations
                         {
                             Id = 4,
                             ConsultationFee = 50m,
-                            CreatedAt = new DateTime(2026, 3, 11, 7, 40, 34, 992, DateTimeKind.Utc).AddTicks(240),
+                            CreatedAt = new DateTime(2026, 3, 11, 7, 38, 19, 398, DateTimeKind.Utc).AddTicks(4000),
                             DateOfBirth = "",
                             Description = "Demo doctor account.",
                             Email = "doctor@2.com",
@@ -576,56 +579,6 @@ namespace backend.Migrations
                             IsActive = true,
                             SlotDurationMinutes = 30,
                             StartTime = "10:00"
-                        },
-                        new
-                        {
-                            Id = 17,
-                            DayOfWeek = 1,
-                            DoctorId = 4,
-                            EndTime = "18:00",
-                            IsActive = true,
-                            SlotDurationMinutes = 30,
-                            StartTime = "10:00"
-                        },
-                        new
-                        {
-                            Id = 18,
-                            DayOfWeek = 2,
-                            DoctorId = 4,
-                            EndTime = "18:00",
-                            IsActive = true,
-                            SlotDurationMinutes = 30,
-                            StartTime = "10:00"
-                        },
-                        new
-                        {
-                            Id = 19,
-                            DayOfWeek = 3,
-                            DoctorId = 4,
-                            EndTime = "18:00",
-                            IsActive = true,
-                            SlotDurationMinutes = 30,
-                            StartTime = "10:00"
-                        },
-                        new
-                        {
-                            Id = 20,
-                            DayOfWeek = 4,
-                            DoctorId = 4,
-                            EndTime = "18:00",
-                            IsActive = true,
-                            SlotDurationMinutes = 30,
-                            StartTime = "10:00"
-                        },
-                        new
-                        {
-                            Id = 21,
-                            DayOfWeek = 5,
-                            DoctorId = 4,
-                            EndTime = "18:00",
-                            IsActive = true,
-                            SlotDurationMinutes = 30,
-                            StartTime = "10:00"
                         });
                 });
 
@@ -750,7 +703,7 @@ namespace backend.Migrations
                         {
                             Id = 1,
                             Address = "Bukit Jalil, KL",
-                            CreatedAt = new DateTime(2026, 3, 11, 7, 40, 34, 989, DateTimeKind.Utc).AddTicks(6270),
+                            CreatedAt = new DateTime(2026, 3, 11, 7, 38, 19, 396, DateTimeKind.Utc).AddTicks(83),
                             DateOfBirth = "1998-09-24",
                             Email = "patient@2.com",
                             FullName = "Petient 1",
@@ -840,18 +793,18 @@ namespace backend.Migrations
                         {
                             Id = "02174cf0-9412-4cfe-afbf-59f706d72cf6",
                             AccessFailedCount = 0,
-                            ConcurrencyStamp = "ffa1ee89-101f-4730-bbe0-fb653a49ce12",
-                            CreatedAt = new DateTime(2026, 3, 11, 7, 40, 34, 680, DateTimeKind.Utc).AddTicks(2030),
+                            ConcurrencyStamp = "cc729140-a10f-48eb-9071-397255706b04",
+                            CreatedAt = new DateTime(2026, 3, 11, 7, 38, 19, 102, DateTimeKind.Utc).AddTicks(5766),
                             Email = "admin@2.com",
                             EmailConfirmed = true,
                             FullName = "Admin 1",
                             LockoutEnabled = false,
                             NormalizedEmail = "ADMIN@2.COM",
                             NormalizedUserName = "ADMIN@2.COM",
-                            PasswordHash = "AQAAAAIAAYagAAAAED8bIG+cx7K4aLJaKb6qSgl0fg8jUrb/Rcql15IZoWvWAb3c2qrfVl0MyrftmUrObA==",
+                            PasswordHash = "AQAAAAIAAYagAAAAEMNIzfqpO2ufYqYyKnn4OJecoYZGWidmxLafkg5G2WnW3La1YJHfZHlIzS6wlbPq6Q==",
                             PhoneNumberConfirmed = false,
                             Role = "Admin",
-                            SecurityStamp = "79cee205-1270-4b72-8e09-347830eb3c71",
+                            SecurityStamp = "b3185cb2-0fd6-4aff-8bcc-41ad5d84db52",
                             TwoFactorEnabled = false,
                             UserName = "admin@2.com"
                         },
@@ -859,18 +812,18 @@ namespace backend.Migrations
                         {
                             Id = "341743f0-abcd-422c-afbf-59f706d72cf6",
                             AccessFailedCount = 0,
-                            ConcurrencyStamp = "03b60ff4-35f6-4275-8fdb-19f22f8c8ca2",
-                            CreatedAt = new DateTime(2026, 3, 11, 7, 40, 34, 783, DateTimeKind.Utc).AddTicks(9325),
+                            ConcurrencyStamp = "fe3d3343-614e-4666-b0d6-e7db0df5b0b0",
+                            CreatedAt = new DateTime(2026, 3, 11, 7, 38, 19, 200, DateTimeKind.Utc).AddTicks(6593),
                             Email = "patient@2.com",
                             EmailConfirmed = true,
                             FullName = "Patient 1",
                             LockoutEnabled = false,
                             NormalizedEmail = "PATIENT@2.COM",
                             NormalizedUserName = "PATIENT@2.COM",
-                            PasswordHash = "AQAAAAIAAYagAAAAEIu6f+AC74VcTdhEWTnF8RRybZvqoSdrBtsGcHnm/QJOBf5CP3D2rzXrjFQ9QpkNgQ==",
+                            PasswordHash = "AQAAAAIAAYagAAAAEIG3B1omj0qRMPMQHfjqYBo9zRA/AwJDuRcaGdvUnLdP1ynFkOrkwKGrHh+expG0/A==",
                             PhoneNumberConfirmed = false,
                             Role = "Patient",
-                            SecurityStamp = "34ed2eca-394f-41b8-bb06-3aecf5b7d919",
+                            SecurityStamp = "cc3407b1-8b01-4015-aaf2-387f0067b9b4",
                             TwoFactorEnabled = false,
                             UserName = "patient@2.com"
                         },
@@ -878,18 +831,18 @@ namespace backend.Migrations
                         {
                             Id = "040901f0-abcd-422c-afbf-59f706d72cf6",
                             AccessFailedCount = 0,
-                            ConcurrencyStamp = "c7e20ba2-36e6-46e5-971b-20c0aa8fa683",
-                            CreatedAt = new DateTime(2026, 3, 11, 7, 40, 34, 889, DateTimeKind.Utc).AddTicks(7123),
+                            ConcurrencyStamp = "bcd02240-1ba9-47a5-bbe6-1dcbf0c218e2",
+                            CreatedAt = new DateTime(2026, 3, 11, 7, 38, 19, 298, DateTimeKind.Utc).AddTicks(4368),
                             Email = "doctor@2.com",
                             EmailConfirmed = true,
                             FullName = "Doctor 1",
                             LockoutEnabled = false,
                             NormalizedEmail = "DOCTOR@2.COM",
                             NormalizedUserName = "DOCTOR@2.COM",
-                            PasswordHash = "AQAAAAIAAYagAAAAEIKxZTpampV8+u33VfyaftxRO+58JM2LVa/R+LXcbaRruS1JglDIBVTITVZpJcRbjw==",
+                            PasswordHash = "AQAAAAIAAYagAAAAEHS9xsaCjOoKQlGY1CkmrJk5n94V2U0glUw5lHkiYRcOA6xe9TZBbcp0mFFpadfrhw==",
                             PhoneNumberConfirmed = false,
                             Role = "Doctor",
-                            SecurityStamp = "443d1bd2-01b9-4a9b-b40f-e6300fa671c2",
+                            SecurityStamp = "a4937f2e-5cd0-4be5-9a01-7d9217f823b0",
                             TwoFactorEnabled = false,
                             UserName = "doctor@2.com"
                         });
