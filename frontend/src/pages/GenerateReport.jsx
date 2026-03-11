@@ -1,10 +1,14 @@
 import { useState, lazy, Suspense } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { FileText, Plus, X, Eye } from "lucide-react";
-import { generateMedicalReport } from "../services/uploadService";
 import PageHeader from "../components/PageHeader";
+import { generateMedicalReport } from "../services/medicalReportService";
+import { generateStyledPDF } from "../utils/generateStyledPDF";
+import DatePicker from "../components/DatePicker";
 
-const ReportPreviewModal = lazy(() => import("../components/ReportPreviewModal"));
+const ReportPreviewModal = lazy(
+  () => import("../components/ReportPreviewModal"),
+);
 
 export default function GenerateReport() {
   const { id } = useParams();
@@ -30,18 +34,30 @@ export default function GenerateReport() {
     meds[idx] = { ...meds[idx], [key]: val };
     set("medications", meds);
   };
+
   const addMed = () =>
-    set("medications", [...form.medications, { name: "", dosage: "", frequency: "", duration: "" }]);
+    set("medications", [
+      ...form.medications,
+      { name: "", dosage: "", frequency: "", duration: "" },
+    ]);
+
   const removeMed = (idx) =>
-    set("medications", form.medications.filter((_, i) => i !== idx));
+    set(
+      "medications",
+      form.medications.filter((_, i) => i !== idx),
+    );
 
   const handleConfirm = async () => {
     setSaving(true);
     try {
       await generateMedicalReport(id, form);
+
+      generateStyledPDF(form, appt, id);
+
       setPreview(false);
       navigate("/appointments", { state: { reportGenerated: true } });
     } catch (err) {
+      console.error("FRONTEND CRASH REPORT:", err);
       alert(err.response?.data?.message || "Failed to generate report.");
     } finally {
       setSaving(false);
@@ -52,7 +68,9 @@ export default function GenerateReport() {
     <div className="max-w-3xl">
       <PageHeader
         title="Generate Medical Report"
-        subtitle={appt.patient ? `Patient: ${appt.patient}` : `Appointment #${id}`}
+        subtitle={
+          appt.patient ? `Patient: ${appt.patient}` : `Appointment #${id}`
+        }
       />
 
       {/* Appointment context card */}
@@ -181,11 +199,10 @@ export default function GenerateReport() {
             </div>
             <div className="max-w-xs">
               <label className="input-label">Follow-up Date (optional)</label>
-              <input
-                type="date"
+              <DatePicker
+                minDate={new Date()}
                 value={form.followUpDate}
-                onChange={(e) => set("followUpDate", e.target.value)}
-                className="input-field"
+                onChange={(val) => set("followUpDate", val)}
               />
             </div>
           </div>

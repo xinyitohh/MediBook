@@ -20,6 +20,3 @@ export const uploadProfileImage = (file) => {
 export const getMyReports = () => api.get("/api/medical-report/my");
 export const deleteReport = (id) => api.delete(`/api/medical-report/${id}`);
 
-// Doctor generates a medical report for a completed appointment
-export const generateMedicalReport = (appointmentId, data) =>
-  api.post(`/api/medical-report/generate/${appointmentId}`, data);

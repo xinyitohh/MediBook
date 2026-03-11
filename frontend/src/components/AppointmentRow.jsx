@@ -74,7 +74,7 @@ export default function AppointmentRow({ appointment, onCancel }) {
           className="btn-outline flex items-center gap-1.5 text-xs px-3 py-1.5"
           onClick={() =>
             navigate(`/appointments/${id}/report`, {
-              state: { patient: patient || doctor, date, time, specialty },
+              state: { patient, doctor, date, time, specialty },
             })
           }
         >
