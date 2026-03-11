@@ -168,14 +168,17 @@ export default function Login() {
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Email */}
             <div>
-              <label className="input-label">Email</label>
+              <label className="input-label" htmlFor="email">Email</label>
               <div className="relative">
                 <Mail
                   size={18}
                   className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
                 />
                 <input
+                  id="email"
                   type="email"
+                  name="email"
+                  autoComplete="email"
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
                   placeholder="john@example.com"
@@ -187,14 +190,17 @@ export default function Login() {
 
             {/* Password */}
             <div>
-              <label className="input-label">Password</label>
+              <label className="input-label" htmlFor="password">Password</label>
               <div className="relative">
                 <Lock
                   size={18}
                   className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
                 />
                 <input
+                  id="Password"
                   type={showPw ? "text" : "password"}
+                  name="password"
+                  autoComplete="current-password"
                   value={form.password}
                   onChange={(e) =>
                     setForm({ ...form, password: e.target.value })
