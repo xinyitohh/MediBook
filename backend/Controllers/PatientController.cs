@@ -3,23 +3,26 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
 using backend.Data;
-using backend.Models;
+using backend.DTOs;
+using AutoMapper;
 
 namespace backend.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize] // all patient endpoints require login
+    [Authorize]
     public class PatientController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly IMapper _mapper;
 
-        public PatientController(AppDbContext context)
+        public PatientController(AppDbContext context, IMapper mapper)
         {
             _context = context;
+            _mapper = mapper;
         }
 
-        // GET api/patient/profile - get logged in patient's profile
+        // GET api/patient/profile
         [HttpGet("profile")]
         public async Task<IActionResult> GetProfile()
         {
@@ -31,12 +34,14 @@ namespace backend.Controllers
             if (patient == null)
                 return NotFound(new { message = "Patient profile not found" });
 
-            return Ok(patient);
+            var patientDto = _mapper.Map<PatientDto>(patient);
+
+            return Ok(patientDto);
         }
 
-        // PUT api/patient/profile - update profile
+        // PUT api/patient/profile
         [HttpPut("profile")]
-        public async Task<IActionResult> UpdateProfile([FromBody] Patient dto)
+        public async Task<IActionResult> UpdateProfile([FromBody] UpdatePatientProfileDto dto)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
@@ -46,11 +51,7 @@ namespace backend.Controllers
             if (patient == null)
                 return NotFound(new { message = "Profile not found" });
 
-            patient.FullName = dto.FullName;
-            patient.Phone = dto.Phone;
-            patient.DateOfBirth = dto.DateOfBirth;
-            patient.Gender = dto.Gender;
-            patient.Address = dto.Address;
+            _mapper.Map(dto, patient);
 
             await _context.SaveChangesAsync();
 
@@ -63,7 +64,10 @@ namespace backend.Controllers
         public async Task<IActionResult> GetAll()
         {
             var patients = await _context.Patients.ToListAsync();
-            return Ok(patients);
+
+            var patientDtos = _mapper.Map<IEnumerable<PatientDto>>(patients);
+
+            return Ok(patientDtos);
         }
     }
 }

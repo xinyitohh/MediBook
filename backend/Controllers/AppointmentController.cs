@@ -5,6 +5,7 @@ using System.Security.Claims;
 using backend.Data;
 using backend.DTOs;
 using backend.Models;
+using AutoMapper;
 
 namespace backend.Controllers
 {
@@ -14,10 +15,12 @@ namespace backend.Controllers
     public class AppointmentController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly IMapper _mapper;
 
-        public AppointmentController(AppDbContext context)
+        public AppointmentController(AppDbContext context, IMapper mapper)
         {
             _context = context;
+            _mapper = mapper;
         }
 
         // GET api/appointment/my - get logged in user's appointments
@@ -27,62 +30,31 @@ namespace backend.Controllers
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             var role = User.FindFirstValue(ClaimTypes.Role);
 
-            // If user is a doctor, return appointments assigned to them
+            IQueryable<Appointment> query = _context.Appointments
+                .Include(a => a.Doctor)
+                .Include(a => a.Patient);
+
             if (role == "Doctor")
             {
-                var doctor = await _context.Doctors
-                    .FirstOrDefaultAsync(d => d.UserId == userId);
+                var doctor = await _context.Doctors.FirstOrDefaultAsync(d => d.UserId == userId);
+                if (doctor == null) return NotFound(new { message = "Doctor profile not found" });
 
-                if (doctor == null)
-                    return NotFound(new { message = "Doctor profile not found" });
+                query = query.Where(a => a.DoctorId == doctor.Id);
+            }
+            else
+            {
+                var patient = await _context.Patients.FirstOrDefaultAsync(p => p.UserId == userId);
+                if (patient == null) return NotFound(new { message = "Patient profile not found" });
 
-                var doctorAppointments = await _context.Appointments
-                    .Include(a => a.Doctor)
-                    .Include(a => a.Patient)
-                    .Where(a => a.DoctorId == doctor.Id)
-                    .Select(a => new AppointmentResponseDto
-                    {
-                        Id = a.Id,
-                        Doctor = a.Doctor.FullName,
-                        Specialty = a.Doctor.Specialty,
-                        Patient = a.Patient.FullName,
-                        Date = a.AppointmentDate.ToString("yyyy-MM-dd"),
-                        Time = a.TimeSlot,
-                        Status = a.Status,
-                        Notes = a.Notes,
-                        DoctorNotes = a.DoctorNotes
-                    })
-                    .ToListAsync();
-
-                return Ok(doctorAppointments);
+                query = query.Where(a => a.PatientId == patient.Id);
             }
 
-            // Patient flow
-            var patient = await _context.Patients
-                .FirstOrDefaultAsync(p => p.UserId == userId);
+            var appointments = await query.ToListAsync();
 
-            if (patient == null)
-                return NotFound(new { message = "Patient profile not found" });
+            // AUTOMAPPER: Replaces all manual .Select() blocks for both Doctor and Patient flows
+            var response = _mapper.Map<IEnumerable<AppointmentResponseDto>>(appointments);
 
-            var appointments = await _context.Appointments
-                .Include(a => a.Doctor)
-                .Include(a => a.Patient)
-                .Where(a => a.PatientId == patient.Id)
-                .Select(a => new AppointmentResponseDto
-                {
-                    Id = a.Id,
-                    Doctor = a.Doctor.FullName,
-                    Specialty = a.Doctor.Specialty,
-                    Patient = a.Patient.FullName,
-                    Date = a.AppointmentDate.ToString("yyyy-MM-dd"),
-                    Time = a.TimeSlot,
-                    Status = a.Status,
-                    Notes = a.Notes,
-                    DoctorNotes = a.DoctorNotes
-                })
-                .ToListAsync();
-
-            return Ok(appointments);
+            return Ok(response);
         }
 
         // POST api/appointment - book appointment
@@ -91,19 +63,16 @@ namespace backend.Controllers
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            // Get patient profile
             var patient = await _context.Patients
                 .FirstOrDefaultAsync(p => p.UserId == userId);
 
             if (patient == null)
                 return BadRequest(new { message = "Please complete your patient profile first" });
 
-            // Check doctor exists
             var doctor = await _context.Doctors.FindAsync(dto.DoctorId);
             if (doctor == null)
                 return NotFound(new { message = "Doctor not found" });
 
-            // Check time slot not already taken
             var utcDate = DateTime.SpecifyKind(dto.AppointmentDate, DateTimeKind.Utc);
 
             var slotTaken = await _context.Appointments.AnyAsync(a =>
@@ -116,20 +85,16 @@ namespace backend.Controllers
             if (slotTaken)
                 return BadRequest(new { message = "This time slot is already booked" });
 
-            var appointment = new Appointment
-            {
-                PatientId = patient.Id,
-                DoctorId = dto.DoctorId,
-                AppointmentDate = DateTime.SpecifyKind(dto.AppointmentDate, DateTimeKind.Utc),
-                TimeSlot = dto.TimeSlot,
-                Notes = dto.Notes,
-                Status = "Pending"
-            };
+            // AUTOMAPPER: Creates the Appointment model from the DTO
+            var appointment = _mapper.Map<Appointment>(dto);
+
+            // Set fields not present in DTO
+            appointment.PatientId = patient.Id;
+            appointment.AppointmentDate = utcDate;
+            appointment.Status = "Pending";
 
             _context.Appointments.Add(appointment);
             await _context.SaveChangesAsync();
-
-            // TODO: Send SQS message here later (Task 2)
 
             return Ok(new { message = "Appointment booked successfully", id = appointment.Id });
         }
@@ -139,9 +104,7 @@ namespace backend.Controllers
         public async Task<IActionResult> CancelAppointment(int id)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-            var patient = await _context.Patients
-                .FirstOrDefaultAsync(p => p.UserId == userId);
+            var patient = await _context.Patients.FirstOrDefaultAsync(p => p.UserId == userId);
 
             var appointment = await _context.Appointments
                 .FirstOrDefaultAsync(a => a.Id == id && a.PatientId == patient!.Id);
@@ -181,8 +144,10 @@ namespace backend.Controllers
             if (appointment == null)
                 return NotFound(new { message = "Appointment not found" });
 
+            // AUTOMAPPER: Maps the notes from dto to the existing appointment
+            _mapper.Map(dto, appointment);
+
             appointment.Status = "Completed";
-            appointment.DoctorNotes = dto.DoctorNotes;
             await _context.SaveChangesAsync();
 
             return Ok(new { message = "Appointment completed" });
@@ -196,21 +161,12 @@ namespace backend.Controllers
             var appointments = await _context.Appointments
                 .Include(a => a.Doctor)
                 .Include(a => a.Patient)
-                .Select(a => new AppointmentResponseDto
-                {
-                    Id = a.Id,
-                    Doctor = a.Doctor.FullName,
-                    Specialty = a.Doctor.Specialty,
-                    Patient = a.Patient.FullName,
-                    Date = a.AppointmentDate.ToString("yyyy-MM-dd"),
-                    Time = a.TimeSlot,
-                    Status = a.Status,
-                    Notes = a.Notes,
-                    DoctorNotes = a.DoctorNotes
-                })
                 .ToListAsync();
 
-            return Ok(appointments);
+            // AUTOMAPPER: Automatically maps related Doctor and Patient names
+            var response = _mapper.Map<IEnumerable<AppointmentResponseDto>>(appointments);
+
+            return Ok(response);
         }
     }
 }

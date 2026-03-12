@@ -7,6 +7,7 @@ using System.Text;
 using backend.DTOs;
 using backend.Models;
 using backend.Data;
+using AutoMapper;
 
 namespace backend.Controllers
 {
@@ -17,41 +18,38 @@ namespace backend.Controllers
         private readonly UserManager<User> _userManager;
         private readonly IConfiguration _configuration;
         private readonly AppDbContext _context;
+        private readonly IMapper _mapper;
 
-        public AuthController(UserManager<User> userManager, IConfiguration configuration, AppDbContext context)
+        public AuthController(UserManager<User> userManager, IConfiguration configuration, AppDbContext context, IMapper mapper)
         {
             _userManager = userManager;
             _configuration = configuration;
             _context = context;
+            _mapper = mapper;
         }
 
         // POST api/auth/register
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterDto dto)
         {
-            // Check if email already exists
             var existingUser = await _userManager.FindByEmailAsync(dto.Email);
             if (existingUser != null)
                 return BadRequest(new { message = "Email already registered" });
 
-            // Create new user
-            var user = new User
-            {
-                FullName = dto.FullName,
-                Email = dto.Email,
-                UserName = dto.Email,
-            };
+            var user = _mapper.Map<User>(dto);
+            user.UserName = dto.Email; // Identity requires UserName
 
             var result = await _userManager.CreateAsync(user, dto.Password);
 
             if (!result.Succeeded)
                 return BadRequest(new { message = result.Errors.First().Description });
 
+            // Create patient profile
             var patientProfile = new Patient
             {
                 UserId = user.Id,
-                FullName = dto.FullName,
-                Email = dto.Email,
+                FullName = user.FullName,
+                Email = user.Email!
             };
 
             _context.Patients.Add(patientProfile);
@@ -66,30 +64,19 @@ namespace backend.Controllers
         public async Task<IActionResult> RegisterStaff([FromBody] StaffRegisterDto dto)
         {
             if (dto.Role != "Admin")
-            {
                 return BadRequest(new { message = "Role must be Admin" });
-            }
 
             var existingUser = await _userManager.FindByEmailAsync(dto.Email);
             if (existingUser != null)
-            {
                 return BadRequest(new { message = "Email already registered" });
-            }
 
-            var user = new User
-            {
-                FullName = dto.FullName,
-                Email = dto.Email,
-                UserName = dto.Email,
-                Role = dto.Role
-            };
+            var user = _mapper.Map<User>(dto);
+            user.UserName = dto.Email;
 
             var result = await _userManager.CreateAsync(user, dto.Password);
 
             if (!result.Succeeded)
-            {
                 return BadRequest(new { message = result.Errors.First().Description });
-            }
 
             return Ok(new { message = $"{dto.Role} account created successfully" });
         }
@@ -98,29 +85,24 @@ namespace backend.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDto dto)
         {
-            // Find user by email
             var user = await _userManager.FindByEmailAsync(dto.Email);
             if (user == null)
                 return Unauthorized(new { message = "Invalid email or password" });
 
-            // Check password
             var isPasswordValid = await _userManager.CheckPasswordAsync(user, dto.Password);
             if (!isPasswordValid)
                 return Unauthorized(new { message = "Invalid email or password" });
 
-            // Generate JWT token
             var token = GenerateJwtToken(user);
 
-            return Ok(new AuthResponseDto
-            {
-                Token = token,
-                FullName = user.FullName,
-                Email = user.Email!,
-                Role = user.Role
-            });
+            // AUTOMAPPER: Maps User fields to AuthResponseDto 
+            // and we manually attach the newly generated token
+            var response = _mapper.Map<AuthResponseDto>(user);
+            response.Token = token;
+
+            return Ok(response);
         }
 
-        // Helper method to generate JWT token
         private string GenerateJwtToken(User user)
         {
             var key = new SymmetricSecurityKey(

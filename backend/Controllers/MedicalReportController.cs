@@ -2,10 +2,10 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
-using System.Text.Json;
 using backend.Data;
 using backend.DTOs;
 using backend.Models;
+using AutoMapper;
 
 namespace backend.Controllers
 {
@@ -15,10 +15,12 @@ namespace backend.Controllers
     public class MedicalReportController : ControllerBase
     {
         private readonly AppDbContext _context;
+        private readonly IMapper _mapper; 
 
-        public MedicalReportController(AppDbContext context)
+        public MedicalReportController(AppDbContext context, IMapper mapper)
         {
             _context = context;
+            _mapper = mapper;
         }
 
         // GET api/medical-report/my - get logged-in patient's reports
@@ -36,19 +38,13 @@ namespace backend.Controllers
             var reports = await _context.MedicalReports
                 .Where(r => r.PatientId == patient.Id)
                 .OrderByDescending(r => r.UploadedAt)
-                .Select(r => new MedicalReportResponseDto
-                {
-                    Id = r.Id,
-                    FileName = r.FileName,
-                    FileType = r.FileType,
-                    FileSize = r.FileSize,
-                    UploadedAt = r.UploadedAt.ToString("o"),
-                    FileUrl = r.FileUrl,
-                    Description = r.Description
-                })
                 .ToListAsync();
 
-            return Ok(reports);
+            // AUTOMAPPER: Automatically handles the List conversion and Date formatting
+            // as defined in your MappingProfile.cs
+            var reportDtos = _mapper.Map<IEnumerable<MedicalReportResponseDto>>(reports);
+
+            return Ok(reportDtos);
         }
 
         // DELETE api/medical-report/5 - delete a report
@@ -68,8 +64,6 @@ namespace backend.Controllers
 
             if (report == null)
                 return NotFound(new { message = "Report not found" });
-
-            // TODO: Delete from S3 if applicable
 
             _context.MedicalReports.Remove(report);
             await _context.SaveChangesAsync();
@@ -93,25 +87,16 @@ namespace backend.Controllers
             if (appointment.Status != "Completed")
                 return BadRequest(new { message = "Appointment must be completed before generating a report" });
 
-            // Serialize medications to JSON
-            var medicationsJson = JsonSerializer.Serialize(dto.Medications);
+            // AUTOMAPPER: This one line replaces the manual object creation and 
+            // the manual JsonSerializer.Serialize call (handled in MappingProfile.cs)
+            var report = _mapper.Map<MedicalReport>(dto);
 
-            var report = new MedicalReport
-            {
-                PatientId = appointment.PatientId,
-                AppointmentId = appointmentId,
-                FileName = $"Report_{appointment.Patient.FullName.Replace(" ", "_")}_{DateTime.UtcNow:yyyyMMdd}.pdf",
-                FileType = "application/pdf",
-                FileSize = 0, // Generated report, no physical file yet
-                FileUrl = "", // TODO: Generate PDF and upload to S3
-                Description = $"Medical report for appointment on {appointment.AppointmentDate:yyyy-MM-dd}",
-                Diagnosis = dto.Diagnosis,
-                Symptoms = dto.Symptoms,
-                Treatment = dto.Treatment,
-                Medications = medicationsJson,
-                Notes = dto.Notes,
-                FollowUpDate = dto.FollowUpDate
-            };
+            // Set the foreign keys and metadata not provided by the DTO
+            report.PatientId = appointment.PatientId;
+            report.AppointmentId = appointmentId;
+            report.FileName = $"Report_{appointment.Patient.FullName.Replace(" ", "_")}_{DateTime.UtcNow:yyyyMMdd}.pdf";
+            report.FileType = "application/pdf";
+            report.FileUrl = ""; // Placeholder for S3
 
             _context.MedicalReports.Add(report);
             await _context.SaveChangesAsync();
