@@ -105,16 +105,25 @@ namespace backend.Controllers
 
         private string GenerateJwtToken(User user)
         {
-            var key = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!)
-            );
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));
+            // add profile id
+            string profileId = "";
+            if (user.Role == "Patient")
+            {
+                profileId = _context.Patients.FirstOrDefault(p => p.UserId == user.Id)?.Id.ToString() ?? "";
+            }
+            else if (user.Role == "Doctor")
+            {
+                profileId = _context.Doctors.FirstOrDefault(d => d.UserId == user.Id)?.Id.ToString() ?? "";
+            }
 
-            var claims = new[]
+            var claims = new List<Claim>
             {
                 new Claim(ClaimTypes.NameIdentifier, user.Id),
                 new Claim(ClaimTypes.Email, user.Email!),
                 new Claim(ClaimTypes.Name, user.FullName),
-                new Claim(ClaimTypes.Role, user.Role)
+                new Claim(ClaimTypes.Role, user.Role),
+                new Claim("ProfileId", profileId)
             };
 
             var token = new JwtSecurityToken(
