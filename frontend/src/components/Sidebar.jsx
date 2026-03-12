@@ -36,9 +36,9 @@ const menuConfig = {
     { to: "/admin",         label: "Dashboard",        icon: Activity },
     { to: "/admin/doctors", label: "Manage Doctors",   icon: Stethoscope },
     { to: "/admin/patients",label: "Manage Patients",  icon: Users },
-    { to: "/appointments",  label: "Appointments",     icon: Calendar },
-    { to: "/notifications", label: "Notifications",    icon: Bell },
-    { to: "/profile",       label: "Profile",          icon: User },
+    { to: "/admin/appointments", label: "Manage Appointments",  icon: Calendar },
+    { to: "/notifications",      label: "Notifications", icon: Bell },
+    { to: "/profile",            label: "Profile",       icon: User },
   ],
   SuperAdmin: [
     { to: "/admin",         label: "Dashboard",        icon: Activity },
@@ -124,7 +124,7 @@ export default function Sidebar({ collapsed, setCollapsed }) {
             <NavLink
               key={item.to}
               to={item.to}
-              end={item.to === "/" || item.to === "/admin"}
+              end={item.to === "/" || item.to === "/admin" || item.to === "/admin/appointments"}
               className={({ isActive }) =>
                 `flex items-center gap-3 rounded-[10px] text-sm transition-all duration-150
                 ${collapsed ? "justify-center px-0 py-2.5" : "px-3 py-2.5"}
