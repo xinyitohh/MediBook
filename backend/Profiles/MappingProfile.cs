@@ -12,7 +12,7 @@ namespace backend.Profiles
             // --- AUTH MAPPINGS ---
             // These allow the AuthController to create User objects from registration DTOs
             CreateMap<RegisterDto, User>();
-            CreateMap<StaffRegisterDto, User>();
+            CreateMap<AdminRegisterDto, User>();
             CreateMap<User, AuthResponseDto>();
 
             // --- APPOINTMENT MAPPINGS ---
