@@ -26,6 +26,22 @@ namespace backend.Data
         {
             base.OnModelCreating(builder);
 
+            // Global UTC converter for all DateTime properties
+            var dateTimeConverter = new Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<DateTime, DateTime>(
+                v => v.Kind == DateTimeKind.Utc ? v : v.ToUniversalTime(),
+                v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+
+            foreach (var entityType in builder.Model.GetEntityTypes())
+            {
+                foreach (var property in entityType.GetProperties())
+                {
+                    if (property.ClrType == typeof(DateTime) || property.ClrType == typeof(DateTime?))
+                    {
+                        property.SetValueConverter(dateTimeConverter);
+                    }
+                }
+            }
+
             // 1. Define GUIDs for Roles and Users
             string ADMIN_ID = "02174cf0-9412-4cfe-afbf-59f706d72cf6";
             string PATIENT_USER_ID = "341743f0-abcd-422c-afbf-59f706d72cf6";
