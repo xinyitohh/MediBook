@@ -3,6 +3,7 @@ using AutoMapper.QueryableExtensions;
 using backend.Data;
 using backend.DTOs;
 using backend.Models;
+using backend.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -15,11 +16,13 @@ namespace backend.Controllers
     {
         private readonly AppDbContext _context;
         private readonly IMapper _mapper;
+        private readonly INotificationService _notificationService;
 
-        public AnnouncementController(AppDbContext context, IMapper mapper)
+        public AnnouncementController(AppDbContext context, IMapper mapper, INotificationService notificationService)
         {
             _context = context;
             _mapper = mapper;
+            _notificationService = notificationService;
         }
 
         // GET: api/announcement/active - For the sliding carousel banner
@@ -45,13 +48,19 @@ namespace backend.Controllers
             announcement.CreatedByUserId = CurrentUserId;
 
             _context.Announcements.Add(announcement);
+
+            // Logic: If it's active, send a notification to everyone
+            if (dto.IsActive)
+            {
+                await _notificationService.SendToAllAsync(
+                    dto.Title,
+                    "New System Announcement: " + dto.Title,
+                    "System"
+                );
+            }
+
             await _context.SaveChangesAsync();
-
-            // FUTURE AWS STEP: 
-            // This is where we would call SNS to broadcast to all patients.
-            // _snsService.PublishToAll("New Announcement: " + dto.Title);
-
-            return Ok(new { message = "Announcement published successfully", id = announcement.Id });
+            return Ok(new { message = "Announcement published and users notified" });
         }
 
         // DELETE: api/announcement/{id} - Admin removes announcement

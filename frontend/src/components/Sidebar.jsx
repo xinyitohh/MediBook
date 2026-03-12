@@ -9,6 +9,7 @@ import {
   Activity,
   Users,
   Settings,
+  Bell,
   LogOut,
   ChevronLeft,
   Menu,
@@ -22,11 +23,13 @@ const menuConfig = {
     { to: "/doctors",       label: "Find Doctors",     icon: Stethoscope },
     { to: "/appointments",  label: "My Appointments",  icon: Calendar },
     { to: "/medical-reports", label: "Medical Reports", icon: FileText },
+    { to: "/notifications", label: "Notifications",    icon: Bell },
     { to: "/profile",       label: "My Profile",       icon: User },
   ],
   Doctor: [
     { to: "/",              label: "Dashboard",        icon: Home },
     { to: "/appointments",  label: "My Schedule",      icon: Calendar },
+    { to: "/notifications", label: "Notifications",    icon: Bell },
     { to: "/profile",       label: "My Profile",       icon: User },
   ],
   Admin: [
@@ -34,6 +37,7 @@ const menuConfig = {
     { to: "/admin/doctors", label: "Manage Doctors",   icon: Stethoscope },
     { to: "/admin/patients",label: "Manage Patients",  icon: Users },
     { to: "/appointments",  label: "Appointments",     icon: Calendar },
+    { to: "/notifications", label: "Notifications",    icon: Bell },
     { to: "/profile",       label: "Profile",          icon: User },
   ],
   SuperAdmin: [
@@ -41,6 +45,7 @@ const menuConfig = {
     { to: "/admin/doctors", label: "Manage Doctors",   icon: Stethoscope },
     { to: "/admin/patients",label: "Manage Patients",  icon: Users },
     { to: "/admin/admins",  label: "Manage Admins",    icon: Users },
+    { to: "/notifications", label: "Notifications",    icon: Bell },
     { to: "/settings",      label: "System Config",    icon: Settings },
     { to: "/profile",       label: "Profile",          icon: User },
   ],

@@ -23,6 +23,9 @@ const GenerateReport = lazy(() => import("./pages/GenerateReport"));
 // Admin pages
 import AdminDashboard from "./pages/AdminDashboard";
 
+// Notifications page
+import Notifications from "./pages/Notifications";
+
 // Components
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -59,6 +62,8 @@ function App() {
             />
             <Route path="/medical-reports" element={<MedicalReports />} />
             <Route path="/profile" element={<Profile />} />
+
+            <Route path="/notifications" element={<Notifications />} />
 
             {/* Admin routes */}
             <Route path="/admin" element={<AdminDashboard />} />

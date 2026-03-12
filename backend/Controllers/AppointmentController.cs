@@ -3,9 +3,11 @@ using AutoMapper.QueryableExtensions;
 using backend.Data;
 using backend.DTOs;
 using backend.Models;
+using backend.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Numerics;
 
 namespace backend.Controllers
 {
@@ -16,11 +18,14 @@ namespace backend.Controllers
     {
         private readonly AppDbContext _context;
         private readonly IMapper _mapper;
+        private readonly INotificationService _notificationService;
 
-        public AppointmentController(AppDbContext context, IMapper mapper)
+
+        public AppointmentController(AppDbContext context, IMapper mapper, INotificationService notificationService)
         {
             _context = context;
             _mapper = mapper;
+            _notificationService = notificationService; 
         }
 
         // GET api/appointment/my - get logged in user's appointments
@@ -52,17 +57,13 @@ namespace backend.Controllers
         [HttpPost]
         public async Task<IActionResult> BookAppointment([FromBody] CreateAppointmentDto dto)
         {
-            // Use CurrentProfileId from BaseController
             if (UserRole != "Patient")
                 return BadRequest(new { message = "Only patients can book appointments" });
 
-            // Check doctor exists
-            var doctorExists = await _context.Doctors.AnyAsync(d => d.Id == dto.DoctorId);
-            if (!doctorExists)
+            var doctor = await _context.Doctors.FirstOrDefaultAsync(d => d.Id == dto.DoctorId);
+            if (doctor == null)
                 return NotFound(new { message = "Doctor not found" });
 
-            // Check time slot not already taken
-            // Global UTC Handling: No need for SpecifyKind here
             var slotTaken = await _context.Appointments.AnyAsync(a =>
                 a.DoctorId == dto.DoctorId &&
                 a.AppointmentDate.Date == dto.AppointmentDate.Date &&
@@ -73,15 +74,20 @@ namespace backend.Controllers
             if (slotTaken)
                 return BadRequest(new { message = "This time slot is already booked" });
 
-            // Map DTO to Model
             var appointment = _mapper.Map<Appointment>(dto);
-
-            // Set properties not in DTO
             appointment.PatientId = CurrentProfileId;
             appointment.Status = "Pending";
 
             _context.Appointments.Add(appointment);
             await _context.SaveChangesAsync();
+
+            // Notify Doctor: New booking
+            await _notificationService.SendAsync(
+                doctor.UserId,
+                "New Appointment Request",
+                $"A patient has booked a slot for {dto.AppointmentDate:dd MMM yyyy} at {dto.TimeSlot}.",
+                "Appointment"
+            );
 
             return Ok(new { message = "Appointment booked successfully", id = appointment.Id });
         }
@@ -90,15 +96,24 @@ namespace backend.Controllers
         [HttpPut("{id}/cancel")]
         public async Task<IActionResult> CancelAppointment(int id)
         {
-            // Security: Ensure the patient owns this appointment
             var appointment = await _context.Appointments
-                .FirstOrDefaultAsync(a => a.Id == id && a.PatientId == CurrentProfileId);
+                .Include(a => a.Doctor)
+                .Include(a => a.Patient)
+                .FirstOrDefaultAsync(a => a.Id == id && (a.PatientId == CurrentProfileId || UserRole == "Admin"));
 
             if (appointment == null)
                 return NotFound(new { message = "Appointment not found or unauthorized" });
 
             appointment.Status = "Cancelled";
             await _context.SaveChangesAsync();
+
+            // Notify Doctor: Patient cancelled
+            await _notificationService.SendAsync(
+                appointment.Doctor.UserId,
+                "Appointment Cancelled",
+                $"The appointment for {appointment.AppointmentDate:dd MMM yyyy} has been cancelled.",
+                "Appointment"
+            );
 
             return Ok(new { message = "Appointment cancelled" });
         }
@@ -108,9 +123,8 @@ namespace backend.Controllers
         [Authorize(Roles = "Admin,Doctor")]
         public async Task<IActionResult> ConfirmAppointment(int id)
         {
-            var query = _context.Appointments.AsQueryable();
+            var query = _context.Appointments.Include(a => a.Patient).Include(a => a.Doctor).AsQueryable();
 
-            // If a doctor is confirming, ensure it is THEIR appointment
             if (UserRole == "Doctor")
                 query = query.Where(a => a.DoctorId == CurrentProfileId);
 
@@ -122,6 +136,14 @@ namespace backend.Controllers
             appointment.Status = "Confirmed";
             await _context.SaveChangesAsync();
 
+            // Notify Patient: Doctor confirmed
+            await _notificationService.SendAsync(
+                appointment.Patient.UserId,
+                "Appointment Confirmed",
+                $"Your appointment with Dr. {appointment.Doctor.FullName} on {appointment.AppointmentDate:dd MMM yyyy} is confirmed.",
+                "Appointment"
+            );
+
             return Ok(new { message = "Appointment confirmed" });
         }
 
@@ -130,7 +152,7 @@ namespace backend.Controllers
         [Authorize(Roles = "Admin,Doctor")]
         public async Task<IActionResult> CompleteAppointment(int id, [FromBody] CompleteAppointmentDto dto)
         {
-            var query = _context.Appointments.AsQueryable();
+            var query = _context.Appointments.Include(a => a.Patient).Include(a => a.Doctor).AsQueryable();
 
             if (UserRole == "Doctor")
                 query = query.Where(a => a.DoctorId == CurrentProfileId);
@@ -140,11 +162,17 @@ namespace backend.Controllers
             if (appointment == null)
                 return NotFound(new { message = "Appointment not found" });
 
-            // Map updates from DTO to existing Model
             _mapper.Map(dto, appointment);
-
             appointment.Status = "Completed";
             await _context.SaveChangesAsync();
+
+            // Notify Patient: Visit completed & check for medical report
+            await _notificationService.SendAsync(
+                appointment.Patient.UserId,
+                "Visit Completed",
+                $"Your session with Dr. {appointment.Doctor.FullName} is finished. You can now view your summary.",
+                "Appointment"
+            );
 
             return Ok(new { message = "Appointment completed" });
         }

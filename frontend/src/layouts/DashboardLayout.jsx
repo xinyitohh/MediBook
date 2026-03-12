@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
+import NotificationBell from "../components/NotificationBell";
 
 export default function DashboardLayout() {
   const [collapsed, setCollapsed] = useState(false);
@@ -8,9 +9,15 @@ export default function DashboardLayout() {
   return (
     <div className="flex min-h-screen bg-gray-50">
       <Sidebar collapsed={collapsed} setCollapsed={setCollapsed} />
-      <main className="flex-1 p-8 overflow-auto">
-        <Outlet />
-      </main>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* ── Top bar with notification bell ── */}
+        <div className="flex justify-end items-center px-8 pt-6 pb-0">
+          <NotificationBell />
+        </div>
+        <main className="flex-1 px-8 py-4 overflow-auto">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 }

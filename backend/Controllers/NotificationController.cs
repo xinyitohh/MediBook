@@ -77,5 +77,38 @@ namespace backend.Controllers
             await _context.SaveChangesAsync();
             return Ok(new { message = "All marked as read" });
         }
+
+        // DELETE: api/notification/{id} - Delete a specific notification
+        [HttpDelete("{id}")]
+        public async Task<IActionResult> DeleteNotification(int id)
+        {
+            var notification = await _context.Notifications
+                .FirstOrDefaultAsync(n => n.Id == id && n.UserId == CurrentUserId);
+
+            if (notification == null)
+                return NotFound(new { message = "Notification not found or unauthorized" });
+
+            _context.Notifications.Remove(notification);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Notification deleted" });
+        }
+
+        // DELETE: api/notification/all - Clear all notifications for the user
+        [HttpDelete("all")]
+        public async Task<IActionResult> DeleteAllNotifications()
+        {
+            var notifications = await _context.Notifications
+                .Where(n => n.UserId == CurrentUserId)
+                .ToListAsync();
+
+            if (notifications.Any())
+            {
+                _context.Notifications.RemoveRange(notifications);
+                await _context.SaveChangesAsync();
+            }
+
+            return Ok(new { message = "All notifications cleared" });
+        }
     }
 }
