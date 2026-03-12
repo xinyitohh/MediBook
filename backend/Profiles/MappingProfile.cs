@@ -1,6 +1,7 @@
 ﻿using backend.Models;
 using backend.DTOs;
 using System.Text.Json;
+using AutoMapper;
 
 namespace backend.Profiles
 {
@@ -8,7 +9,13 @@ namespace backend.Profiles
     {
         public MappingProfile()
         {
-            // --- Appointment Mappings ---
+            // --- AUTH MAPPINGS ---
+            // These allow the AuthController to create User objects from registration DTOs
+            CreateMap<RegisterDto, User>();
+            CreateMap<StaffRegisterDto, User>();
+            CreateMap<User, AuthResponseDto>();
+
+            // --- APPOINTMENT MAPPINGS ---
             CreateMap<Appointment, AppointmentResponseDto>()
                 .ForMember(dest => dest.Doctor, opt => opt.MapFrom(src => src.Doctor.FullName))
                 .ForMember(dest => dest.Specialty, opt => opt.MapFrom(src => src.Doctor.Specialty))
@@ -17,52 +24,49 @@ namespace backend.Profiles
                 .ForMember(dest => dest.Time, opt => opt.MapFrom(src => src.TimeSlot));
 
             CreateMap<CreateAppointmentDto, Appointment>();
+            CreateMap<CompleteAppointmentDto, Appointment>();
 
-            // --- Doctor Mappings ---
+            // --- DOCTOR MAPPINGS ---
             CreateMap<Doctor, DoctorDto>();
             CreateMap<CreateDoctorDto, Doctor>();
             CreateMap<UpdateDoctorProfileDto, Doctor>();
 
-            // --- Schedule Mappings ---
+            // --- SCHEDULE MAPPINGS ---
             CreateMap<DoctorSchedule, DoctorScheduleDto>()
                 .ForMember(dest => dest.DayName, opt => opt.MapFrom(src => ((DayOfWeek)src.DayOfWeek).ToString()));
 
             CreateMap<CreateDoctorScheduleDto, DoctorSchedule>();
             CreateMap<UpdateDoctorScheduleDto, DoctorSchedule>();
 
-            // --- Medical Report Mappings ---
+            // --- MEDICAL REPORT MAPPINGS ---
             CreateMap<MedicalReport, MedicalReportResponseDto>()
                 .ForMember(dest => dest.UploadedAt, opt => opt.MapFrom(src => src.UploadedAt.ToString("yyyy-MM-dd HH:mm")));
 
-            // FIXED: Removed the null cast to resolve CS8600 warning
             CreateMap<GenerateReportDto, MedicalReport>()
                 .ForMember(dest => dest.Medications, opt => opt.MapFrom(src => JsonSerializer.Serialize(src.Medications, (JsonSerializerOptions?)null)));
 
-            // --- Patient Mappings ---
+            // --- PATIENT MAPPINGS ---
             CreateMap<Patient, PatientDto>();
             CreateMap<UpdatePatientProfileDto, Patient>();
 
-            // --- Announcement Mappings ---
+            // --- ANNOUNCEMENT MAPPINGS ---
             CreateMap<Announcement, AnnouncementDto>();
             CreateMap<CreateAnnouncementDto, Announcement>();
 
-            // --- Health Questionnaire Mappings ---
+            // --- HEALTH QUESTIONNAIRE MAPPINGS ---
             CreateMap<HealthQuestionnaire, HealthQuestionnaireDto>();
 
-            // --- Notification Mappings ---
+            // --- NOTIFICATION MAPPINGS ---
             CreateMap<Notification, NotificationDto>();
 
-            // --- Review Mappings ---
+            // --- REVIEW MAPPINGS ---
             CreateMap<Review, ReviewDto>()
                 .ForMember(dest => dest.PatientName, opt => opt.MapFrom(src => src.Patient.FullName));
 
             CreateMap<CreateReviewDto, Review>();
 
-            // --- Report Analysis Mappings ---
+            // --- REPORT ANALYSIS MAPPINGS ---
             CreateMap<ReportAnalysis, ReportAnalysisDto>();
-
-            // --- Auth Mappings ---
-            CreateMap<User, AuthResponseDto>();
         }
     }
 }

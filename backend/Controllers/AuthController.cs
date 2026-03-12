@@ -113,7 +113,7 @@ namespace backend.Controllers
         // POST api/auth/register-admin - Admin creating another Admin
         [HttpPost("register-admin")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> RegisterAdmin([FromBody] StaffRegisterDto dto)
+        public async Task<IActionResult> RegisterAdmin([FromBody] AdminRegisterDto dto)
         {
             var existingUser = await _userManager.FindByEmailAsync(dto.Email);
             if (existingUser != null)
