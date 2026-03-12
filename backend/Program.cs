@@ -8,6 +8,7 @@ using backend.Models;
 using Amazon.S3;
 using Amazon.SimpleNotificationService;
 using Amazon.SQS;
+using backend.Profiles;
 
 var builder = WebApplication.CreateBuilder(args);
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
@@ -18,6 +19,9 @@ builder.Services.AddDbContext<AppDbContext>(options =>
         builder.Configuration.GetConnectionString("DefaultConnection")
     )
 );
+
+// ── AutoMapper ────────────────────────────────────────────
+builder.Services.AddAutoMapper(typeof(MappingProfile));
 
 // ── Identity (User login/register) ────────────────────────
 builder.Services.AddIdentity<User, IdentityRole>(options =>

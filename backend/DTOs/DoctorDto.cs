@@ -14,6 +14,8 @@ namespace backend.DTOs
         public int ReviewCount { get; set; }
         public decimal ConsultationFee { get; set; }
         public string Experience { get; set; } = string.Empty;
+        public string Qualifications { get; set; } = string.Empty;
+        public string Languages { get; set; } = string.Empty;
     }
 
     public class CreateDoctorDto
@@ -25,6 +27,8 @@ namespace backend.DTOs
         public string Description { get; set; } = string.Empty;
         public decimal ConsultationFee { get; set; }
         public string Experience { get; set; } = string.Empty;
+        public string Qualifications { get; set; } = string.Empty;
+        public string Languages { get; set; } = string.Empty;
     }
 
     public class UpdateDoctorProfileDto
@@ -34,6 +38,8 @@ namespace backend.DTOs
         public string Description { get; set; } = string.Empty;
         public decimal ConsultationFee { get; set; }
         public string Experience { get; set; } = string.Empty;
+        public string Qualifications { get; set; } = string.Empty;
+        public string Languages { get; set; } = string.Empty;
     }
 
     public class UpdateAvailabilityDto
