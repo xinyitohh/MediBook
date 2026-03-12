@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { User, Mail, Lock, Eye, EyeOff, CheckCircle } from "lucide-react";
-import { register } from "../services/authService";
+import { registerPatient } from "../services";
 
 export default function Register() {
   const [form, setForm] = useState({
@@ -21,7 +21,7 @@ export default function Register() {
     setLoading(true);
     setError("");
     try {
-      await register(form);
+      await registerPatient(form);
       setShowSuccess(true);
     } catch (err) {
       setError(err.response?.data?.message || "Registration failed.");
@@ -39,7 +39,9 @@ export default function Register() {
             <div className="flex items-center justify-center w-16 h-16 rounded-full bg-mint-50 mx-auto mb-4">
               <CheckCircle size={32} className="text-mint-500" />
             </div>
-            <h3 className="text-xl font-extrabold text-heading mb-2">Account Created!</h3>
+            <h3 className="text-xl font-extrabold text-heading mb-2">
+              Account Created!
+            </h3>
             <p className="text-gray-500 text-sm mb-6">
               Your account has been successfully created. You can now sign in.
             </p>
@@ -78,7 +80,10 @@ export default function Register() {
           <div>
             <label className="input-label">Full Name</label>
             <div className="relative">
-              <User size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+              <User
+                size={18}
+                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+              />
               <input
                 type="text"
                 value={form.fullName}
@@ -93,7 +98,10 @@ export default function Register() {
           <div>
             <label className="input-label">Email</label>
             <div className="relative">
-              <Mail size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+              <Mail
+                size={18}
+                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+              />
               <input
                 type="email"
                 value={form.email}
@@ -108,7 +116,10 @@ export default function Register() {
           <div>
             <label className="input-label">Password</label>
             <div className="relative">
-              <Lock size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+              <Lock
+                size={18}
+                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+              />
               <input
                 type={showPw ? "text" : "password"}
                 value={form.password}
@@ -139,7 +150,10 @@ export default function Register() {
 
         <p className="text-center mt-6 text-sm text-gray-500">
           Already have an account?{" "}
-          <Link to="/login" className="text-brand-500 font-semibold hover:underline">
+          <Link
+            to="/login"
+            className="text-brand-500 font-semibold hover:underline"
+          >
             Sign in
           </Link>
         </p>

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Calendar, Heart, FileText, Bell } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { getMyAppointments } from "../services/appointmentService";
+import { getMyAppointments } from "../services";
 import PageHeader from "../components/PageHeader";
 import StatCard from "../components/StatCard";
 import AppointmentRow from "../components/AppointmentRow";

@@ -29,7 +29,9 @@ import ProtectedRoute from "./components/ProtectedRoute";
 function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
+      <BrowserRouter
+        future={{ v7_startTransition: true, v7_relativeSplatPath: true }}
+      >
         <Routes>
           {/* ── Public (no sidebar) ────────────────────── */}
           <Route path="/login" element={<Login />} />
@@ -47,7 +49,14 @@ function App() {
             <Route path="/doctors" element={<Doctors />} />
             <Route path="/doctors/:id" element={<DoctorDetail />} />
             <Route path="/appointments" element={<Appointments />} />
-            <Route path="/appointments/:id/report" element={<Suspense fallback={null}><GenerateReport /></Suspense>} />
+            <Route
+              path="/appointments/:id/report"
+              element={
+                <Suspense fallback={null}>
+                  <GenerateReport />
+                </Suspense>
+              }
+            />
             <Route path="/medical-reports" element={<MedicalReports />} />
             <Route path="/profile" element={<Profile />} />
 

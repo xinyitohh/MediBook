@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Search } from "lucide-react";
-import { getDoctors } from "../services/doctorService";
+import { getAllDoctors } from "../services";
 import PageHeader from "../components/PageHeader";
 import DoctorCard from "../components/DoctorCard";
 
@@ -21,7 +21,7 @@ export default function Doctors() {
   const [specialty, setSpecialty] = useState("All");
 
   useEffect(() => {
-    getDoctors()
+    getAllDoctors()
       .then((res) => setDoctors(res.data))
       .catch(() => {})
       .finally(() => setLoading(false));

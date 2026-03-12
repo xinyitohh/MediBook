@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Plus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { getMyAppointments, cancelAppointment } from "../services/appointmentService";
+import { getMyAppointments, cancelAppointment } from "../services";
 import { mockAppointments, isDev, isDevToken } from "../dev/mockData";
 import PageHeader from "../components/PageHeader";
 import FilterTabs from "../components/FilterTabs";

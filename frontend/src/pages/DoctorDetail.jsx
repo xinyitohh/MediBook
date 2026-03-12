@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Star, MapPin, Clock, ArrowLeft, CheckCircle } from "lucide-react";
-import { getDoctorById, getDoctorSlots } from "../services/doctorService";
+import { getDoctorById, getAvailableSlots } from "../services";
 import { bookAppointment } from "../services/appointmentService";
 import DatePicker from "../components/DatePicker";
 
@@ -27,7 +27,7 @@ export default function DoctorDetail() {
 
   useEffect(() => {
     if (!selectedDate || !id) return;
-    getDoctorSlots(id, selectedDate)
+    getAvailableSlots(id, selectedDate)
       .then((res) => setSlots(res.data))
       .catch(() => setSlots([]));
   }, [selectedDate, id]);

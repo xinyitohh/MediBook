@@ -2,7 +2,7 @@ import { useState, lazy, Suspense } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { FileText, Plus, X, Eye } from "lucide-react";
 import PageHeader from "../components/PageHeader";
-import { generateMedicalReport } from "../services/medicalReportService";
+import { generateMedicalReport } from "../services/medicalService";
 import { generateStyledPDF } from "../utils/generateStyledPDF";
 import DatePicker from "../components/DatePicker";
 

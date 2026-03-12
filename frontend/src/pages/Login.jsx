@@ -10,7 +10,7 @@ import {
   Calendar,
   Clock,
 } from "lucide-react";
-import { login } from "../services/authService";
+import { login } from "../services";
 import { useAuth } from "../context/AuthContext";
 
 export default function Login() {
