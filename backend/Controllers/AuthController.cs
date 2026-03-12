@@ -8,6 +8,7 @@ using backend.DTOs;
 using backend.Models;
 using backend.Data;
 using AutoMapper;
+using Microsoft.AspNetCore.Authorization;
 
 namespace backend.Controllers
 {
@@ -36,49 +37,100 @@ namespace backend.Controllers
             if (existingUser != null)
                 return BadRequest(new { message = "Email already registered" });
 
-            var user = _mapper.Map<User>(dto);
-            user.UserName = dto.Email; // Identity requires UserName
+            // Start Transaction
+            using var transaction = await _context.Database.BeginTransactionAsync();
 
-            var result = await _userManager.CreateAsync(user, dto.Password);
-
-            if (!result.Succeeded)
-                return BadRequest(new { message = result.Errors.First().Description });
-
-            // Create patient profile
-            var patientProfile = new Patient
+            try
             {
-                UserId = user.Id,
-                FullName = user.FullName,
-                Email = user.Email!
-            };
+                var user = _mapper.Map<User>(dto);
+                user.UserName = dto.Email;
 
-            _context.Patients.Add(patientProfile);
-            await _context.SaveChangesAsync();
+                var result = await _userManager.CreateAsync(user, dto.Password);
+                if (!result.Succeeded)
+                    return BadRequest(new { message = result.Errors.First().Description });
 
-            return Ok(new { message = "Registration successful" });
+                var patientProfile = new Patient
+                {
+                    UserId = user.Id,
+                    FullName = user.FullName,
+                    Email = user.Email!
+                };
+
+                _context.Patients.Add(patientProfile);
+                await _context.SaveChangesAsync();
+
+                // Commit everything
+                await transaction.CommitAsync();
+                return Ok(new { message = "Registration successful" });
+            }
+            catch (Exception)
+            {
+                await transaction.RollbackAsync();
+                return StatusCode(500, new { message = "An error occurred during registration" });
+            }
         }
 
-        // POST api/auth/register-staff
-        [HttpPost("register-staff")]
-        [Microsoft.AspNetCore.Authorization.Authorize(Roles = "Admin")]
-        public async Task<IActionResult> RegisterStaff([FromBody] StaffRegisterDto dto)
+        // 2. DOCTOR REGISTRATION (Admin-only)
+        [HttpPost("register-doctor")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> RegisterDoctor([FromBody] CreateDoctorDto dto)
         {
-            if (dto.Role != "Admin")
-                return BadRequest(new { message = "Role must be Admin" });
-
             var existingUser = await _userManager.FindByEmailAsync(dto.Email);
             if (existingUser != null)
                 return BadRequest(new { message = "Email already registered" });
 
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var user = new User
+                {
+                    FullName = dto.FullName,
+                    Email = dto.Email,
+                    UserName = dto.Email,
+                    Role = "Doctor"
+                };
+
+                // Admins set a default password for doctors
+                var result = await _userManager.CreateAsync(user, "Doctor123!");
+                if (!result.Succeeded)
+                    return BadRequest(new { message = result.Errors.First().Description });
+
+                // Doctors need a profile in the Doctors table
+                var doctorProfile = _mapper.Map<Doctor>(dto);
+                doctorProfile.UserId = user.Id;
+
+                _context.Doctors.Add(doctorProfile);
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return Ok(new { message = "Doctor account and profile created successfully" });
+            }
+            catch (Exception)
+            {
+                await transaction.RollbackAsync();
+                return StatusCode(500, new { message = "Error creating doctor account" });
+            }
+        }
+
+        // 3. ADMIN REGISTRATION (Admin-only)
+        [HttpPost("register-admin")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> RegisterAdmin([FromBody] StaffRegisterDto dto)
+        {
+            var existingUser = await _userManager.FindByEmailAsync(dto.Email);
+            if (existingUser != null)
+                return BadRequest(new { message = "Email already registered" });
+
+            // Admins only exist in the Users table (no extra profile table)
             var user = _mapper.Map<User>(dto);
             user.UserName = dto.Email;
+            user.Role = "Admin";
 
             var result = await _userManager.CreateAsync(user, dto.Password);
-
             if (!result.Succeeded)
                 return BadRequest(new { message = result.Errors.First().Description });
 
-            return Ok(new { message = $"{dto.Role} account created successfully" });
+            return Ok(new { message = "Admin account created successfully" });
         }
 
         // POST api/auth/login
