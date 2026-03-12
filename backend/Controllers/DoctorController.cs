@@ -1,17 +1,17 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
 using backend.Data;
 using backend.DTOs;
 using backend.Models;
 using AutoMapper;
+using AutoMapper.QueryableExtensions;
 
 namespace backend.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class DoctorController : ControllerBase
+    public class DoctorController : BaseController
     {
         private readonly AppDbContext _context;
         private readonly IMapper _mapper;
@@ -26,19 +26,20 @@ namespace backend.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
+            // ProjectTo makes the SQL query efficient by only selecting DTO fields
             var doctors = await _context.Doctors
-                            .Where(d => d.IsAvailable)
-                            .ToListAsync();
+                .Where(d => d.IsAvailable)
+                .ProjectTo<DoctorDto>(_mapper.ConfigurationProvider)
+                .ToListAsync();
 
-            var doctorDtos = _mapper.Map<IEnumerable<DoctorDto>>(doctors);
-
-            return Ok(doctorDtos);
+            return Ok(doctors);
         }
 
         // GET api/doctor/5
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)
         {
+            // FindAsync is fine here as we want the full object for a single detail view
             var doctor = await _context.Doctors.FindAsync(id);
 
             if (doctor == null)
@@ -51,7 +52,8 @@ namespace backend.Controllers
         [HttpGet("{id}/slots")]
         public async Task<IActionResult> GetAvailableSlots(int id, [FromQuery] string date)
         {
-            var parsedDate = DateTime.SpecifyKind(DateTime.Parse(date), DateTimeKind.Utc);
+            // Global UTC handler in AppDbContext
+            var parsedDate = DateTime.Parse(date);
             var dayOfWeek = (int)parsedDate.DayOfWeek;
 
             var schedule = await _context.DoctorSchedules
@@ -88,10 +90,8 @@ namespace backend.Controllers
         [Authorize(Roles = "Doctor")]
         public async Task<IActionResult> UpdateProfile([FromBody] UpdateDoctorProfileDto dto)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
             var doctor = await _context.Doctors
-                .FirstOrDefaultAsync(d => d.UserId == userId);
+                .FirstOrDefaultAsync(d => d.Id == CurrentProfileId);
 
             if (doctor == null)
                 return NotFound(new { message = "Doctor profile not found" });
@@ -107,10 +107,8 @@ namespace backend.Controllers
         [Authorize(Roles = "Doctor")]
         public async Task<IActionResult> UpdateAvailability([FromBody] UpdateAvailabilityDto dto)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
             var doctor = await _context.Doctors
-                .FirstOrDefaultAsync(d => d.UserId == userId);
+                .FirstOrDefaultAsync(d => d.Id == CurrentProfileId);
 
             if (doctor == null)
                 return NotFound(new { message = "Doctor profile not found" });

@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
 using backend.Data;
 using backend.DTOs;
 using backend.Models;
@@ -12,11 +11,11 @@ namespace backend.Controllers
     [Route("api/[controller]")]
     [ApiController]
     [Authorize]
-    public class UploadController : ControllerBase
+    public class UploadController : BaseController // Inherits CurrentProfileId logic
     {
         private readonly AppDbContext _context;
         private readonly IWebHostEnvironment _env;
-        private readonly IMapper _mapper; 
+        private readonly IMapper _mapper;
 
         public UploadController(AppDbContext context, IWebHostEnvironment env, IMapper mapper)
         {
@@ -29,16 +28,18 @@ namespace backend.Controllers
         [HttpPost("medical-report")]
         public async Task<IActionResult> UploadMedicalReport(IFormFile file, [FromForm] string description = "")
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-            var patient = await _context.Patients
-                .FirstOrDefaultAsync(p => p.UserId == userId);
-
-            if (patient == null)
-                return BadRequest(new { message = "Please complete your patient profile first" });
+            // Security: We ensure the current user is a Patient
+            if (UserRole != "Patient")
+                return BadRequest(new { message = "Only patients can upload reports" });
 
             if (file == null || file.Length == 0)
                 return BadRequest(new { message = "No file provided" });
+
+            // We no longer need to find the Patient by UserId; 
+            // CurrentProfileId is already the Patient's ID from the JWT.
+            var patientExists = await _context.Patients.AnyAsync(p => p.Id == CurrentProfileId);
+            if (!patientExists)
+                return BadRequest(new { message = "Patient profile not found" });
 
             // Save to local uploads folder
             var uploadsDir = Path.Combine(_env.ContentRootPath, "Uploads", "reports");
@@ -54,7 +55,7 @@ namespace backend.Controllers
 
             var report = new MedicalReport
             {
-                PatientId = patient.Id,
+                PatientId = CurrentProfileId, // Using the shortcut
                 FileName = file.FileName,
                 FileType = file.ContentType,
                 FileSize = file.Length,
@@ -65,8 +66,7 @@ namespace backend.Controllers
             _context.MedicalReports.Add(report);
             await _context.SaveChangesAsync();
 
-            // AUTOMAPPER: Replaces the long 'new MedicalReportResponseDto { ... }' block
-            // It automatically uses the UploadedAt formatting logic from your MappingProfile
+            // AUTOMAPPER: Formats the response for the frontend
             var response = _mapper.Map<MedicalReportResponseDto>(report);
 
             return Ok(response);
@@ -80,10 +80,8 @@ namespace backend.Controllers
             if (file == null || file.Length == 0)
                 return BadRequest(new { message = "No file provided" });
 
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-            var doctor = await _context.Doctors
-                .FirstOrDefaultAsync(d => d.UserId == userId);
+            // Use CurrentProfileId directly for the Doctor profile update
+            var doctor = await _context.Doctors.FindAsync(CurrentProfileId);
 
             if (doctor == null)
                 return NotFound(new { message = "Doctor profile not found" });

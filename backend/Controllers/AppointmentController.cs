@@ -1,18 +1,18 @@
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
+using AutoMapper;
+using AutoMapper.QueryableExtensions;
 using backend.Data;
 using backend.DTOs;
 using backend.Models;
-using AutoMapper;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace backend.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
     [Authorize]
-    public class AppointmentController : ControllerBase
+    public class AppointmentController : BaseController
     {
         private readonly AppDbContext _context;
         private readonly IMapper _mapper;
@@ -27,32 +27,23 @@ namespace backend.Controllers
         [HttpGet("my")]
         public async Task<IActionResult> GetMyAppointments()
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var role = User.FindFirstValue(ClaimTypes.Role);
+            var query = _context.Appointments.AsQueryable();
 
-            IQueryable<Appointment> query = _context.Appointments
-                .Include(a => a.Doctor)
-                .Include(a => a.Patient);
-
-            if (role == "Doctor")
+            // Use CurrentProfileId from BaseController
+            if (UserRole == "Doctor")
             {
-                var doctor = await _context.Doctors.FirstOrDefaultAsync(d => d.UserId == userId);
-                if (doctor == null) return NotFound(new { message = "Doctor profile not found" });
-
-                query = query.Where(a => a.DoctorId == doctor.Id);
+                query = query.Where(a => a.DoctorId == CurrentProfileId);
             }
             else
             {
-                var patient = await _context.Patients.FirstOrDefaultAsync(p => p.UserId == userId);
-                if (patient == null) return NotFound(new { message = "Patient profile not found" });
-
-                query = query.Where(a => a.PatientId == patient.Id);
+                query = query.Where(a => a.PatientId == CurrentProfileId);
             }
 
-            var appointments = await query.ToListAsync();
-
-            // AUTOMAPPER: Replaces all manual .Select() blocks for both Doctor and Patient flows
-            var response = _mapper.Map<IEnumerable<AppointmentResponseDto>>(appointments);
+            // ProjectTo: Only selects required columns from the DB (Doctor Name, Patient Name, etc.)
+            var response = await query
+                .OrderByDescending(a => a.AppointmentDate)
+                .ProjectTo<AppointmentResponseDto>(_mapper.ConfigurationProvider)
+                .ToListAsync();
 
             return Ok(response);
         }
@@ -61,23 +52,20 @@ namespace backend.Controllers
         [HttpPost]
         public async Task<IActionResult> BookAppointment([FromBody] CreateAppointmentDto dto)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            // Use CurrentProfileId from BaseController
+            if (UserRole != "Patient")
+                return BadRequest(new { message = "Only patients can book appointments" });
 
-            var patient = await _context.Patients
-                .FirstOrDefaultAsync(p => p.UserId == userId);
-
-            if (patient == null)
-                return BadRequest(new { message = "Please complete your patient profile first" });
-
-            var doctor = await _context.Doctors.FindAsync(dto.DoctorId);
-            if (doctor == null)
+            // Check doctor exists
+            var doctorExists = await _context.Doctors.AnyAsync(d => d.Id == dto.DoctorId);
+            if (!doctorExists)
                 return NotFound(new { message = "Doctor not found" });
 
-            var utcDate = DateTime.SpecifyKind(dto.AppointmentDate, DateTimeKind.Utc);
-
+            // Check time slot not already taken
+            // Global UTC Handling: No need for SpecifyKind here
             var slotTaken = await _context.Appointments.AnyAsync(a =>
                 a.DoctorId == dto.DoctorId &&
-                a.AppointmentDate.Date == utcDate.Date &&
+                a.AppointmentDate.Date == dto.AppointmentDate.Date &&
                 a.TimeSlot == dto.TimeSlot &&
                 a.Status != "Cancelled"
             );
@@ -85,12 +73,11 @@ namespace backend.Controllers
             if (slotTaken)
                 return BadRequest(new { message = "This time slot is already booked" });
 
-            // AUTOMAPPER: Creates the Appointment model from the DTO
+            // Map DTO to Model
             var appointment = _mapper.Map<Appointment>(dto);
 
-            // Set fields not present in DTO
-            appointment.PatientId = patient.Id;
-            appointment.AppointmentDate = utcDate;
+            // Set properties not in DTO
+            appointment.PatientId = CurrentProfileId;
             appointment.Status = "Pending";
 
             _context.Appointments.Add(appointment);
@@ -99,18 +86,16 @@ namespace backend.Controllers
             return Ok(new { message = "Appointment booked successfully", id = appointment.Id });
         }
 
-        // PUT api/appointment/5/cancel - patient cancels
+        // PUT api/appointment/{id}/cancel
         [HttpPut("{id}/cancel")]
         public async Task<IActionResult> CancelAppointment(int id)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var patient = await _context.Patients.FirstOrDefaultAsync(p => p.UserId == userId);
-
+            // Security: Ensure the patient owns this appointment
             var appointment = await _context.Appointments
-                .FirstOrDefaultAsync(a => a.Id == id && a.PatientId == patient!.Id);
+                .FirstOrDefaultAsync(a => a.Id == id && a.PatientId == CurrentProfileId);
 
             if (appointment == null)
-                return NotFound(new { message = "Appointment not found" });
+                return NotFound(new { message = "Appointment not found or unauthorized" });
 
             appointment.Status = "Cancelled";
             await _context.SaveChangesAsync();
@@ -118,12 +103,18 @@ namespace backend.Controllers
             return Ok(new { message = "Appointment cancelled" });
         }
 
-        // PUT api/appointment/5/confirm - doctor/admin confirms
+        // PUT api/appointment/{id}/confirm
         [HttpPut("{id}/confirm")]
         [Authorize(Roles = "Admin,Doctor")]
         public async Task<IActionResult> ConfirmAppointment(int id)
         {
-            var appointment = await _context.Appointments.FindAsync(id);
+            var query = _context.Appointments.AsQueryable();
+
+            // If a doctor is confirming, ensure it is THEIR appointment
+            if (UserRole == "Doctor")
+                query = query.Where(a => a.DoctorId == CurrentProfileId);
+
+            var appointment = await query.FirstOrDefaultAsync(a => a.Id == id);
 
             if (appointment == null)
                 return NotFound(new { message = "Appointment not found" });
@@ -134,17 +125,22 @@ namespace backend.Controllers
             return Ok(new { message = "Appointment confirmed" });
         }
 
-        // PUT api/appointment/5/complete - doctor/admin marks as completed
+        // PUT api/appointment/{id}/complete
         [HttpPut("{id}/complete")]
         [Authorize(Roles = "Admin,Doctor")]
         public async Task<IActionResult> CompleteAppointment(int id, [FromBody] CompleteAppointmentDto dto)
         {
-            var appointment = await _context.Appointments.FindAsync(id);
+            var query = _context.Appointments.AsQueryable();
+
+            if (UserRole == "Doctor")
+                query = query.Where(a => a.DoctorId == CurrentProfileId);
+
+            var appointment = await query.FirstOrDefaultAsync(a => a.Id == id);
 
             if (appointment == null)
                 return NotFound(new { message = "Appointment not found" });
 
-            // AUTOMAPPER: Maps the notes from dto to the existing appointment
+            // Map updates from DTO to existing Model
             _mapper.Map(dto, appointment);
 
             appointment.Status = "Completed";
@@ -158,13 +154,11 @@ namespace backend.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetAll()
         {
-            var appointments = await _context.Appointments
-                .Include(a => a.Doctor)
-                .Include(a => a.Patient)
+            // Efficient projection for the admin list
+            var response = await _context.Appointments
+                .OrderByDescending(a => a.AppointmentDate)
+                .ProjectTo<AppointmentResponseDto>(_mapper.ConfigurationProvider)
                 .ToListAsync();
-
-            // AUTOMAPPER: Automatically maps related Doctor and Patient names
-            var response = _mapper.Map<IEnumerable<AppointmentResponseDto>>(appointments);
 
             return Ok(response);
         }

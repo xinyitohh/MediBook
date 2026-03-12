@@ -9,6 +9,7 @@ using backend.Models;
 using backend.Data;
 using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.EntityFrameworkCore;
 
 namespace backend.Controllers
 {
@@ -29,7 +30,7 @@ namespace backend.Controllers
             _mapper = mapper;
         }
 
-        // POST api/auth/register
+        // POST api/auth/register - Patient Self-Registration
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterDto dto)
         {
@@ -37,13 +38,13 @@ namespace backend.Controllers
             if (existingUser != null)
                 return BadRequest(new { message = "Email already registered" });
 
-            // Start Transaction
             using var transaction = await _context.Database.BeginTransactionAsync();
 
             try
             {
                 var user = _mapper.Map<User>(dto);
                 user.UserName = dto.Email;
+                user.Role = "Patient";
 
                 var result = await _userManager.CreateAsync(user, dto.Password);
                 if (!result.Succeeded)
@@ -59,7 +60,6 @@ namespace backend.Controllers
                 _context.Patients.Add(patientProfile);
                 await _context.SaveChangesAsync();
 
-                // Commit everything
                 await transaction.CommitAsync();
                 return Ok(new { message = "Registration successful" });
             }
@@ -70,7 +70,7 @@ namespace backend.Controllers
             }
         }
 
-        // 2. DOCTOR REGISTRATION (Admin-only)
+        // POST api/auth/register-doctor - Admin creating a Doctor
         [HttpPost("register-doctor")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> RegisterDoctor([FromBody] CreateDoctorDto dto)
@@ -90,12 +90,10 @@ namespace backend.Controllers
                     Role = "Doctor"
                 };
 
-                // Admins set a default password for doctors
                 var result = await _userManager.CreateAsync(user, "Doctor123!");
                 if (!result.Succeeded)
                     return BadRequest(new { message = result.Errors.First().Description });
 
-                // Doctors need a profile in the Doctors table
                 var doctorProfile = _mapper.Map<Doctor>(dto);
                 doctorProfile.UserId = user.Id;
 
@@ -112,7 +110,7 @@ namespace backend.Controllers
             }
         }
 
-        // 3. ADMIN REGISTRATION (Admin-only)
+        // POST api/auth/register-admin - Admin creating another Admin
         [HttpPost("register-admin")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> RegisterAdmin([FromBody] StaffRegisterDto dto)
@@ -121,7 +119,6 @@ namespace backend.Controllers
             if (existingUser != null)
                 return BadRequest(new { message = "Email already registered" });
 
-            // Admins only exist in the Users table (no extra profile table)
             var user = _mapper.Map<User>(dto);
             user.UserName = dto.Email;
             user.Role = "Admin";
@@ -145,28 +142,31 @@ namespace backend.Controllers
             if (!isPasswordValid)
                 return Unauthorized(new { message = "Invalid email or password" });
 
-            var token = GenerateJwtToken(user);
+            // Generate token (now async to handle DB lookup efficiently)
+            var token = await GenerateJwtToken(user);
 
-            // AUTOMAPPER: Maps User fields to AuthResponseDto 
-            // and we manually attach the newly generated token
             var response = _mapper.Map<AuthResponseDto>(user);
             response.Token = token;
 
             return Ok(response);
         }
 
-        private string GenerateJwtToken(User user)
+        private async Task<string> GenerateJwtToken(User user)
         {
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));
-            // add profile id
+
             string profileId = "";
+
+            // Use Async versions for DB lookups
             if (user.Role == "Patient")
             {
-                profileId = _context.Patients.FirstOrDefault(p => p.UserId == user.Id)?.Id.ToString() ?? "";
+                var patient = await _context.Patients.FirstOrDefaultAsync(p => p.UserId == user.Id);
+                profileId = patient?.Id.ToString() ?? "";
             }
             else if (user.Role == "Doctor")
             {
-                profileId = _context.Doctors.FirstOrDefault(d => d.UserId == user.Id)?.Id.ToString() ?? "";
+                var doctor = await _context.Doctors.FirstOrDefaultAsync(d => d.UserId == user.Id);
+                profileId = doctor?.Id.ToString() ?? "";
             }
 
             var claims = new List<Claim>
@@ -175,7 +175,7 @@ namespace backend.Controllers
                 new Claim(ClaimTypes.Email, user.Email!),
                 new Claim(ClaimTypes.Name, user.FullName),
                 new Claim(ClaimTypes.Role, user.Role),
-                new Claim("ProfileId", profileId)
+                new Claim("ProfileId", profileId) // Now part of the "Badge" for all future requests
             };
 
             var token = new JwtSecurityToken(

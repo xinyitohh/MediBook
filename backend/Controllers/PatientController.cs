@@ -1,17 +1,17 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
 using backend.Data;
 using backend.DTOs;
 using AutoMapper;
+using AutoMapper.QueryableExtensions; // Required for ProjectTo
 
 namespace backend.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
     [Authorize]
-    public class PatientController : ControllerBase
+    public class PatientController : BaseController // Inherits CurrentProfileId logic
     {
         private readonly AppDbContext _context;
         private readonly IMapper _mapper;
@@ -22,35 +22,32 @@ namespace backend.Controllers
             _mapper = mapper;
         }
 
-        // GET api/patient/profile
+        // GET api/patient/profile - Get logged-in patient's profile
         [HttpGet("profile")]
         public async Task<IActionResult> GetProfile()
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-            var patient = await _context.Patients
-                .FirstOrDefaultAsync(p => p.UserId == userId);
+            // Security: Ensure we are only looking for the ID stored in the token
+            // FindAsync(id) is highly optimized for primary key lookups
+            var patient = await _context.Patients.FindAsync(CurrentProfileId);
 
             if (patient == null)
                 return NotFound(new { message = "Patient profile not found" });
 
-            var patientDto = _mapper.Map<PatientDto>(patient);
-
-            return Ok(patientDto);
+            // Map the full Model to the safe DTO
+            return Ok(_mapper.Map<PatientDto>(patient));
         }
 
-        // PUT api/patient/profile
+        // PUT api/patient/profile - Update personal profile
         [HttpPut("profile")]
         public async Task<IActionResult> UpdateProfile([FromBody] UpdatePatientProfileDto dto)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-            var patient = await _context.Patients
-                .FirstOrDefaultAsync(p => p.UserId == userId);
+            // Find the existing record in the database
+            var patient = await _context.Patients.FindAsync(CurrentProfileId);
 
             if (patient == null)
                 return NotFound(new { message = "Profile not found" });
 
+            // AUTOMAPPER: Overwrites database record fields with DTO fields
             _mapper.Map(dto, patient);
 
             await _context.SaveChangesAsync();
@@ -58,16 +55,18 @@ namespace backend.Controllers
             return Ok(new { message = "Profile updated" });
         }
 
-        // GET api/patient/all - admin only
+        // GET api/patient/all - Admin only view of all patients
         [HttpGet("all")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetAll()
         {
-            var patients = await _context.Patients.ToListAsync();
+            // Efficiency: ProjectTo tells SQL to only fetch columns defined in PatientDto
+            // This avoids loading massive data (like medical reports or addresses) unless needed
+            var patients = await _context.Patients
+                .ProjectTo<PatientDto>(_mapper.ConfigurationProvider)
+                .ToListAsync();
 
-            var patientDtos = _mapper.Map<IEnumerable<PatientDto>>(patients);
-
-            return Ok(patientDtos);
+            return Ok(patients);
         }
     }
 }
