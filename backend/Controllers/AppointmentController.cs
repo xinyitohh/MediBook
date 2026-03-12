@@ -190,5 +190,35 @@ namespace backend.Controllers
 
             return Ok(response);
         }
+
+        [HttpGet("search")]
+        [Authorize(Roles = "Admin,Doctor")]
+        public async Task<IActionResult> SearchAppointments([FromQuery] int? doctorId, [FromQuery] int? patientId)
+        {
+            var query = _context.Appointments.AsQueryable();
+
+            // 1. Filter by Doctor if provided
+            if (doctorId.HasValue)
+            {
+                // Security: Doctors can only search their own records
+                if (UserRole == "Doctor" && doctorId != CurrentProfileId)
+                    return Unauthorized(new { message = "Unauthorized access to other doctor records." });
+
+                query = query.Where(a => a.DoctorId == doctorId.Value);
+            }
+
+            // 2. Filter by Patient if provided
+            if (patientId.HasValue)
+            {
+                query = query.Where(a => a.PatientId == patientId.Value);
+            }
+
+            var response = await query
+                .OrderByDescending(a => a.AppointmentDate)
+                .ProjectTo<AppointmentResponseDto>(_mapper.ConfigurationProvider)
+                .ToListAsync();
+
+            return Ok(response);
+        }
     }
 }

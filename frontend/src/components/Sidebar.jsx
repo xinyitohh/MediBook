@@ -124,7 +124,7 @@ export default function Sidebar({ collapsed, setCollapsed }) {
             <NavLink
               key={item.to}
               to={item.to}
-              end={item.to === "/"}
+              end={item.to === "/" || item.to === "/admin"}
               className={({ isActive }) =>
                 `flex items-center gap-3 rounded-[10px] text-sm transition-all duration-150
                 ${collapsed ? "justify-center px-0 py-2.5" : "px-3 py-2.5"}

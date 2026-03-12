@@ -68,5 +68,37 @@ namespace backend.Controllers
 
             return Ok(patients);
         }
+
+        // GET: api/patient/{id} - Admin/Doctor views a specific patient's profile
+        [HttpGet("{id}")]
+        [Authorize(Roles = "Admin,Doctor")]
+        public async Task<IActionResult> GetPatientById(int id)
+        {
+            var patient = await _context.Patients
+                .ProjectTo<PatientDto>(_mapper.ConfigurationProvider)
+                .FirstOrDefaultAsync(p => p.Id == id);
+
+            if (patient == null) return NotFound(new { message = "Patient not found" });
+
+            return Ok(patient);
+        }
+
+        // DELETE: api/patient/{id} - Admin removes a patient account
+        [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> DeletePatient(int id)
+        {
+            var patient = await _context.Patients.FindAsync(id);
+            if (patient == null) return NotFound();
+
+            // Optional: Also find the User account linked to this patient to delete both
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == patient.UserId.ToString());
+
+            if (user != null) _context.Users.Remove(user);
+            _context.Patients.Remove(patient);
+
+            await _context.SaveChangesAsync();
+            return Ok(new { message = "Patient account and data deleted successfully" });
+        }
     }
 }

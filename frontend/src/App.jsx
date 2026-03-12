@@ -22,6 +22,8 @@ const GenerateReport = lazy(() => import("./pages/GenerateReport"));
 
 // Admin pages
 import AdminDashboard from "./pages/AdminDashboard";
+import ManageDoctors from "./pages/ManageDoctors";
+import ManagePatients from "./pages/ManagePatients";
 
 // Notifications page
 import Notifications from "./pages/Notifications";
@@ -67,6 +69,8 @@ function App() {
 
             {/* Admin routes */}
             <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/admin/doctors" element={<ManageDoctors />} />
+            <Route path="/admin/patients" element={<ManagePatients />} />
           </Route>
 
           {/* Fallback */}
