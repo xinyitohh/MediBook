@@ -1,4 +1,4 @@
-import { Calendar, Clock, FileText } from "lucide-react";
+import { Calendar, Clock, FileText, Star, CheckCircle, CircleCheck } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
@@ -9,11 +9,12 @@ const badgeClasses = {
   Cancelled: "badge-cancelled",
 };
 
-export default function AppointmentRow({ appointment, onCancel }) {
-  const { doctor, patient, specialty, date, time, status, notes, id } = appointment;
+export default function AppointmentRow({ appointment, onCancel, onConfirm, onComplete, onReview }) {
+  const { doctor, patient, specialty, date, time, status, notes, id, hasReview } = appointment;
   const navigate = useNavigate();
   const { user } = useAuth();
   const isDoctor = user?.role === "Doctor";
+  const isPatient = user?.role === "Patient";
 
   // Generate initials from doctor or patient name
   const displayName = isDoctor ? patient : doctor;
@@ -68,6 +69,26 @@ export default function AppointmentRow({ appointment, onCancel }) {
         {status}
       </span>
 
+      {/* Doctor actions */}
+      {isDoctor && status === "Pending" && onConfirm && (
+        <button
+          className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors border border-emerald-200 cursor-pointer"
+          onClick={() => onConfirm(id)}
+        >
+          <CheckCircle size={13} />
+          Confirm
+        </button>
+      )}
+      {isDoctor && status === "Confirmed" && onComplete && (
+        <button
+          className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-mint-50 text-mint-600 hover:bg-mint-100 transition-colors border border-mint-200 cursor-pointer"
+          onClick={() => onComplete(id)}
+        >
+          <CircleCheck size={13} />
+          Complete
+        </button>
+      )}
+
       {/* Write Report — doctor only, completed appointments */}
       {isDoctor && status === "Completed" && (
         <button
@@ -81,6 +102,24 @@ export default function AppointmentRow({ appointment, onCancel }) {
           <FileText size={14} />
           Write Report
         </button>
+      )}
+
+      {/* Review button — patient only, completed, not yet reviewed */}
+      {isPatient && status === "Completed" && onReview && (
+        hasReview ? (
+          <span className="flex items-center gap-1 text-xs font-semibold text-amber-500 px-3 py-1.5">
+            <Star size={13} className="fill-amber-400 text-amber-400" />
+            Reviewed
+          </span>
+        ) : (
+          <button
+            className="btn-outline flex items-center gap-1.5 text-xs px-3 py-1.5"
+            onClick={() => onReview(appointment)}
+          >
+            <Star size={13} />
+            Review
+          </button>
+        )
       )}
 
       {/* Cancel button */}

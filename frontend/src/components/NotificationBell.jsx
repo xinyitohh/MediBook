@@ -100,7 +100,7 @@ export default function NotificationBell() {
       {/* ── Bell button ── */}
       <button
         onClick={openDropdown}
-        className="relative w-10 h-10 rounded-xl bg-white border border-gray-200 flex items-center justify-center text-gray-500 hover:text-brand-500 hover:border-brand-200 hover:bg-brand-50 transition-all duration-150 shadow-sm"
+        className="relative w-10 h-10 rounded-xl bg-white border border-gray-200 flex items-center justify-center text-gray-500 hover:text-brand-500 hover:border-brand-200 hover:bg-brand-50 transition-all duration-150 shadow-sm cursor-pointer"
         aria-label="Notifications"
       >
         <Bell size={18} />

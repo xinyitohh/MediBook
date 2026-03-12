@@ -2,7 +2,7 @@ import { useState, lazy, Suspense } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { FileText, Plus, X, Eye } from "lucide-react";
 import PageHeader from "../components/PageHeader";
-import { generateMedicalReport } from "../services/medicalService";
+import { generateReport } from "../services/medicalService";
 import { generateStyledPDF } from "../utils/generateStyledPDF";
 import DatePicker from "../components/DatePicker";
 
@@ -50,7 +50,7 @@ export default function GenerateReport() {
   const handleConfirm = async () => {
     setSaving(true);
     try {
-      await generateMedicalReport(id, form);
+      await generateReport(id, form);
 
       generateStyledPDF(form, appt, id);
 

@@ -82,23 +82,27 @@ export default function Sidebar({ collapsed, setCollapsed }) {
       {collapsed && (
         <button
           onClick={() => setCollapsed(false)}
-          className="absolute -right-3.5 top-7 z-20 w-7 h-7 rounded-lg bg-white/[0.08] backdrop-blur-md border border-white/20 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/15 transition-colors shadow-lg"
+          className="absolute -right-3.5 top-7 z-20 w-7 h-7 rounded-lg bg-white/[0.08] backdrop-blur-md border border-white/20 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/15 transition-colors shadow-lg cursor-pointer"
         >
           <ChevronRight size={14} />
         </button>
       )}
 
       {/* ── Logo bar ─────────────────────────────────── */}
-      <div className={`flex items-center gap-3 py-5 border-b border-white/[0.06] ${collapsed ? "justify-center px-3" : "px-5"}`}>
+      <div
+        className={`flex items-center gap-3 py-5 border-b border-white/[0.06] ${collapsed ? "justify-center px-3" : "px-5"}`}
+      >
         <div className="w-9 h-9 rounded-[10px] bg-gradient-to-br from-brand-500 to-mint-500 flex items-center justify-center font-extrabold text-sm shrink-0">
           M
         </div>
         {!collapsed && (
           <>
-            <span className="font-bold text-lg tracking-tight flex-1">MediBook</span>
+            <span className="font-bold text-lg tracking-tight flex-1">
+              MediBook
+            </span>
             <button
               onClick={() => setCollapsed(true)}
-              className="w-7 h-7 rounded-lg bg-white/[0.08] flex items-center justify-center text-gray-500 hover:text-white hover:bg-white/15 transition-colors shrink-0"
+              className="w-7 h-7 rounded-lg bg-white/[0.08] flex items-center justify-center text-gray-500 hover:text-white hover:bg-white/15 transition-colors shrink-0 cursor-pointer"
             >
               <ChevronLeft size={14} />
             </button>
