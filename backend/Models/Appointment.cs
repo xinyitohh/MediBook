@@ -12,6 +12,10 @@ namespace backend.Models
         public string DoctorNotes { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+        // NEW
+        public string AppointmentType { get; set; } = "In-person";  // "In-person" or "Teleconsultation"
+        public string CancellationReason { get; set; } = string.Empty;
+
         // Navigation properties
         public Patient Patient { get; set; } = null!;
         public Doctor Doctor { get; set; } = null!;
