@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import {
   Mail,
   Lock,
@@ -17,23 +17,37 @@ export default function Login() {
   const [form, setForm] = useState({ email: "", password: "" });
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState("");
+  const [unverified, setUnverified] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [successMsg, setSuccessMsg] = useState("");
   const { loginUser } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (location.state?.verified) {
+      setSuccessMsg("Email verified! You can now sign in.");
+    }
+  }, [location.state]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     setError("");
+    setUnverified(false);
     try {
       const res = await login(form);
       const { token, ...userData } = res.data;
       loginUser(userData, token);
       navigate("/");
     } catch (err) {
-      setError(
-        err.response?.data?.message || "Login failed. Please try again.",
-      );
+      if (err.response?.status === 403) {
+        setUnverified(true);
+      } else {
+        setError(
+          err.response?.data?.message || "Login failed. Please try again.",
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -159,9 +173,28 @@ export default function Login() {
             Enter your credentials to access your account
           </p>
 
+          {successMsg && (
+            <div className="mb-5 px-4 py-3 rounded-xl bg-mint-50 text-mint-700 text-sm font-medium">
+              {successMsg}
+            </div>
+          )}
+
           {error && (
             <div className="mb-5 px-4 py-3 rounded-xl bg-red-50 text-red-600 text-sm font-medium">
               {error}
+            </div>
+          )}
+
+          {unverified && (
+            <div className="mb-5 px-4 py-3 rounded-xl bg-amber-50 text-amber-700 text-sm font-medium">
+              Your email is not verified.{" "}
+              <Link
+                to="/verify-email"
+                state={{ email: form.email }}
+                className="underline font-semibold hover:text-amber-900"
+              >
+                Verify now
+              </Link>
             </div>
           )}
 
@@ -190,7 +223,12 @@ export default function Login() {
 
             {/* Password */}
             <div>
-              <label className="input-label" htmlFor="password">Password</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="input-label mb-0!" htmlFor="password">Password</label>
+                <Link to="/forgot-password" className="text-xs text-brand-500 font-semibold hover:underline">
+                  Forgot password?
+                </Link>
+              </div>
               <div className="relative">
                 <Lock
                   size={18}
@@ -228,7 +266,7 @@ export default function Login() {
             </button>
           </form>
 
-          <p className="text-center mt-6 text-sm text-gray-500">
+          <p className="text-center mt-8 pt-6 border-t border-gray-100 text-sm text-gray-500">
             Don't have an account?{" "}
             <Link
               to="/register"

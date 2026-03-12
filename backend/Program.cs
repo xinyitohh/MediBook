@@ -27,6 +27,9 @@ builder.Services.AddAutoMapper(typeof(MappingProfile));
 // ── Notification ───────────────────────────────────────────
 builder.Services.AddScoped<INotificationService, NotificationService>();
 
+// ── Otp ───────────────────────────────────────────-────────-
+builder.Services.AddScoped<OtpService>();
+
 // ── Identity (User login/register) ────────────────────────
 builder.Services.AddIdentity<User, IdentityRole>(options =>
 {

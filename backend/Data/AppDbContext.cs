@@ -21,6 +21,7 @@ namespace backend.Data
         public DbSet<Review> Reviews { get; set; }
         public DbSet<HealthQuestionnaire> HealthQuestionnaires { get; set; }
         public DbSet<ReportAnalysis> ReportAnalyses { get; set; }
+        public DbSet<OtpVerification> OtpVerifications { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {

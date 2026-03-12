@@ -7,6 +7,10 @@ import DashboardLayout from "./layouts/DashboardLayout";
 // Public pages
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import VerifyEmail from "./pages/VerifyEmail";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetCode from "./pages/ResetCode";
+import SetNewPassword from "./pages/SetNewPassword";
 
 // Patient pages
 import Home from "./pages/Home";
@@ -42,6 +46,10 @@ function App() {
           {/* ── Public (no sidebar) ────────────────────── */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-code" element={<ResetCode />} />
+          <Route path="/set-new-password" element={<SetNewPassword />} />
 
           {/* ── Protected (with sidebar layout) ────────── */}
           <Route
