@@ -252,8 +252,10 @@ After running the backend, register these accounts via Swagger or the app:
 
 | Role | Email | Password |
 |------|-------|----------|
-| Admin | admin@medibook.com | Admin123 |
-| Patient | patient@medibook.com | Patient123 |
+| Admin | admin@2.com | 2 |
+| Patient | patient@2.com | 2 |
+| Doctor | doctor@2.com | 2 |
+
 
 ---
 
