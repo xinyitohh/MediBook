@@ -1,5 +1,6 @@
 namespace backend.DTOs
 {
+    // Used for Sending Doctor data to the Frontend (GET)
     public class DoctorDto
     {
         public int Id { get; set; }
@@ -14,8 +15,11 @@ namespace backend.DTOs
         public int ReviewCount { get; set; }
         public decimal ConsultationFee { get; set; }
         public string Experience { get; set; } = string.Empty;
+        public string Qualifications { get; set; } = string.Empty;
+        public string Languages { get; set; } = string.Empty;
     }
 
+    // Used by Admin to Register a new Doctor (POST)
     public class CreateDoctorDto
     {
         public string FullName { get; set; } = string.Empty;
@@ -25,8 +29,11 @@ namespace backend.DTOs
         public string Description { get; set; } = string.Empty;
         public decimal ConsultationFee { get; set; }
         public string Experience { get; set; } = string.Empty;
+        public string Qualifications { get; set; } = string.Empty;
+        public string Languages { get; set; } = string.Empty;
     }
 
+    // Used by Doctor to update their own profile (PUT)
     public class UpdateDoctorProfileDto
     {
         public string FullName { get; set; } = string.Empty;
@@ -34,6 +41,8 @@ namespace backend.DTOs
         public string Description { get; set; } = string.Empty;
         public decimal ConsultationFee { get; set; }
         public string Experience { get; set; } = string.Empty;
+        public string Qualifications { get; set; } = string.Empty;
+        public string Languages { get; set; } = string.Empty;
     }
 
     public class UpdateAvailabilityDto

@@ -2,11 +2,12 @@ import { useState, useEffect } from "react";
 import { Plus } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { getMyAppointments, cancelAppointment } from "../services/appointmentService";
+import { getMyAppointments, cancelAppointment, confirmAppointment, completeAppointment } from "../services";
 import { mockAppointments, isDev, isDevToken } from "../dev/mockData";
 import PageHeader from "../components/PageHeader";
 import FilterTabs from "../components/FilterTabs";
 import AppointmentRow from "../components/AppointmentRow";
+import ReviewModal from "../components/ReviewModal";
 
 const FILTERS = ["All", "Pending", "Confirmed", "Completed", "Cancelled"];
 
@@ -14,6 +15,7 @@ export default function Appointments() {
   const [appointments, setAppointments] = useState([]);
   const [filter, setFilter] = useState("All");
   const [loading, setLoading] = useState(true);
+  const [reviewTarget, setReviewTarget] = useState(null);
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -54,6 +56,35 @@ export default function Appointments() {
     }
   };
 
+  const handleConfirm = async (id) => {
+    try {
+      await confirmAppointment(id);
+      setAppointments((prev) =>
+        prev.map((a) => (a.id === id ? { ...a, status: "Confirmed" } : a))
+      );
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to confirm.");
+    }
+  };
+
+  const handleComplete = async (id) => {
+    try {
+      await completeAppointment(id);
+      setAppointments((prev) =>
+        prev.map((a) => (a.id === id ? { ...a, status: "Completed" } : a))
+      );
+    } catch (err) {
+      alert(err.response?.data?.message || "Failed to complete.");
+    }
+  };
+
+  const handleReviewSubmitted = (appointmentId) => {
+    setAppointments((prev) =>
+      prev.map((a) => (a.id === appointmentId ? { ...a, hasReview: true } : a))
+    );
+    setReviewTarget(null);
+  };
+
   const filtered =
     filter === "All"
       ? appointments
@@ -89,9 +120,20 @@ export default function Appointments() {
               key={appt.id}
               appointment={appt}
               onCancel={handleCancel}
+              onConfirm={handleConfirm}
+              onComplete={handleComplete}
+              onReview={setReviewTarget}
             />
           ))}
         </div>
+      )}
+
+      {reviewTarget && (
+        <ReviewModal
+          appointment={reviewTarget}
+          onClose={() => setReviewTarget(null)}
+          onSubmitted={handleReviewSubmitted}
+        />
       )}
     </div>
   );

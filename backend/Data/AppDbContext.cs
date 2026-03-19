@@ -1,7 +1,7 @@
-using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore;
 using backend.Models;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 
 namespace backend.Data
 {
@@ -16,10 +16,32 @@ namespace backend.Data
         public DbSet<Appointment> Appointments { get; set; }
         public DbSet<MedicalReport> MedicalReports { get; set; }
         public DbSet<DoctorSchedule> DoctorSchedules { get; set; }
+        public DbSet<Announcement> Announcements { get; set; }
+        public DbSet<Notification> Notifications { get; set; }
+        public DbSet<Review> Reviews { get; set; }
+        public DbSet<HealthQuestionnaire> HealthQuestionnaires { get; set; }
+        public DbSet<ReportAnalysis> ReportAnalyses { get; set; }
+        public DbSet<OtpVerification> OtpVerifications { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
+
+            // Global UTC converter for all DateTime properties
+            var dateTimeConverter = new Microsoft.EntityFrameworkCore.Storage.ValueConversion.ValueConverter<DateTime, DateTime>(
+                v => v.Kind == DateTimeKind.Utc ? v : v.ToUniversalTime(),
+                v => DateTime.SpecifyKind(v, DateTimeKind.Utc));
+
+            foreach (var entityType in builder.Model.GetEntityTypes())
+            {
+                foreach (var property in entityType.GetProperties())
+                {
+                    if (property.ClrType == typeof(DateTime) || property.ClrType == typeof(DateTime?))
+                    {
+                        property.SetValueConverter(dateTimeConverter);
+                    }
+                }
+            }
 
             // 1. Define GUIDs for Roles and Users
             string ADMIN_ID = "02174cf0-9412-4cfe-afbf-59f706d72cf6";
@@ -39,60 +61,59 @@ namespace backend.Data
             // 3. Setup Password Hasher
             var hasher = new PasswordHasher<User>();
 
-            // 4. Seed Admin User
-            builder.Entity<User>().HasData(new User
-            {
-                Id = ADMIN_ID,
-                UserName = "admin@2.com",
-                NormalizedUserName = "ADMIN@2.COM",
-                Email = "admin@2.com",
-                NormalizedEmail = "ADMIN@2.COM",
-                EmailConfirmed = true,
-                PasswordHash = hasher.HashPassword(null, "2"),
-                FullName = "Admin 1",
-                Role = "Admin"
-            });
+            // 4. Seed Users
+            builder.Entity<User>().HasData(
+                new User
+                {
+                    Id = ADMIN_ID,
+                    UserName = "admin@2.com",
+                    NormalizedUserName = "ADMIN@2.COM",
+                    Email = "admin@2.com",
+                    NormalizedEmail = "ADMIN@2.COM",
+                    EmailConfirmed = true,
+                    PasswordHash = hasher.HashPassword(null!, "2"), // null! avoids CS8625
+                    FullName = "Admin 1",
+                    Role = "Admin"
+                },
+                new User
+                {
+                    Id = PATIENT_USER_ID,
+                    UserName = "patient@2.com",
+                    NormalizedUserName = "PATIENT@2.COM",
+                    Email = "patient@2.com",
+                    NormalizedEmail = "PATIENT@2.COM",
+                    EmailConfirmed = true,
+                    PasswordHash = hasher.HashPassword(null!, "2"),
+                    FullName = "Patient 1",
+                    Role = "Patient"
+                },
+                new User
+                {
+                    Id = DOCTOR_USER_ID,
+                    UserName = "doctor@2.com",
+                    NormalizedUserName = "DOCTOR@2.COM",
+                    Email = "doctor@2.com",
+                    NormalizedEmail = "DOCTOR@2.COM",
+                    EmailConfirmed = true,
+                    PasswordHash = hasher.HashPassword(null!, "2"),
+                    FullName = "Doctor 1",
+                    Role = "Doctor"
+                }
+            );
 
-            // 5. Seed Patient User
-            builder.Entity<User>().HasData(new User
-            {
-                Id = PATIENT_USER_ID,
-                UserName = "patient@2.com",
-                NormalizedUserName = "PATIENT@2.COM",
-                Email = "patient@2.com",
-                NormalizedEmail = "PATIENT@2.COM",
-                EmailConfirmed = true,
-                PasswordHash = hasher.HashPassword(null, "2"),
-                FullName = "Patient 1",
-                Role = "Patient"
-            });
-
-            builder.Entity<User>().HasData(new User
-            {
-                Id = DOCTOR_USER_ID,
-                UserName = "doctor@2.com",
-                NormalizedUserName = "DOCTOR@2.COM",
-                Email = "doctor@2.com",
-                NormalizedEmail = "DOCTOR@2.COM",
-                EmailConfirmed = true,
-                PasswordHash = hasher.HashPassword(null, "2"),
-                FullName = "Doctor 1",
-                Role = "Doctor"
-            });
-
-            // 6. Assign Roles to Users
+            // 5. Assign Roles
             builder.Entity<IdentityUserRole<string>>().HasData(
                 new IdentityUserRole<string> { RoleId = ADMIN_ROLE_ID, UserId = ADMIN_ID },
                 new IdentityUserRole<string> { RoleId = PATIENT_ROLE_ID, UserId = PATIENT_USER_ID },
                 new IdentityUserRole<string> { RoleId = DOCTOR_ROLE_ID, UserId = DOCTOR_USER_ID }
             );
 
-            // 7. Seed the Patient Profile (Medical Record) linked to the Patient User
+            // 6. Seed Patient Profile
             builder.Entity<Patient>().HasData(new Patient
             {
                 Id = 1,
                 UserId = PATIENT_USER_ID,
-                FullName = "Petient 1",
+                FullName = "Patient 1",
                 Email = "patient@2.com",
                 Phone = "012-3456789",
                 Address = "Bukit Jalil, KL",
@@ -100,108 +121,60 @@ namespace backend.Data
                 DateOfBirth = "1998-09-24"
             });
 
-            // Appointment → Doctor relationship
-            builder.Entity<Appointment>()
-                .HasOne(a => a.Doctor)
-                .WithMany(d => d.Appointments)
-                .HasForeignKey(a => a.DoctorId)
-                .OnDelete(DeleteBehavior.Restrict);
+            // 7. Relationships & Constraints
 
-            // Appointment → Patient relationship
-            builder.Entity<Appointment>()
-                .HasOne(a => a.Patient)
-                .WithMany(p => p.Appointments)
-                .HasForeignKey(a => a.PatientId)
-                .OnDelete(DeleteBehavior.Restrict);
+            // Appointment Configuration
+            builder.Entity<Appointment>(entity =>
+            {
+                entity.HasOne(a => a.Doctor)
+                    .WithMany(d => d.Appointments)
+                    .HasForeignKey(a => a.DoctorId)
+                    .OnDelete(DeleteBehavior.Restrict);
 
-            // MedicalReport → Patient relationship
-            builder.Entity<MedicalReport>()
-                .HasOne(r => r.Patient)
-                .WithMany()
-                .HasForeignKey(r => r.PatientId)
-                .OnDelete(DeleteBehavior.Restrict);
+                entity.HasOne(a => a.Patient)
+                    .WithMany(p => p.Appointments)
+                    .HasForeignKey(a => a.PatientId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
 
-            // MedicalReport → Appointment relationship (optional)
-            builder.Entity<MedicalReport>()
-                .HasOne(r => r.Appointment)
-                .WithMany()
-                .HasForeignKey(r => r.AppointmentId)
-                .OnDelete(DeleteBehavior.SetNull);
+            // Review Configuration
+            builder.Entity<Review>(entity =>
+            {
+                entity.HasOne(r => r.Appointment)
+                    .WithOne()
+                    .HasForeignKey<Review>(r => r.AppointmentId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
 
+            // MedicalReport Configuration
+            builder.Entity<MedicalReport>(entity =>
+            {
+                entity.HasOne(r => r.Patient)
+                    .WithMany()
+                    .HasForeignKey(r => r.PatientId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(r => r.Appointment)
+                    .WithMany()
+                    .HasForeignKey(r => r.AppointmentId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            // DoctorSchedule Configuration
             builder.Entity<DoctorSchedule>()
                 .HasOne(s => s.Doctor)
                 .WithMany(d => d.Schedules)
                 .HasForeignKey(s => s.DoctorId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // Seed DoctorSchedules
-            // Dr. Sarah Johnson (Id=1): Mon-Fri 9am-5pm, 30min slots
-            // Dr. Michael Chen (Id=2): Mon-Sat 8am-4pm, 30min slots  
-            // Dr. Aisha Rahman (Id=3): Mon-Fri 10am-6pm, 30min slots
+            // ReportAnalysis Configuration
+            builder.Entity<ReportAnalysis>()
+                .HasOne(ra => ra.MedicalReport)
+                .WithOne()
+                .HasForeignKey<ReportAnalysis>(ra => ra.MedicalReportId)
+                .OnDelete(DeleteBehavior.Cascade);
 
-            int scheduleId = 1;
-
-            // Dr. Sarah Johnson — Mon to Fri
-            for (int day = 1; day <= 5; day++)
-            {
-                builder.Entity<DoctorSchedule>().HasData(new DoctorSchedule
-                {
-                    Id = scheduleId++,
-                    DoctorId = 1,
-                    DayOfWeek = day,
-                    StartTime = "09:00",
-                    EndTime = "17:00",
-                    SlotDurationMinutes = 30,
-                    IsActive = true
-                });
-            }
-
-            // Dr. Michael Chen — Mon to Sat
-            for (int day = 1; day <= 6; day++)
-            {
-                builder.Entity<DoctorSchedule>().HasData(new DoctorSchedule
-                {
-                    Id = scheduleId++,
-                    DoctorId = 2,
-                    DayOfWeek = day,
-                    StartTime = "08:00",
-                    EndTime = "16:00",
-                    SlotDurationMinutes = 30,
-                    IsActive = true
-                });
-            }
-
-            // Dr. Aisha Rahman — Mon to Fri
-            for (int day = 1; day <= 5; day++)
-            {
-                builder.Entity<DoctorSchedule>().HasData(new DoctorSchedule
-                {
-                    Id = scheduleId++,
-                    DoctorId = 3,
-                    DayOfWeek = day,
-                    StartTime = "10:00",
-                    EndTime = "18:00",
-                    SlotDurationMinutes = 30,
-                    IsActive = true
-                });
-            }
-
-            // Doctor 1 — Mon to Fri
-            for (int day = 1; day <= 5; day++)
-            {
-                builder.Entity<DoctorSchedule>().HasData(new DoctorSchedule
-                {
-                    Id = scheduleId++,
-                    DoctorId = 4,
-                    DayOfWeek = day,
-                    StartTime = "10:00",
-                    EndTime = "18:00",
-                    SlotDurationMinutes = 30,
-                    IsActive = true
-                });
-            }
-
-            // Seed some doctors for demo
+            // 8. Seed Doctor Data
             builder.Entity<Doctor>().HasData(
                 new Doctor
                 {
@@ -261,6 +234,26 @@ namespace backend.Data
                     Experience = "1 year"
                 }
             );
+
+            // 9. Seed Schedule Data
+            int scheduleId = 1;
+            // Simplified seeding loop for demo (Doctors 1-4)
+            for (int docId = 1; docId <= 4; docId++)
+            {
+                for (int day = 1; day <= 5; day++)
+                {
+                    builder.Entity<DoctorSchedule>().HasData(new DoctorSchedule
+                    {
+                        Id = scheduleId++,
+                        DoctorId = docId,
+                        DayOfWeek = day,
+                        StartTime = docId == 2 ? "08:00" : (docId == 3 || docId == 4 ? "10:00" : "09:00"),
+                        EndTime = docId == 2 ? "16:00" : (docId == 3 || docId == 4 ? "18:00" : "17:00"),
+                        SlotDurationMinutes = 30,
+                        IsActive = true
+                    });
+                }
+            }
         }
     }
 }

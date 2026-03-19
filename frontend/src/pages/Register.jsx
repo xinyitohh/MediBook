@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { User, Mail, Lock, Eye, EyeOff, CheckCircle } from "lucide-react";
-import { register } from "../services/authService";
+import { User, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { registerPatient } from "../services";
 
 export default function Register() {
   const [form, setForm] = useState({
@@ -13,7 +13,6 @@ export default function Register() {
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -21,8 +20,8 @@ export default function Register() {
     setLoading(true);
     setError("");
     try {
-      await register(form);
-      setShowSuccess(true);
+      await registerPatient(form);
+      navigate("/verify-email", { state: { email: form.email } });
     } catch (err) {
       setError(err.response?.data?.message || "Registration failed.");
     } finally {
@@ -32,27 +31,7 @@ export default function Register() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-8">
-      {/* Success Modal */}
-      {showSuccess && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-2xl shadow-xl p-8 max-w-sm w-full mx-4 text-center">
-            <div className="flex items-center justify-center w-16 h-16 rounded-full bg-mint-50 mx-auto mb-4">
-              <CheckCircle size={32} className="text-mint-500" />
-            </div>
-            <h3 className="text-xl font-extrabold text-heading mb-2">Account Created!</h3>
-            <p className="text-gray-500 text-sm mb-6">
-              Your account has been successfully created. You can now sign in.
-            </p>
-            <button
-              onClick={() => navigate("/login")}
-              className="btn-primary w-full py-3 text-[15px]"
-            >
-              Go to Login
-            </button>
-          </div>
-        </div>
-      )}
-      <div className="w-full max-w-md">
+<div className="w-full max-w-md">
         {/* Logo */}
         <div className="flex items-center gap-3 mb-8">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-500 to-mint-500 flex items-center justify-center font-extrabold text-white">
@@ -78,7 +57,10 @@ export default function Register() {
           <div>
             <label className="input-label">Full Name</label>
             <div className="relative">
-              <User size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+              <User
+                size={18}
+                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+              />
               <input
                 type="text"
                 value={form.fullName}
@@ -93,7 +75,10 @@ export default function Register() {
           <div>
             <label className="input-label">Email</label>
             <div className="relative">
-              <Mail size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+              <Mail
+                size={18}
+                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+              />
               <input
                 type="email"
                 value={form.email}
@@ -108,7 +93,10 @@ export default function Register() {
           <div>
             <label className="input-label">Password</label>
             <div className="relative">
-              <Lock size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
+              <Lock
+                size={18}
+                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400"
+              />
               <input
                 type={showPw ? "text" : "password"}
                 value={form.password}
@@ -137,9 +125,12 @@ export default function Register() {
           </button>
         </form>
 
-        <p className="text-center mt-6 text-sm text-gray-500">
+        <p className="text-center mt-8 pt-6 border-t border-gray-100 text-sm text-gray-500">
           Already have an account?{" "}
-          <Link to="/login" className="text-brand-500 font-semibold hover:underline">
+          <Link
+            to="/login"
+            className="text-brand-500 font-semibold hover:underline"
+          >
             Sign in
           </Link>
         </p>

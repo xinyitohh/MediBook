@@ -1,45 +1,35 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
 using backend.Data;
 using backend.DTOs;
 using backend.Models;
+using AutoMapper;
+using AutoMapper.QueryableExtensions;
 
 namespace backend.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class DoctorController : ControllerBase
+    public class DoctorController : BaseController
     {
         private readonly AppDbContext _context;
+        private readonly IMapper _mapper;
 
-        public DoctorController(AppDbContext context)
+        public DoctorController(AppDbContext context, IMapper mapper)
         {
             _context = context;
+            _mapper = mapper;
         }
 
         // GET api/doctor - public, anyone can view doctors
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
+            // ProjectTo makes the SQL query efficient by only selecting DTO fields
             var doctors = await _context.Doctors
                 .Where(d => d.IsAvailable)
-                .Select(d => new DoctorDto
-                {
-                    Id = d.Id,
-                    FullName = d.FullName,
-                    Specialty = d.Specialty,
-                    Email = d.Email,
-                    Phone = d.Phone,
-                    ProfileImageUrl = d.ProfileImageUrl,
-                    Description = d.Description,
-                    IsAvailable = d.IsAvailable,
-                    Rating = d.Rating,
-                    ReviewCount = d.ReviewCount,
-                    ConsultationFee = d.ConsultationFee,
-                    Experience = d.Experience
-                })
+                .ProjectTo<DoctorDto>(_mapper.ConfigurationProvider)
                 .ToListAsync();
 
             return Ok(doctors);
@@ -49,56 +39,56 @@ namespace backend.Controllers
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)
         {
+            // FindAsync is fine here as we want the full object for a single detail view
             var doctor = await _context.Doctors.FindAsync(id);
 
             if (doctor == null)
                 return NotFound(new { message = "Doctor not found" });
 
-            return Ok(new DoctorDto
-            {
-                Id = doctor.Id,
-                FullName = doctor.FullName,
-                Specialty = doctor.Specialty,
-                Email = doctor.Email,
-                Phone = doctor.Phone,
-                ProfileImageUrl = doctor.ProfileImageUrl,
-                Description = doctor.Description,
-                IsAvailable = doctor.IsAvailable,
-                Rating = doctor.Rating,
-                ReviewCount = doctor.ReviewCount,
-                ConsultationFee = doctor.ConsultationFee,
-                Experience = doctor.Experience
-            });
+            return Ok(_mapper.Map<DoctorDto>(doctor));
         }
 
+        // GET api/doctor/5/slots
         [HttpGet("{id}/slots")]
         public async Task<IActionResult> GetAvailableSlots(int id, [FromQuery] string date)
         {
-            var parsedDate = DateTime.SpecifyKind(DateTime.Parse(date), DateTimeKind.Utc);
-            var dayOfWeek = (int)parsedDate.DayOfWeek;  // 0=Sun, 1=Mon, etc.
+            var parsedDate = DateTime.Parse(date);
+            var dayOfWeek = (int)parsedDate.DayOfWeek;
 
-            // 1. Get doctor's schedule for this day
             var schedule = await _context.DoctorSchedules
                 .FirstOrDefaultAsync(s => s.DoctorId == id
                                        && s.DayOfWeek == dayOfWeek
                                        && s.IsActive);
 
             if (schedule == null)
-                return Ok(new List<string>());  // Doctor doesn't work this day
+                return Ok(new List<string>());
 
-            // 2. Generate all possible slots
             var allSlots = new List<string>();
+
             var start = TimeSpan.Parse(schedule.StartTime);
             var end = TimeSpan.Parse(schedule.EndTime);
             var duration = TimeSpan.FromMinutes(schedule.SlotDurationMinutes);
 
+            var breakStart = string.IsNullOrEmpty(schedule.BreakStart)
+                ? (TimeSpan?)null
+                : TimeSpan.Parse(schedule.BreakStart);
+
+            var breakEnd = string.IsNullOrEmpty(schedule.BreakEnd)
+                ? (TimeSpan?)null
+                : TimeSpan.Parse(schedule.BreakEnd);
+
             for (var time = start; time + duration <= end; time += duration)
             {
-                allSlots.Add(DateTime.Today.Add(time).ToString("hh:mm tt"));
-                // ? "09:00 AM", "09:30 AM", etc.
+                // Skip lunch break
+                if (breakStart.HasValue && breakEnd.HasValue &&
+                    time >= breakStart && time < breakEnd)
+                {
+                    continue;
+                }
+
+                allSlots.Add(parsedDate.Date.Add(time).ToString("HH:mm"));
             }
 
-            // 3. Find already-booked slots for this doctor on this date
             var bookedSlots = await _context.Appointments
                 .Where(a => a.DoctorId == id
                           && a.AppointmentDate.Date == parsedDate.Date
@@ -106,8 +96,8 @@ namespace backend.Controllers
                 .Select(a => a.TimeSlot)
                 .ToListAsync();
 
-            // 4. Return only available slots
             var available = allSlots.Except(bookedSlots).ToList();
+
             return Ok(available);
         }
 
@@ -116,22 +106,15 @@ namespace backend.Controllers
         [Authorize(Roles = "Doctor")]
         public async Task<IActionResult> UpdateProfile([FromBody] UpdateDoctorProfileDto dto)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
             var doctor = await _context.Doctors
-                .FirstOrDefaultAsync(d => d.UserId == userId);
+                .FirstOrDefaultAsync(d => d.Id == CurrentProfileId);
 
             if (doctor == null)
                 return NotFound(new { message = "Doctor profile not found" });
 
-            doctor.FullName = dto.FullName;
-            doctor.Phone = dto.Phone;
-            doctor.Description = dto.Description;
-            doctor.ConsultationFee = dto.ConsultationFee;
-            doctor.Experience = dto.Experience;
+            _mapper.Map(dto, doctor);
 
             await _context.SaveChangesAsync();
-
             return Ok(new { message = "Profile updated" });
         }
 
@@ -140,10 +123,8 @@ namespace backend.Controllers
         [Authorize(Roles = "Doctor")]
         public async Task<IActionResult> UpdateAvailability([FromBody] UpdateAvailabilityDto dto)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
             var doctor = await _context.Doctors
-                .FirstOrDefaultAsync(d => d.UserId == userId);
+                .FirstOrDefaultAsync(d => d.Id == CurrentProfileId);
 
             if (doctor == null)
                 return NotFound(new { message = "Doctor profile not found" });
@@ -159,16 +140,7 @@ namespace backend.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Create([FromBody] CreateDoctorDto dto)
         {
-            var doctor = new Doctor
-            {
-                FullName = dto.FullName,
-                Specialty = dto.Specialty,
-                Email = dto.Email,
-                Phone = dto.Phone,
-                Description = dto.Description,
-                ConsultationFee = dto.ConsultationFee,
-                Experience = dto.Experience
-            };
+            var doctor = _mapper.Map<Doctor>(dto);
 
             _context.Doctors.Add(doctor);
             await _context.SaveChangesAsync();
@@ -186,16 +158,9 @@ namespace backend.Controllers
             if (doctor == null)
                 return NotFound(new { message = "Doctor not found" });
 
-            doctor.FullName = dto.FullName;
-            doctor.Specialty = dto.Specialty;
-            doctor.Email = dto.Email;
-            doctor.Phone = dto.Phone;
-            doctor.Description = dto.Description;
-            doctor.ConsultationFee = dto.ConsultationFee;
-            doctor.Experience = dto.Experience;
+            _mapper.Map(dto, doctor);
 
             await _context.SaveChangesAsync();
-
             return Ok(new { message = "Doctor updated" });
         }
 

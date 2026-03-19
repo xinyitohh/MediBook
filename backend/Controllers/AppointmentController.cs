@@ -1,114 +1,72 @@
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using System.Security.Claims;
+using AutoMapper;
+using AutoMapper.QueryableExtensions;
 using backend.Data;
 using backend.DTOs;
 using backend.Models;
+using backend.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System.Numerics;
 
 namespace backend.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
     [Authorize]
-    public class AppointmentController : ControllerBase
+    public class AppointmentController : BaseController
     {
         private readonly AppDbContext _context;
+        private readonly IMapper _mapper;
+        private readonly INotificationService _notificationService;
 
-        public AppointmentController(AppDbContext context)
+
+        public AppointmentController(AppDbContext context, IMapper mapper, INotificationService notificationService)
         {
             _context = context;
+            _mapper = mapper;
+            _notificationService = notificationService; 
         }
 
         // GET api/appointment/my - get logged in user's appointments
         [HttpGet("my")]
         public async Task<IActionResult> GetMyAppointments()
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var role = User.FindFirstValue(ClaimTypes.Role);
+            var query = _context.Appointments.AsQueryable();
 
-            // If user is a doctor, return appointments assigned to them
-            if (role == "Doctor")
+            // Use CurrentProfileId from BaseController
+            if (UserRole == "Doctor")
             {
-                var doctor = await _context.Doctors
-                    .FirstOrDefaultAsync(d => d.UserId == userId);
-
-                if (doctor == null)
-                    return NotFound(new { message = "Doctor profile not found" });
-
-                var doctorAppointments = await _context.Appointments
-                    .Include(a => a.Doctor)
-                    .Include(a => a.Patient)
-                    .Where(a => a.DoctorId == doctor.Id)
-                    .Select(a => new AppointmentResponseDto
-                    {
-                        Id = a.Id,
-                        Doctor = a.Doctor.FullName,
-                        Specialty = a.Doctor.Specialty,
-                        Patient = a.Patient.FullName,
-                        Date = a.AppointmentDate.ToString("yyyy-MM-dd"),
-                        Time = a.TimeSlot,
-                        Status = a.Status,
-                        Notes = a.Notes,
-                        DoctorNotes = a.DoctorNotes
-                    })
-                    .ToListAsync();
-
-                return Ok(doctorAppointments);
+                query = query.Where(a => a.DoctorId == CurrentProfileId);
+            }
+            else
+            {
+                query = query.Where(a => a.PatientId == CurrentProfileId);
             }
 
-            // Patient flow
-            var patient = await _context.Patients
-                .FirstOrDefaultAsync(p => p.UserId == userId);
-
-            if (patient == null)
-                return NotFound(new { message = "Patient profile not found" });
-
-            var appointments = await _context.Appointments
-                .Include(a => a.Doctor)
-                .Include(a => a.Patient)
-                .Where(a => a.PatientId == patient.Id)
-                .Select(a => new AppointmentResponseDto
-                {
-                    Id = a.Id,
-                    Doctor = a.Doctor.FullName,
-                    Specialty = a.Doctor.Specialty,
-                    Patient = a.Patient.FullName,
-                    Date = a.AppointmentDate.ToString("yyyy-MM-dd"),
-                    Time = a.TimeSlot,
-                    Status = a.Status,
-                    Notes = a.Notes,
-                    DoctorNotes = a.DoctorNotes
-                })
+            // ProjectTo: Only selects required columns from the DB (Doctor Name, Patient Name, etc.)
+            var response = await query
+                .OrderByDescending(a => a.AppointmentDate)
+                .ProjectTo<AppointmentResponseDto>(_mapper.ConfigurationProvider)
                 .ToListAsync();
 
-            return Ok(appointments);
+            return Ok(response);
         }
 
         // POST api/appointment - book appointment
         [HttpPost]
         public async Task<IActionResult> BookAppointment([FromBody] CreateAppointmentDto dto)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (UserRole != "Patient")
+                return BadRequest(new { message = "Only patients can book appointments" });
 
-            // Get patient profile
-            var patient = await _context.Patients
-                .FirstOrDefaultAsync(p => p.UserId == userId);
-
-            if (patient == null)
-                return BadRequest(new { message = "Please complete your patient profile first" });
-
-            // Check doctor exists
-            var doctor = await _context.Doctors.FindAsync(dto.DoctorId);
+            var doctor = await _context.Doctors.FirstOrDefaultAsync(d => d.Id == dto.DoctorId);
             if (doctor == null)
                 return NotFound(new { message = "Doctor not found" });
 
-            // Check time slot not already taken
-            var utcDate = DateTime.SpecifyKind(dto.AppointmentDate, DateTimeKind.Utc);
-
             var slotTaken = await _context.Appointments.AnyAsync(a =>
                 a.DoctorId == dto.DoctorId &&
-                a.AppointmentDate.Date == utcDate.Date &&
+                a.AppointmentDate.Date == dto.AppointmentDate.Date &&
                 a.TimeSlot == dto.TimeSlot &&
                 a.Status != "Cancelled"
             );
@@ -116,51 +74,61 @@ namespace backend.Controllers
             if (slotTaken)
                 return BadRequest(new { message = "This time slot is already booked" });
 
-            var appointment = new Appointment
-            {
-                PatientId = patient.Id,
-                DoctorId = dto.DoctorId,
-                AppointmentDate = DateTime.SpecifyKind(dto.AppointmentDate, DateTimeKind.Utc),
-                TimeSlot = dto.TimeSlot,
-                Notes = dto.Notes,
-                Status = "Pending"
-            };
+            var appointment = _mapper.Map<Appointment>(dto);
+            appointment.PatientId = CurrentProfileId;
+            appointment.Status = "Pending";
 
             _context.Appointments.Add(appointment);
             await _context.SaveChangesAsync();
 
-            // TODO: Send SQS message here later (Task 2)
+            // Notify Doctor: New booking
+            await _notificationService.SendAsync(   
+                doctor.UserId,
+                "New Appointment Request",
+                $"A patient has booked a slot for {dto.AppointmentDate:dd MMM yyyy} at {dto.TimeSlot}.",
+                "Appointment"
+            );
 
             return Ok(new { message = "Appointment booked successfully", id = appointment.Id });
         }
 
-        // PUT api/appointment/5/cancel - patient cancels
+        // PUT api/appointment/{id}/cancel
         [HttpPut("{id}/cancel")]
         public async Task<IActionResult> CancelAppointment(int id)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-
-            var patient = await _context.Patients
-                .FirstOrDefaultAsync(p => p.UserId == userId);
-
             var appointment = await _context.Appointments
-                .FirstOrDefaultAsync(a => a.Id == id && a.PatientId == patient!.Id);
+                .Include(a => a.Doctor)
+                .Include(a => a.Patient)
+                .FirstOrDefaultAsync(a => a.Id == id && (a.PatientId == CurrentProfileId || UserRole == "Admin"));
 
             if (appointment == null)
-                return NotFound(new { message = "Appointment not found" });
+                return NotFound(new { message = "Appointment not found or unauthorized" });
 
             appointment.Status = "Cancelled";
             await _context.SaveChangesAsync();
 
+            // Notify Doctor: Patient cancelled
+            await _notificationService.SendAsync(
+                appointment.Doctor.UserId,
+                "Appointment Cancelled",
+                $"The appointment for {appointment.AppointmentDate:dd MMM yyyy} has been cancelled.",
+                "Appointment"
+            );
+
             return Ok(new { message = "Appointment cancelled" });
         }
 
-        // PUT api/appointment/5/confirm - doctor/admin confirms
+        // PUT api/appointment/{id}/confirm
         [HttpPut("{id}/confirm")]
         [Authorize(Roles = "Admin,Doctor")]
         public async Task<IActionResult> ConfirmAppointment(int id)
         {
-            var appointment = await _context.Appointments.FindAsync(id);
+            var query = _context.Appointments.Include(a => a.Patient).Include(a => a.Doctor).AsQueryable();
+
+            if (UserRole == "Doctor")
+                query = query.Where(a => a.DoctorId == CurrentProfileId);
+
+            var appointment = await query.FirstOrDefaultAsync(a => a.Id == id);
 
             if (appointment == null)
                 return NotFound(new { message = "Appointment not found" });
@@ -168,22 +136,43 @@ namespace backend.Controllers
             appointment.Status = "Confirmed";
             await _context.SaveChangesAsync();
 
+            // Notify Patient: Doctor confirmed
+            await _notificationService.SendAsync(
+                appointment.Patient.UserId,
+                "Appointment Confirmed",
+                $"Your appointment with Dr. {appointment.Doctor.FullName} on {appointment.AppointmentDate:dd MMM yyyy} is confirmed.",
+                "Appointment"
+            );
+
             return Ok(new { message = "Appointment confirmed" });
         }
 
-        // PUT api/appointment/5/complete - doctor/admin marks as completed
+        // PUT api/appointment/{id}/complete
         [HttpPut("{id}/complete")]
         [Authorize(Roles = "Admin,Doctor")]
         public async Task<IActionResult> CompleteAppointment(int id, [FromBody] CompleteAppointmentDto dto)
         {
-            var appointment = await _context.Appointments.FindAsync(id);
+            var query = _context.Appointments.Include(a => a.Patient).Include(a => a.Doctor).AsQueryable();
+
+            if (UserRole == "Doctor")
+                query = query.Where(a => a.DoctorId == CurrentProfileId);
+
+            var appointment = await query.FirstOrDefaultAsync(a => a.Id == id);
 
             if (appointment == null)
                 return NotFound(new { message = "Appointment not found" });
 
+            _mapper.Map(dto, appointment);
             appointment.Status = "Completed";
-            appointment.DoctorNotes = dto.DoctorNotes;
             await _context.SaveChangesAsync();
+
+            // Notify Patient: Visit completed & check for medical report
+            await _notificationService.SendAsync(
+                appointment.Patient.UserId,
+                "Visit Completed",
+                $"Your session with Dr. {appointment.Doctor.FullName} is finished. You can now view your summary.",
+                "Appointment"
+            );
 
             return Ok(new { message = "Appointment completed" });
         }
@@ -193,24 +182,43 @@ namespace backend.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetAll()
         {
-            var appointments = await _context.Appointments
-                .Include(a => a.Doctor)
-                .Include(a => a.Patient)
-                .Select(a => new AppointmentResponseDto
-                {
-                    Id = a.Id,
-                    Doctor = a.Doctor.FullName,
-                    Specialty = a.Doctor.Specialty,
-                    Patient = a.Patient.FullName,
-                    Date = a.AppointmentDate.ToString("yyyy-MM-dd"),
-                    Time = a.TimeSlot,
-                    Status = a.Status,
-                    Notes = a.Notes,
-                    DoctorNotes = a.DoctorNotes
-                })
+            // Efficient projection for the admin list
+            var response = await _context.Appointments
+                .OrderByDescending(a => a.AppointmentDate)
+                .ProjectTo<AppointmentResponseDto>(_mapper.ConfigurationProvider)
                 .ToListAsync();
 
-            return Ok(appointments);
+            return Ok(response);
+        }
+
+        [HttpGet("search")]
+        [Authorize(Roles = "Admin,Doctor")]
+        public async Task<IActionResult> SearchAppointments([FromQuery] int? doctorId, [FromQuery] int? patientId)
+        {
+            var query = _context.Appointments.AsQueryable();
+
+            // 1. Filter by Doctor if provided
+            if (doctorId.HasValue)
+            {
+                // Security: Doctors can only search their own records
+                if (UserRole == "Doctor" && doctorId != CurrentProfileId)
+                    return Unauthorized(new { message = "Unauthorized access to other doctor records." });
+
+                query = query.Where(a => a.DoctorId == doctorId.Value);
+            }
+
+            // 2. Filter by Patient if provided
+            if (patientId.HasValue)
+            {
+                query = query.Where(a => a.PatientId == patientId.Value);
+            }
+
+            var response = await query
+                .OrderByDescending(a => a.AppointmentDate)
+                .ProjectTo<AppointmentResponseDto>(_mapper.ConfigurationProvider)
+                .ToListAsync();
+
+            return Ok(response);
         }
     }
 }

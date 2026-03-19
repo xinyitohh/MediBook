@@ -1,38 +1,81 @@
 import { useState, useEffect } from "react";
-import { Users, Stethoscope, Calendar, Clock } from "lucide-react";
+import { Users, Stethoscope, Calendar, Clock, Loader2 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import StatCard from "../components/StatCard";
+import { getAdminStats } from "../services"; // Import the real API service
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    // TODO: Replace with real API call — getAdminDashboard()
-    setTimeout(() => {
-      setStats({
-        totalPatients: 1234,
-        totalDoctors: 48,
-        appointmentsToday: 67,
-        pendingApprovals: 15,
-      });
-      setLoading(false);
-    }, 300);
+    const fetchDashboardData = async () => {
+      try {
+        setLoading(true);
+        // 1. Call the real C# API
+        const response = await getAdminStats();
+
+        // 2. Set the data into state
+        setStats(response.data);
+        setError(null);
+      } catch (err) {
+        console.error("Dashboard Load Error:", err);
+        setError("Failed to load real-time system data.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboardData();
   }, []);
 
-  const recentActivity = [
-    { action: "New patient registered", detail: "Ahmad Ibrahim", time: "2 min ago", color: "bg-brand-500" },
-    { action: "Appointment confirmed", detail: "Dr. Sarah Johnson → Jane Doe", time: "15 min ago", color: "bg-mint-500" },
-    { action: "Medical report uploaded", detail: "Patient: Mike Ross", time: "1 hour ago", color: "bg-purple-500" },
-    { action: "Appointment cancelled", detail: "Dr. Chen → Alice Tan", time: "2 hours ago", color: "bg-red-500" },
-    { action: "New doctor added", detail: "Dr. Emily Wong — Pediatrics", time: "3 hours ago", color: "bg-amber-500" },
-  ];
+  // Show a spinner while fetching data from your local/RDS database
+  if (loading) {
+    return (
+      <div className="flex h-96 items-center justify-center">
+        <Loader2 className="h-10 w-10 animate-spin text-brand-500" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 text-center text-red-500 bg-red-50 rounded-lg">
+        {error}
+      </div>
+    );
+  }
 
   const statCards = [
-    { icon: Users,       label: "Total Patients",      value: stats?.totalPatients?.toLocaleString() || "–",  sub: "+12% this month", color: "brand" },
-    { icon: Stethoscope, label: "Total Doctors",        value: String(stats?.totalDoctors || "–"),              sub: "+3 this month",   color: "purple" },
-    { icon: Calendar,    label: "Appointments Today",   value: String(stats?.appointmentsToday || "–"),         sub: "+8% vs yesterday",color: "mint" },
-    { icon: Clock,       label: "Pending Approvals",    value: String(stats?.pendingApprovals || "–"),          sub: "Needs attention", color: "amber" },
+    {
+      icon: Users,
+      label: "Total Patients",
+      value: stats?.totalPatients?.toLocaleString() || "0",
+      sub: "Live from database",
+      color: "brand",
+    },
+    {
+      icon: Stethoscope,
+      label: "Total Doctors",
+      value: String(stats?.totalDoctors || "0"),
+      sub: "Active practitioners",
+      color: "purple",
+    },
+    {
+      icon: Calendar,
+      label: "Appointments Today",
+      value: String(stats?.appointmentsToday || "0"),
+      sub: "Scheduled for today",
+      color: "mint",
+    },
+    {
+      icon: Clock,
+      label: "Pending Approvals",
+      value: String(stats?.pendingApprovals || "0"),
+      sub: "Needs attention",
+      color: "amber",
+    },
   ];
 
   return (
@@ -42,35 +85,46 @@ export default function AdminDashboard() {
         subtitle="System overview and management"
       />
 
-      {/* Stats */}
+      {/* Stats Cards - Now Dynamic */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {statCards.map((s) => (
           <StatCard key={s.label} {...s} />
         ))}
       </div>
 
-      {/* Recent Activity */}
+      {/* Recent Activity - Now fetching from backend RecentActivityDto */}
       <div className="card">
         <div className="px-6 py-4 border-b border-gray-100">
           <h3 className="text-base font-bold text-heading">Recent Activity</h3>
         </div>
-        {recentActivity.map((item, i) => (
-          <div
-            key={i}
-            className={`flex items-center gap-3.5 px-6 py-3.5 ${
-              i < recentActivity.length - 1 ? "border-b border-gray-100" : ""
-            }`}
-          >
-            <div className={`w-2 h-2 rounded-full shrink-0 ${item.color}`} />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-heading">{item.action}</p>
-              <p className="text-sm text-gray-500">{item.detail}</p>
+
+        {stats?.recentActivity?.length > 0 ? (
+          stats.recentActivity.map((item, i) => (
+            <div
+              key={i}
+              className={`flex items-center gap-3.5 px-6 py-3.5 ${
+                i < stats.recentActivity.length - 1
+                  ? "border-b border-gray-100"
+                  : ""
+              }`}
+            >
+              <div className={`w-2 h-2 rounded-full shrink-0 ${item.color}`} />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-heading">
+                  {item.action}
+                </p>
+                <p className="text-sm text-gray-500">{item.detail}</p>
+              </div>
+              <span className="text-xs text-gray-400 whitespace-nowrap">
+                {item.time}
+              </span>
             </div>
-            <span className="text-xs text-gray-400 whitespace-nowrap">
-              {item.time}
-            </span>
+          ))
+        ) : (
+          <div className="px-6 py-10 text-center text-gray-400">
+            No recent system activity found.
           </div>
-        ))}
+        )}
       </div>
     </div>
   );

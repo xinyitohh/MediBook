@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Star, MapPin, Clock, ArrowLeft, CheckCircle } from "lucide-react";
-import { getDoctorById, getDoctorSlots } from "../services/doctorService";
+import { Star, ArrowLeft, CheckCircle, MessageSquare } from "lucide-react";
+import { getDoctorById, getAvailableSlots, getDoctorReviews } from "../services";
 import { bookAppointment } from "../services/appointmentService";
 import DatePicker from "../components/DatePicker";
 
@@ -17,17 +17,21 @@ export default function DoctorDetail() {
   const [booking, setBooking] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
+  const [reviews, setReviews] = useState([]);
 
   useEffect(() => {
     getDoctorById(id)
       .then((res) => setDoctor(res.data))
       .catch(() => navigate("/doctors"))
       .finally(() => setLoading(false));
+    getDoctorReviews(id)
+      .then((res) => setReviews(res.data ?? []))
+      .catch(() => {});
   }, [id]);
 
   useEffect(() => {
     if (!selectedDate || !id) return;
-    getDoctorSlots(id, selectedDate)
+    getAvailableSlots(id, selectedDate)
       .then((res) => setSlots(res.data))
       .catch(() => setSlots([]));
   }, [selectedDate, id]);
@@ -243,6 +247,83 @@ export default function DoctorDetail() {
           </div>
         </div>
       </div>
+
+      {/* ── Reviews section ── */}
+      <div className="mt-6">
+        <h3 className="text-lg font-bold text-heading mb-4 flex items-center gap-2">
+          <MessageSquare size={18} className="text-brand-500" />
+          Patient Reviews
+          {reviews.length > 0 && (
+            <span className="text-sm font-normal text-gray-400">
+              ({reviews.length})
+            </span>
+          )}
+        </h3>
+
+        {reviews.length === 0 ? (
+          <div className="card p-8 text-center text-gray-400">
+            <Star size={28} className="mx-auto mb-2 opacity-30" />
+            <p className="text-sm">No reviews yet for this doctor.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {reviews.map((review) => (
+              <ReviewCard key={review.id} review={review} />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ReviewCard({ review }) {
+  return (
+    <div className="card-padded">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-linear-to-br from-brand-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shrink-0">
+            {(review.patientName || "P")
+              .split(" ")
+              .map((n) => n[0])
+              .join("")
+              .slice(0, 2)
+              .toUpperCase()}
+          </div>
+          <div>
+            <p className="font-semibold text-sm text-heading">
+              {review.patientName || "Patient"}
+            </p>
+            <div className="flex gap-0.5 mt-0.5">
+              {[1, 2, 3, 4, 5].map((s) => (
+                <Star
+                  key={s}
+                  size={12}
+                  className={
+                    s <= review.rating
+                      ? "text-amber-400 fill-amber-400"
+                      : "text-gray-200 fill-gray-200"
+                  }
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+        <span className="text-xs text-gray-400 shrink-0">
+          {review.createdAt
+            ? new Date(review.createdAt).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              })
+            : ""}
+        </span>
+      </div>
+      {review.comment && (
+        <p className="mt-3 text-sm text-gray-600 leading-relaxed">
+          {review.comment}
+        </p>
+      )}
     </div>
   );
 }

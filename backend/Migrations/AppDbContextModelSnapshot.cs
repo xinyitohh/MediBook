@@ -22,6 +22,329 @@ namespace backend.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Announcement", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("CreatedByUserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Announcements");
+                });
+
+            modelBuilder.Entity("DoctorSchedule", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("BreakEnd")
+                        .HasColumnType("text");
+
+                    b.Property<string>("BreakStart")
+                        .HasColumnType("text");
+
+                    b.Property<int>("DayOfWeek")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("DoctorId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("EndTime")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("SlotDurationMinutes")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("StartTime")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DoctorId");
+
+                    b.ToTable("DoctorSchedules");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            DayOfWeek = 1,
+                            DoctorId = 1,
+                            EndTime = "17:00",
+                            IsActive = true,
+                            SlotDurationMinutes = 30,
+                            StartTime = "09:00"
+                        },
+                        new
+                        {
+                            Id = 2,
+                            DayOfWeek = 2,
+                            DoctorId = 1,
+                            EndTime = "17:00",
+                            IsActive = true,
+                            SlotDurationMinutes = 30,
+                            StartTime = "09:00"
+                        },
+                        new
+                        {
+                            Id = 3,
+                            DayOfWeek = 3,
+                            DoctorId = 1,
+                            EndTime = "17:00",
+                            IsActive = true,
+                            SlotDurationMinutes = 30,
+                            StartTime = "09:00"
+                        },
+                        new
+                        {
+                            Id = 4,
+                            DayOfWeek = 4,
+                            DoctorId = 1,
+                            EndTime = "17:00",
+                            IsActive = true,
+                            SlotDurationMinutes = 30,
+                            StartTime = "09:00"
+                        },
+                        new
+                        {
+                            Id = 5,
+                            DayOfWeek = 5,
+                            DoctorId = 1,
+                            EndTime = "17:00",
+                            IsActive = true,
+                            SlotDurationMinutes = 30,
+                            StartTime = "09:00"
+                        },
+                        new
+                        {
+                            Id = 6,
+                            DayOfWeek = 1,
+                            DoctorId = 2,
+                            EndTime = "16:00",
+                            IsActive = true,
+                            SlotDurationMinutes = 30,
+                            StartTime = "08:00"
+                        },
+                        new
+                        {
+                            Id = 7,
+                            DayOfWeek = 2,
+                            DoctorId = 2,
+                            EndTime = "16:00",
+                            IsActive = true,
+                            SlotDurationMinutes = 30,
+                            StartTime = "08:00"
+                        },
+                        new
+                        {
+                            Id = 8,
+                            DayOfWeek = 3,
+                            DoctorId = 2,
+                            EndTime = "16:00",
+                            IsActive = true,
+                            SlotDurationMinutes = 30,
+                            StartTime = "08:00"
+                        },
+                        new
+                        {
+                            Id = 9,
+                            DayOfWeek = 4,
+                            DoctorId = 2,
+                            EndTime = "16:00",
+                            IsActive = true,
+                            SlotDurationMinutes = 30,
+                            StartTime = "08:00"
+                        },
+                        new
+                        {
+                            Id = 10,
+                            DayOfWeek = 5,
+                            DoctorId = 2,
+                            EndTime = "16:00",
+                            IsActive = true,
+                            SlotDurationMinutes = 30,
+                            StartTime = "08:00"
+                        },
+                        new
+                        {
+                            Id = 11,
+                            DayOfWeek = 1,
+                            DoctorId = 3,
+                            EndTime = "18:00",
+                            IsActive = true,
+                            SlotDurationMinutes = 30,
+                            StartTime = "10:00"
+                        },
+                        new
+                        {
+                            Id = 12,
+                            DayOfWeek = 2,
+                            DoctorId = 3,
+                            EndTime = "18:00",
+                            IsActive = true,
+                            SlotDurationMinutes = 30,
+                            StartTime = "10:00"
+                        },
+                        new
+                        {
+                            Id = 13,
+                            DayOfWeek = 3,
+                            DoctorId = 3,
+                            EndTime = "18:00",
+                            IsActive = true,
+                            SlotDurationMinutes = 30,
+                            StartTime = "10:00"
+                        },
+                        new
+                        {
+                            Id = 14,
+                            DayOfWeek = 4,
+                            DoctorId = 3,
+                            EndTime = "18:00",
+                            IsActive = true,
+                            SlotDurationMinutes = 30,
+                            StartTime = "10:00"
+                        },
+                        new
+                        {
+                            Id = 15,
+                            DayOfWeek = 5,
+                            DoctorId = 3,
+                            EndTime = "18:00",
+                            IsActive = true,
+                            SlotDurationMinutes = 30,
+                            StartTime = "10:00"
+                        },
+                        new
+                        {
+                            Id = 16,
+                            DayOfWeek = 1,
+                            DoctorId = 4,
+                            EndTime = "18:00",
+                            IsActive = true,
+                            SlotDurationMinutes = 30,
+                            StartTime = "10:00"
+                        },
+                        new
+                        {
+                            Id = 17,
+                            DayOfWeek = 2,
+                            DoctorId = 4,
+                            EndTime = "18:00",
+                            IsActive = true,
+                            SlotDurationMinutes = 30,
+                            StartTime = "10:00"
+                        },
+                        new
+                        {
+                            Id = 18,
+                            DayOfWeek = 3,
+                            DoctorId = 4,
+                            EndTime = "18:00",
+                            IsActive = true,
+                            SlotDurationMinutes = 30,
+                            StartTime = "10:00"
+                        },
+                        new
+                        {
+                            Id = 19,
+                            DayOfWeek = 4,
+                            DoctorId = 4,
+                            EndTime = "18:00",
+                            IsActive = true,
+                            SlotDurationMinutes = 30,
+                            StartTime = "10:00"
+                        },
+                        new
+                        {
+                            Id = 20,
+                            DayOfWeek = 5,
+                            DoctorId = 4,
+                            EndTime = "18:00",
+                            IsActive = true,
+                            SlotDurationMinutes = 30,
+                            StartTime = "10:00"
+                        });
+                });
+
+            modelBuilder.Entity("HealthQuestionnaire", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AdditionalNotes")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Allergies")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("AppointmentId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ChiefComplaint")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("CurrentMedications")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("PatientId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SeverityLevel")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("SubmittedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("SymptomDuration")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AppointmentId");
+
+                    b.HasIndex("PatientId");
+
+                    b.ToTable("HealthQuestionnaires");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
                 {
                     b.Property<string>("Id")
@@ -191,6 +514,124 @@ namespace backend.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("Notification", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Notifications");
+                });
+
+            modelBuilder.Entity("ReportAnalysis", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AbnormalFindings")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("AnalyzedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<int>("MedicalReportId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("NormalFindings")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Recommendations")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Summary")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MedicalReportId")
+                        .IsUnique();
+
+                    b.ToTable("ReportAnalyses");
+                });
+
+            modelBuilder.Entity("Review", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AppointmentId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Comment")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<int>("DoctorId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("PatientId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Rating")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AppointmentId")
+                        .IsUnique();
+
+                    b.HasIndex("DoctorId");
+
+                    b.HasIndex("PatientId");
+
+                    b.ToTable("Reviews");
+                });
+
             modelBuilder.Entity("backend.Models.Appointment", b =>
                 {
                     b.Property<int>("Id")
@@ -201,6 +642,14 @@ namespace backend.Migrations
 
                     b.Property<DateTime>("AppointmentDate")
                         .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("AppointmentType")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("CancellationReason")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp without time zone");
@@ -277,11 +726,19 @@ namespace backend.Migrations
                     b.Property<bool>("IsAvailable")
                         .HasColumnType("boolean");
 
+                    b.Property<string>("Languages")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("Phone")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<string>("ProfileImageUrl")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Qualifications")
                         .IsRequired()
                         .HasColumnType("text");
 
@@ -308,7 +765,7 @@ namespace backend.Migrations
                         {
                             Id = 1,
                             ConsultationFee = 200m,
-                            CreatedAt = new DateTime(2026, 3, 11, 7, 40, 34, 992, DateTimeKind.Utc).AddTicks(184),
+                            CreatedAt = new DateTime(2026, 3, 19, 16, 9, 29, 885, DateTimeKind.Utc).AddTicks(3727),
                             DateOfBirth = "",
                             Description = "Specialist in heart diseases with 10 years experience",
                             Email = "sarah.johnson@medibook.com",
@@ -316,8 +773,10 @@ namespace backend.Migrations
                             FullName = "Dr. Sarah Johnson",
                             Gender = "",
                             IsAvailable = true,
+                            Languages = "",
                             Phone = "012-3456789",
                             ProfileImageUrl = "",
+                            Qualifications = "",
                             Rating = 4.9000000000000004,
                             ReviewCount = 312,
                             Specialty = "Cardiology",
@@ -327,7 +786,7 @@ namespace backend.Migrations
                         {
                             Id = 2,
                             ConsultationFee = 85m,
-                            CreatedAt = new DateTime(2026, 3, 11, 7, 40, 34, 992, DateTimeKind.Utc).AddTicks(229),
+                            CreatedAt = new DateTime(2026, 3, 19, 16, 9, 29, 885, DateTimeKind.Utc).AddTicks(3739),
                             DateOfBirth = "",
                             Description = "General practitioner with focus on preventive care",
                             Email = "michael.chen@medibook.com",
@@ -335,8 +794,10 @@ namespace backend.Migrations
                             FullName = "Dr. Michael Chen",
                             Gender = "",
                             IsAvailable = true,
+                            Languages = "",
                             Phone = "012-9876543",
                             ProfileImageUrl = "",
+                            Qualifications = "",
                             Rating = 4.7999999999999998,
                             ReviewCount = 187,
                             Specialty = "General Practice",
@@ -346,7 +807,7 @@ namespace backend.Migrations
                         {
                             Id = 3,
                             ConsultationFee = 150m,
-                            CreatedAt = new DateTime(2026, 3, 11, 7, 40, 34, 992, DateTimeKind.Utc).AddTicks(235),
+                            CreatedAt = new DateTime(2026, 3, 19, 16, 9, 29, 885, DateTimeKind.Utc).AddTicks(3743),
                             DateOfBirth = "",
                             Description = "Skin specialist with expertise in cosmetic dermatology",
                             Email = "aisha.rahman@medibook.com",
@@ -354,8 +815,10 @@ namespace backend.Migrations
                             FullName = "Dr. Aisha Rahman",
                             Gender = "",
                             IsAvailable = true,
+                            Languages = "",
                             Phone = "011-2345678",
                             ProfileImageUrl = "",
+                            Qualifications = "",
                             Rating = 4.7000000000000002,
                             ReviewCount = 156,
                             Specialty = "Dermatology",
@@ -365,7 +828,7 @@ namespace backend.Migrations
                         {
                             Id = 4,
                             ConsultationFee = 50m,
-                            CreatedAt = new DateTime(2026, 3, 11, 7, 40, 34, 992, DateTimeKind.Utc).AddTicks(240),
+                            CreatedAt = new DateTime(2026, 3, 19, 16, 9, 29, 885, DateTimeKind.Utc).AddTicks(3745),
                             DateOfBirth = "",
                             Description = "Demo doctor account.",
                             Email = "doctor@2.com",
@@ -373,259 +836,14 @@ namespace backend.Migrations
                             FullName = "Doctor 1",
                             Gender = "",
                             IsAvailable = true,
+                            Languages = "",
                             Phone = "011-9999999",
                             ProfileImageUrl = "",
+                            Qualifications = "",
                             Rating = 0.0,
                             ReviewCount = 0,
                             Specialty = "General Practice",
                             UserId = "040901f0-abcd-422c-afbf-59f706d72cf6"
-                        });
-                });
-
-            modelBuilder.Entity("backend.Models.DoctorSchedule", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("DayOfWeek")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("DoctorId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("EndTime")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.Property<int>("SlotDurationMinutes")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("StartTime")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DoctorId");
-
-                    b.ToTable("DoctorSchedules");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            DayOfWeek = 1,
-                            DoctorId = 1,
-                            EndTime = "17:00",
-                            IsActive = true,
-                            SlotDurationMinutes = 30,
-                            StartTime = "09:00"
-                        },
-                        new
-                        {
-                            Id = 2,
-                            DayOfWeek = 2,
-                            DoctorId = 1,
-                            EndTime = "17:00",
-                            IsActive = true,
-                            SlotDurationMinutes = 30,
-                            StartTime = "09:00"
-                        },
-                        new
-                        {
-                            Id = 3,
-                            DayOfWeek = 3,
-                            DoctorId = 1,
-                            EndTime = "17:00",
-                            IsActive = true,
-                            SlotDurationMinutes = 30,
-                            StartTime = "09:00"
-                        },
-                        new
-                        {
-                            Id = 4,
-                            DayOfWeek = 4,
-                            DoctorId = 1,
-                            EndTime = "17:00",
-                            IsActive = true,
-                            SlotDurationMinutes = 30,
-                            StartTime = "09:00"
-                        },
-                        new
-                        {
-                            Id = 5,
-                            DayOfWeek = 5,
-                            DoctorId = 1,
-                            EndTime = "17:00",
-                            IsActive = true,
-                            SlotDurationMinutes = 30,
-                            StartTime = "09:00"
-                        },
-                        new
-                        {
-                            Id = 6,
-                            DayOfWeek = 1,
-                            DoctorId = 2,
-                            EndTime = "16:00",
-                            IsActive = true,
-                            SlotDurationMinutes = 30,
-                            StartTime = "08:00"
-                        },
-                        new
-                        {
-                            Id = 7,
-                            DayOfWeek = 2,
-                            DoctorId = 2,
-                            EndTime = "16:00",
-                            IsActive = true,
-                            SlotDurationMinutes = 30,
-                            StartTime = "08:00"
-                        },
-                        new
-                        {
-                            Id = 8,
-                            DayOfWeek = 3,
-                            DoctorId = 2,
-                            EndTime = "16:00",
-                            IsActive = true,
-                            SlotDurationMinutes = 30,
-                            StartTime = "08:00"
-                        },
-                        new
-                        {
-                            Id = 9,
-                            DayOfWeek = 4,
-                            DoctorId = 2,
-                            EndTime = "16:00",
-                            IsActive = true,
-                            SlotDurationMinutes = 30,
-                            StartTime = "08:00"
-                        },
-                        new
-                        {
-                            Id = 10,
-                            DayOfWeek = 5,
-                            DoctorId = 2,
-                            EndTime = "16:00",
-                            IsActive = true,
-                            SlotDurationMinutes = 30,
-                            StartTime = "08:00"
-                        },
-                        new
-                        {
-                            Id = 11,
-                            DayOfWeek = 6,
-                            DoctorId = 2,
-                            EndTime = "16:00",
-                            IsActive = true,
-                            SlotDurationMinutes = 30,
-                            StartTime = "08:00"
-                        },
-                        new
-                        {
-                            Id = 12,
-                            DayOfWeek = 1,
-                            DoctorId = 3,
-                            EndTime = "18:00",
-                            IsActive = true,
-                            SlotDurationMinutes = 30,
-                            StartTime = "10:00"
-                        },
-                        new
-                        {
-                            Id = 13,
-                            DayOfWeek = 2,
-                            DoctorId = 3,
-                            EndTime = "18:00",
-                            IsActive = true,
-                            SlotDurationMinutes = 30,
-                            StartTime = "10:00"
-                        },
-                        new
-                        {
-                            Id = 14,
-                            DayOfWeek = 3,
-                            DoctorId = 3,
-                            EndTime = "18:00",
-                            IsActive = true,
-                            SlotDurationMinutes = 30,
-                            StartTime = "10:00"
-                        },
-                        new
-                        {
-                            Id = 15,
-                            DayOfWeek = 4,
-                            DoctorId = 3,
-                            EndTime = "18:00",
-                            IsActive = true,
-                            SlotDurationMinutes = 30,
-                            StartTime = "10:00"
-                        },
-                        new
-                        {
-                            Id = 16,
-                            DayOfWeek = 5,
-                            DoctorId = 3,
-                            EndTime = "18:00",
-                            IsActive = true,
-                            SlotDurationMinutes = 30,
-                            StartTime = "10:00"
-                        },
-                        new
-                        {
-                            Id = 17,
-                            DayOfWeek = 1,
-                            DoctorId = 4,
-                            EndTime = "18:00",
-                            IsActive = true,
-                            SlotDurationMinutes = 30,
-                            StartTime = "10:00"
-                        },
-                        new
-                        {
-                            Id = 18,
-                            DayOfWeek = 2,
-                            DoctorId = 4,
-                            EndTime = "18:00",
-                            IsActive = true,
-                            SlotDurationMinutes = 30,
-                            StartTime = "10:00"
-                        },
-                        new
-                        {
-                            Id = 19,
-                            DayOfWeek = 3,
-                            DoctorId = 4,
-                            EndTime = "18:00",
-                            IsActive = true,
-                            SlotDurationMinutes = 30,
-                            StartTime = "10:00"
-                        },
-                        new
-                        {
-                            Id = 20,
-                            DayOfWeek = 4,
-                            DoctorId = 4,
-                            EndTime = "18:00",
-                            IsActive = true,
-                            SlotDurationMinutes = 30,
-                            StartTime = "10:00"
-                        },
-                        new
-                        {
-                            Id = 21,
-                            DayOfWeek = 5,
-                            DoctorId = 4,
-                            EndTime = "18:00",
-                            IsActive = true,
-                            SlotDurationMinutes = 30,
-                            StartTime = "10:00"
                         });
                 });
 
@@ -698,6 +916,40 @@ namespace backend.Migrations
                     b.ToTable("MedicalReports");
                 });
 
+            modelBuilder.Entity("backend.Models.OtpVerification", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<bool>("IsUsed")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Purpose")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("OtpVerifications");
+                });
+
             modelBuilder.Entity("backend.Models.Patient", b =>
                 {
                     b.Property<int>("Id")
@@ -710,6 +962,18 @@ namespace backend.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("Allergies")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("BloodType")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ChronicConditions")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp without time zone");
 
@@ -718,6 +982,14 @@ namespace backend.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("EmergencyContactName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("EmergencyContactPhone")
                         .IsRequired()
                         .HasColumnType("text");
 
@@ -750,10 +1022,15 @@ namespace backend.Migrations
                         {
                             Id = 1,
                             Address = "Bukit Jalil, KL",
-                            CreatedAt = new DateTime(2026, 3, 11, 7, 40, 34, 989, DateTimeKind.Utc).AddTicks(6270),
+                            Allergies = "",
+                            BloodType = "",
+                            ChronicConditions = "",
+                            CreatedAt = new DateTime(2026, 3, 19, 16, 9, 29, 883, DateTimeKind.Utc).AddTicks(4625),
                             DateOfBirth = "1998-09-24",
                             Email = "patient@2.com",
-                            FullName = "Petient 1",
+                            EmergencyContactName = "",
+                            EmergencyContactPhone = "",
+                            FullName = "Patient 1",
                             Gender = "Female",
                             MedicalReportUrl = "",
                             Phone = "012-3456789",
@@ -840,18 +1117,18 @@ namespace backend.Migrations
                         {
                             Id = "02174cf0-9412-4cfe-afbf-59f706d72cf6",
                             AccessFailedCount = 0,
-                            ConcurrencyStamp = "ffa1ee89-101f-4730-bbe0-fb653a49ce12",
-                            CreatedAt = new DateTime(2026, 3, 11, 7, 40, 34, 680, DateTimeKind.Utc).AddTicks(2030),
+                            ConcurrencyStamp = "2c297e3e-f5f0-4c38-804d-955c71690f15",
+                            CreatedAt = new DateTime(2026, 3, 19, 16, 9, 29, 661, DateTimeKind.Utc).AddTicks(277),
                             Email = "admin@2.com",
                             EmailConfirmed = true,
                             FullName = "Admin 1",
                             LockoutEnabled = false,
                             NormalizedEmail = "ADMIN@2.COM",
                             NormalizedUserName = "ADMIN@2.COM",
-                            PasswordHash = "AQAAAAIAAYagAAAAED8bIG+cx7K4aLJaKb6qSgl0fg8jUrb/Rcql15IZoWvWAb3c2qrfVl0MyrftmUrObA==",
+                            PasswordHash = "AQAAAAIAAYagAAAAEJya7yZBAHl4ebqWq3PY6B/Mgmia16cbN3UKcG+YmwzM0lIfBJ2SaBQQ/8ZZ/LK/HA==",
                             PhoneNumberConfirmed = false,
                             Role = "Admin",
-                            SecurityStamp = "79cee205-1270-4b72-8e09-347830eb3c71",
+                            SecurityStamp = "3a91dc7b-42a9-4128-af62-693645f48927",
                             TwoFactorEnabled = false,
                             UserName = "admin@2.com"
                         },
@@ -859,18 +1136,18 @@ namespace backend.Migrations
                         {
                             Id = "341743f0-abcd-422c-afbf-59f706d72cf6",
                             AccessFailedCount = 0,
-                            ConcurrencyStamp = "03b60ff4-35f6-4275-8fdb-19f22f8c8ca2",
-                            CreatedAt = new DateTime(2026, 3, 11, 7, 40, 34, 783, DateTimeKind.Utc).AddTicks(9325),
+                            ConcurrencyStamp = "fe39068f-4d36-462f-a4ba-809763948d20",
+                            CreatedAt = new DateTime(2026, 3, 19, 16, 9, 29, 735, DateTimeKind.Utc).AddTicks(8030),
                             Email = "patient@2.com",
                             EmailConfirmed = true,
                             FullName = "Patient 1",
                             LockoutEnabled = false,
                             NormalizedEmail = "PATIENT@2.COM",
                             NormalizedUserName = "PATIENT@2.COM",
-                            PasswordHash = "AQAAAAIAAYagAAAAEIu6f+AC74VcTdhEWTnF8RRybZvqoSdrBtsGcHnm/QJOBf5CP3D2rzXrjFQ9QpkNgQ==",
+                            PasswordHash = "AQAAAAIAAYagAAAAEEJevtUYKZLS7lJG+NHClWRENY0swSJ+2453IJb/6CdJjy3PDgsXSbPd59h12quDeQ==",
                             PhoneNumberConfirmed = false,
                             Role = "Patient",
-                            SecurityStamp = "34ed2eca-394f-41b8-bb06-3aecf5b7d919",
+                            SecurityStamp = "e45f97b2-4766-4281-880c-ad5c04c4026d",
                             TwoFactorEnabled = false,
                             UserName = "patient@2.com"
                         },
@@ -878,21 +1155,51 @@ namespace backend.Migrations
                         {
                             Id = "040901f0-abcd-422c-afbf-59f706d72cf6",
                             AccessFailedCount = 0,
-                            ConcurrencyStamp = "c7e20ba2-36e6-46e5-971b-20c0aa8fa683",
-                            CreatedAt = new DateTime(2026, 3, 11, 7, 40, 34, 889, DateTimeKind.Utc).AddTicks(7123),
+                            ConcurrencyStamp = "13440f1b-23a8-4508-9f88-5edf6a61e6ef",
+                            CreatedAt = new DateTime(2026, 3, 19, 16, 9, 29, 808, DateTimeKind.Utc).AddTicks(3073),
                             Email = "doctor@2.com",
                             EmailConfirmed = true,
                             FullName = "Doctor 1",
                             LockoutEnabled = false,
                             NormalizedEmail = "DOCTOR@2.COM",
                             NormalizedUserName = "DOCTOR@2.COM",
-                            PasswordHash = "AQAAAAIAAYagAAAAEIKxZTpampV8+u33VfyaftxRO+58JM2LVa/R+LXcbaRruS1JglDIBVTITVZpJcRbjw==",
+                            PasswordHash = "AQAAAAIAAYagAAAAEOR+HrLG28o1HNrmcOKHeOVTF41DJBUNzWFfDZSGzm1X6qE43JZk4FW3Fnd4FxEQ6Q==",
                             PhoneNumberConfirmed = false,
                             Role = "Doctor",
-                            SecurityStamp = "443d1bd2-01b9-4a9b-b40f-e6300fa671c2",
+                            SecurityStamp = "f61ca5b7-8607-48e3-ba9a-93ee2dcf5def",
                             TwoFactorEnabled = false,
                             UserName = "doctor@2.com"
                         });
+                });
+
+            modelBuilder.Entity("DoctorSchedule", b =>
+                {
+                    b.HasOne("backend.Models.Doctor", "Doctor")
+                        .WithMany("Schedules")
+                        .HasForeignKey("DoctorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Doctor");
+                });
+
+            modelBuilder.Entity("HealthQuestionnaire", b =>
+                {
+                    b.HasOne("backend.Models.Appointment", "Appointment")
+                        .WithMany()
+                        .HasForeignKey("AppointmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("backend.Models.Patient", "Patient")
+                        .WithMany()
+                        .HasForeignKey("PatientId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Appointment");
+
+                    b.Navigation("Patient");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
@@ -946,6 +1253,55 @@ namespace backend.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Notification", b =>
+                {
+                    b.HasOne("backend.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("ReportAnalysis", b =>
+                {
+                    b.HasOne("backend.Models.MedicalReport", "MedicalReport")
+                        .WithOne()
+                        .HasForeignKey("ReportAnalysis", "MedicalReportId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("MedicalReport");
+                });
+
+            modelBuilder.Entity("Review", b =>
+                {
+                    b.HasOne("backend.Models.Appointment", "Appointment")
+                        .WithOne()
+                        .HasForeignKey("Review", "AppointmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("backend.Models.Doctor", "Doctor")
+                        .WithMany()
+                        .HasForeignKey("DoctorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("backend.Models.Patient", "Patient")
+                        .WithMany()
+                        .HasForeignKey("PatientId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Appointment");
+
+                    b.Navigation("Doctor");
+
+                    b.Navigation("Patient");
+                });
+
             modelBuilder.Entity("backend.Models.Appointment", b =>
                 {
                     b.HasOne("backend.Models.Doctor", "Doctor")
@@ -963,17 +1319,6 @@ namespace backend.Migrations
                     b.Navigation("Doctor");
 
                     b.Navigation("Patient");
-                });
-
-            modelBuilder.Entity("backend.Models.DoctorSchedule", b =>
-                {
-                    b.HasOne("backend.Models.Doctor", "Doctor")
-                        .WithMany("Schedules")
-                        .HasForeignKey("DoctorId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Doctor");
                 });
 
             modelBuilder.Entity("backend.Models.MedicalReport", b =>

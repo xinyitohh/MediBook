@@ -21,6 +21,10 @@ namespace backend.Models
         public string UserId { get; set; } = string.Empty; // links to User for doctor login
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+        // NEW
+        public string Qualifications { get; set; } = string.Empty;  // JSON array
+        public string Languages { get; set; } = string.Empty;       // "English, Malay, Mandarin"
+
         // Navigation property - one doctor has many appointments
         public ICollection<Appointment> Appointments { get; set; } = new List<Appointment>();
 

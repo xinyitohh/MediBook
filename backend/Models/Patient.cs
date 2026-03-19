@@ -13,6 +13,13 @@
         public string MedicalReportUrl { get; set; } = string.Empty; // S3 URL
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
+        // NEW
+        public string BloodType { get; set; } = string.Empty;
+        public string Allergies { get; set; } = string.Empty;        // comma-separated or JSON
+        public string ChronicConditions { get; set; } = string.Empty;
+        public string EmergencyContactName { get; set; } = string.Empty;
+        public string EmergencyContactPhone { get; set; } = string.Empty;
+
         // Navigation property
         public ICollection<Appointment> Appointments { get; set; } = new List<Appointment>();
     }

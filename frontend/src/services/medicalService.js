@@ -1,5 +1,12 @@
 import api from "./api";
 
+// --- REPORT DATA (GET/POST/DELETE) ---
+export const getMyReports = () => api.get("/api/medical-report/my");
+export const deleteReport = (id) => api.delete(`/api/medical-report/${id}`);
+export const generateReport = (appointmentId, data) =>
+  api.post(`/api/medical-report/generate/${appointmentId}`, data);
+
+// --- FILE UPLOADS (FORMDATA) ---
 export const uploadMedicalReport = (file, description = "") => {
   const formData = new FormData();
   formData.append("file", file);
@@ -9,6 +16,7 @@ export const uploadMedicalReport = (file, description = "") => {
   });
 };
 
+// --- DOCTOR SPECIFIC UPLOADS ---
 export const uploadProfileImage = (file) => {
   const formData = new FormData();
   formData.append("file", file);
@@ -16,7 +24,3 @@ export const uploadProfileImage = (file) => {
     headers: { "Content-Type": "multipart/form-data" },
   });
 };
-
-export const getMyReports = () => api.get("/api/medical-report/my");
-export const deleteReport = (id) => api.delete(`/api/medical-report/${id}`);
-
