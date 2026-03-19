@@ -52,7 +52,6 @@ namespace backend.Controllers
         [HttpGet("{id}/slots")]
         public async Task<IActionResult> GetAvailableSlots(int id, [FromQuery] string date)
         {
-            // Global UTC handler in AppDbContext
             var parsedDate = DateTime.Parse(date);
             var dayOfWeek = (int)parsedDate.DayOfWeek;
 
@@ -65,13 +64,29 @@ namespace backend.Controllers
                 return Ok(new List<string>());
 
             var allSlots = new List<string>();
+
             var start = TimeSpan.Parse(schedule.StartTime);
             var end = TimeSpan.Parse(schedule.EndTime);
             var duration = TimeSpan.FromMinutes(schedule.SlotDurationMinutes);
 
+            var breakStart = string.IsNullOrEmpty(schedule.BreakStart)
+                ? (TimeSpan?)null
+                : TimeSpan.Parse(schedule.BreakStart);
+
+            var breakEnd = string.IsNullOrEmpty(schedule.BreakEnd)
+                ? (TimeSpan?)null
+                : TimeSpan.Parse(schedule.BreakEnd);
+
             for (var time = start; time + duration <= end; time += duration)
             {
-                allSlots.Add(DateTime.Today.Add(time).ToString("hh:mm tt"));
+                // Skip lunch break
+                if (breakStart.HasValue && breakEnd.HasValue &&
+                    time >= breakStart && time < breakEnd)
+                {
+                    continue;
+                }
+
+                allSlots.Add(parsedDate.Date.Add(time).ToString("HH:mm"));
             }
 
             var bookedSlots = await _context.Appointments
@@ -82,6 +97,7 @@ namespace backend.Controllers
                 .ToListAsync();
 
             var available = allSlots.Except(bookedSlots).ToList();
+
             return Ok(available);
         }
 
