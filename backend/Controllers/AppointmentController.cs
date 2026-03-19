@@ -82,7 +82,7 @@ namespace backend.Controllers
             await _context.SaveChangesAsync();
 
             // Notify Doctor: New booking
-            await _notificationService.SendAsync(
+            await _notificationService.SendAsync(   
                 doctor.UserId,
                 "New Appointment Request",
                 $"A patient has booked a slot for {dto.AppointmentDate:dd MMM yyyy} at {dto.TimeSlot}.",
