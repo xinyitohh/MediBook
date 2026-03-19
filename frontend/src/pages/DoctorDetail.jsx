@@ -54,7 +54,21 @@ export default function DoctorDetail() {
   // Get tomorrow as min date
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
-  const minDate = tomorrow.toISOString().split("T")[0];
+  const minDate = tomorrow.toISOString().split("T")[0];\
+
+  const formatTime = (time24) => {
+    if (!time24) return "";
+
+    const parts = time24.split(":");
+    const hour = parseInt(parts[0], 10);
+    const minute = parseInt(parts[1], 10);
+
+    return new Date(0, 0, 0, hour, minute).toLocaleTimeString("en-US", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+    });
+  };
 
   if (loading) {
     return <div className="text-center py-20 text-gray-400">Loading...</div>;
@@ -198,7 +212,7 @@ export default function DoctorDetail() {
                             : "bg-gray-50 text-gray-600 hover:bg-gray-100"
                         }`}
                       >
-                        {slot}
+                        {formatTime(slot)}
                       </button>
                     ))}
                   </div>
