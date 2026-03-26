@@ -181,7 +181,13 @@ namespace backend.Controllers
                     EmailConfirmed = true // Admins create active accounts
                 };
 
-                var result = await _userManager.CreateAsync(user, "Doctor123!");
+                // Use the provided password from the DTO so admin can set the initial password.
+                if (string.IsNullOrWhiteSpace(dto.Password) || dto.Password.Length < 6)
+                {
+                    return BadRequest(new { message = "Password is required and must be at least 6 characters." });
+                }
+
+                var result = await _userManager.CreateAsync(user, dto.Password);
                 if (!result.Succeeded)
                     return BadRequest(new { message = result.Errors.First().Description });
 
