@@ -36,6 +36,11 @@ namespace backend.Data
             {
                 foreach (var property in entityType.GetProperties())
                 {
+                    if (property.Name == "AppointmentDate")
+                    {
+                        continue;
+                    }
+
                     if (property.ClrType == typeof(DateTime) || property.ClrType == typeof(DateTime?))
                     {
                         property.SetValueConverter(dateTimeConverter);
