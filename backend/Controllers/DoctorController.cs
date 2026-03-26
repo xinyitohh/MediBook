@@ -1,5 +1,4 @@
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using backend.Data;
@@ -16,13 +15,11 @@ namespace backend.Controllers
     {
         private readonly AppDbContext _context;
         private readonly IMapper _mapper;
-        private readonly UserManager<User> _userManager;
 
-        public DoctorController(AppDbContext context, IMapper mapper, UserManager<User> userManager)
+        public DoctorController(AppDbContext context, IMapper mapper)
         {
             _context = context;
             _mapper = mapper;
-            _userManager = userManager;
         }
 
         // GET api/doctor - public, anyone can view doctors
@@ -177,38 +174,10 @@ namespace backend.Controllers
             if (doctor == null)
                 return NotFound(new { message = "Doctor not found" });
 
-            // Use a transaction so both doctor and associated Identity user are removed together
-            using var transaction = await _context.Database.BeginTransactionAsync();
-            try
-            {
-                var userId = doctor.UserId;
+            _context.Doctors.Remove(doctor);
+            await _context.SaveChangesAsync();
 
-                _context.Doctors.Remove(doctor);
-                await _context.SaveChangesAsync();
-
-                // If a linked Identity user exists, attempt to delete it so the email can be reused
-                if (!string.IsNullOrEmpty(userId) && _userManager != null)
-                {
-                    var user = await _userManager.FindByIdAsync(userId);
-                    if (user != null)
-                    {
-                        var deleteResult = await _userManager.DeleteAsync(user);
-                        if (!deleteResult.Succeeded)
-                        {
-                            await transaction.RollbackAsync();
-                            return StatusCode(500, new { message = "Failed to delete associated user." });
-                        }
-                    }
-                }
-
-                await transaction.CommitAsync();
-                return Ok(new { message = "Doctor deleted" });
-            }
-            catch (Exception)
-            {
-                await transaction.RollbackAsync();
-                throw;
-            }
+            return Ok(new { message = "Doctor deleted" });
         }
     }
 }
