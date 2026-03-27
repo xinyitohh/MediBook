@@ -80,7 +80,10 @@ namespace backend.Controllers
                     UserId = user.Id,
                     FullName = dto.FullName,
                     Email = dto.Email,
-                    Phone = dto.Phone
+                    Phone = dto.Phone ?? string.Empty,
+                    DateOfBirth = dto.DateOfBirth ?? string.Empty,
+                    Gender = dto.Gender ?? string.Empty,
+                    Address = ""
                 };
 
                 _context.Patients.Add(patient);

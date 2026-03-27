@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo } from "react";
 import {
-  Users, Search, Trash2, X, Calendar, FileText,
+  Users, Plus, Search, Trash2, X, Calendar, FileText,
   ChevronDown, Heart, Mail, Phone, Droplets, ArrowUpDown,
 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
+import DatePicker from "../components/DatePicker";
 import { getAllPatients, deletePatient, getPatientProfileById } from "../services";
 import { adminRegisterPatient } from "../services/patientService";
 import { searchAppointments } from "../services";
@@ -48,7 +49,7 @@ export default function ManagePatients() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [viewTarget, setViewTarget]     = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const EMPTY_PATIENT_FORM = { fullName: "", email: "", phone: "", nric: "", dob: "", gender: "" };
+  const EMPTY_PATIENT_FORM = { fullName: "", email: "", phone: "", dob: "", gender: "" };
   const [form, setForm] = useState(EMPTY_PATIENT_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState("");
@@ -86,10 +87,10 @@ export default function ManagePatients() {
       await adminRegisterPatient({
         FullName: form.fullName.trim(),
         Email: form.email.trim(),
-        Phone: form.phone.trim() || null,
-        DateOfBirth: form.dob || null,
-        Gender: form.gender || null,
-        // extra fields (NRIC) are not present in backend DTO; omitted
+        Phone: form.phone.trim() || "",
+        DateOfBirth: form.dob || "",
+        Gender: form.gender || "",
+        // other optional fields in PatientDto are omitted here but backend will accept empty strings
       });
       setShowModal(false);
       setForm(EMPTY_PATIENT_FORM);
@@ -117,7 +118,7 @@ export default function ManagePatients() {
   /* ── Derived stats ── */
   const stats = useMemo(() => {
     const withBlood  = patients.filter((p) => p.bloodType).length;
-    const withPhone  = patients.filter((p) => p.phoneNumber).length;
+  const withPhone  = patients.filter((p) => p.phone).length;
     const thisMonth  = patients.filter((p) => {
       if (!p.createdAt) return false;
       const d = new Date(p.createdAt);
@@ -133,7 +134,7 @@ export default function ManagePatients() {
       (p) =>
         p.fullName?.toLowerCase().includes(search.toLowerCase()) ||
         p.email?.toLowerCase().includes(search.toLowerCase()) ||
-        p.phoneNumber?.includes(search)
+  p.phone?.includes(search)
     );
     const [field, dir] = sort.split("-");
     list = [...list].sort((a, b) => {
@@ -156,7 +157,7 @@ export default function ManagePatients() {
         subtitle={`${patients.length} registered patient${patients.length !== 1 ? "s" : ""}`}
       >
         <button onClick={() => { setShowModal(true); setForm(EMPTY_PATIENT_FORM); setFormError(""); }} className="btn-primary flex items-center gap-2">
-          Add Patient
+          <Plus size={16} /> Add Patient
         </button>
       </PageHeader>
 
@@ -240,7 +241,7 @@ export default function ManagePatients() {
                     </div>
                   </td>
                   <td className="px-5 py-3.5 text-gray-500 hidden md:table-cell">{patient.email}</td>
-                  <td className="px-5 py-3.5 text-gray-600 hidden lg:table-cell">{patient.phoneNumber || "—"}</td>
+                  <td className="px-5 py-3.5 text-gray-600 hidden lg:table-cell">{patient.phone || "—"}</td>
                   <td className="px-5 py-3.5 text-gray-600 hidden lg:table-cell">{fmtDate(patient.dateOfBirth)}</td>
                   <td className="px-5 py-3.5 hidden xl:table-cell">
                     {patient.bloodType
@@ -313,17 +314,15 @@ export default function ManagePatients() {
                     onChange={(e) => setForm({ ...form, phone: e.target.value })} className="input-field" />
                 </div>
                 <div>
-                  <label className="input-label">NRIC</label>
-                  <input type="text" placeholder="S1234567A" value={form.nric}
-                    onChange={(e) => setForm({ ...form, nric: e.target.value })} className="input-field" />
+                  <label className="input-label">Date of Birth</label>
+                  <DatePicker
+                    maxDate={new Date()}
+                    value={form.dob}
+                    onChange={(val) => setForm({ ...form, dob: val })}
+                  />
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="input-label">Date of Birth</label>
-                  <input type="date" value={form.dob}
-                    onChange={(e) => setForm({ ...form, dob: e.target.value })} className="input-field" />
-                </div>
                 <div>
                   <label className="input-label">Gender</label>
                   <select value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })} className="input-field appearance-none">
@@ -333,6 +332,7 @@ export default function ManagePatients() {
                     <option value="Other">Other</option>
                   </select>
                 </div>
+                <div />
               </div>
               <div className="flex gap-3 pt-1">
                 <button type="button" onClick={() => setShowModal(false)} className="btn-outline flex-1">Cancel</button>
@@ -402,7 +402,7 @@ function PatientDrawer({ patient, onClose, onDelete }) {
               {patient.gender && <p className="text-sm text-gray-500">{patient.gender}</p>}
               <div className="flex flex-wrap gap-3 mt-2 text-xs text-gray-500">
                 <span className="flex items-center gap-1"><Mail size={12} />{patient.email}</span>
-                {patient.phoneNumber && <span className="flex items-center gap-1"><Phone size={12} />{patient.phoneNumber}</span>}
+                {patient.phone && <span className="flex items-center gap-1"><Phone size={12} />{patient.phone}</span>}
               </div>
             </div>
           </div>
@@ -435,7 +435,7 @@ function PatientDrawer({ patient, onClose, onDelete }) {
             <div className="space-y-1">
               <InfoRow label="Full Name"    value={patient.fullName} />
               <InfoRow label="Email"        value={patient.email} />
-              <InfoRow label="Phone"        value={patient.phoneNumber || "Not set"} />
+              <InfoRow label="Phone"        value={patient.phone || "Not set"} />
               <InfoRow label="Gender"       value={patient.gender || "Not set"} />
               <InfoRow label="Date of Birth" value={fmtDate(patient.dateOfBirth)} />
               <InfoRow label="Blood Type"   value={patient.bloodType || "Not set"} />
