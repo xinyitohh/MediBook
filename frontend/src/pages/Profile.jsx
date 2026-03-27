@@ -179,17 +179,21 @@ export default function Profile() {
                                 { key: "fullName", label: "Full Name" },
                                 { key: "email", label: "Email" },
                                 { key: "phone", label: "Phone" },
-                            ].map((f) => (
-                                <div key={f.key}>
-                                    <label className="input-label">{f.label}</label>
-                                    <input
-                                        value={form[f.key]}
-                                        disabled={!editMode || f.key === "fullName" || f.key === "email"}
-                                        onChange={(e) => setForm(prev => ({ ...prev, [f.key]: e.target.value }))}
-                                        className="input-field"
-                                    />
-                                </div>
-                            ))}
+                            ].map((f) => {
+                                const isUneditable = f.key === "fullName" || f.key === "email";
+
+                                return (
+                                    <div key={f.key}>
+                                        <label className="input-label">{f.label}</label>
+                                        <input
+                                            value={form[f.key]}
+                                            disabled={!editMode || isUneditable}
+                                            onChange={(e) => setForm(prev => ({ ...prev, [f.key]: e.target.value }))}
+                                            className={`input-field ${isUneditable ? "bg-gray-100 text-gray-500 cursor-not-allowed opacity-80" : ""}`}
+                                        />
+                                    </div>
+                                );
+                            })}
 
                             <div>
                                 <label className="input-label">Date of Birth</label>

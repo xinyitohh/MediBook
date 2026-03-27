@@ -81,6 +81,8 @@ namespace backend.Controllers
             appointment.PatientId = CurrentProfileId;
             appointment.Status = "Pending";
 
+            appointment.CreatedAt = DateTime.UtcNow;
+
             _context.Appointments.Add(appointment);
             await _context.SaveChangesAsync();
 
