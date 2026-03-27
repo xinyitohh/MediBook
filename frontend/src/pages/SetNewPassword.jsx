@@ -1,13 +1,20 @@
 import { useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useSearchParams, useNavigate, useLocation } from "react-router-dom";
 import { Lock, Eye, EyeOff, CheckCircle } from "lucide-react";
+import { setNewPassword } from "../services/authService";
 import { resetPassword } from "../services";
 
 export default function SetNewPassword() {
-  const { state } = useLocation();
-  const navigate  = useNavigate();
-  const email     = state?.email || "";
-  const code      = state?.code  || "";
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Support two flows:
+  // - Admin enrollment: link contains ?email=...&token=... (token is Base64Url encoded)
+  // - Forgot-password OTP flow: location.state contains { email, code }
+  const email = searchParams.get("email") || location.state?.email || "";
+  const token = searchParams.get("token") || null;
+  const code = location.state?.code || null;
 
   const [form, setForm]       = useState({ password: "", confirm: "" });
   const [showPw, setShowPw]   = useState(false);
@@ -27,7 +34,17 @@ export default function SetNewPassword() {
     }
     setLoading(true);
     try {
-      await resetPassword({ email, code, newPassword: form.password });
+      if (token) {
+        // Admin set-new-password flow (token from URL)
+        await setNewPassword({ email, token, newPassword: form.password });
+      } else if (code) {
+        // OTP reset flow (code from previous verify step)
+        await resetPassword({ email, code, newPassword: form.password });
+      } else {
+        setError("Invalid request: missing token or reset code.");
+        setLoading(false);
+        return;
+      }
       setSuccess(true);
     } catch (err) {
       setError(err.response?.data?.message || "Failed to reset password.");

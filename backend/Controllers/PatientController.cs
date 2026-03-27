@@ -5,6 +5,10 @@ using backend.Data;
 using backend.DTOs;
 using AutoMapper;
 using AutoMapper.QueryableExtensions; // Required for ProjectTo
+using Microsoft.AspNetCore.Identity;
+using backend.Models;
+using backend.Services;
+using Microsoft.Extensions.Configuration;
 
 namespace backend.Controllers
 {
@@ -15,11 +19,17 @@ namespace backend.Controllers
     {
         private readonly AppDbContext _context;
         private readonly IMapper _mapper;
+        private readonly UserManager<User> _userManager;
+        private readonly IEmailService _emailService;
+        private readonly IConfiguration _configuration;
 
-        public PatientController(AppDbContext context, IMapper mapper)
+        public PatientController(AppDbContext context, IMapper mapper, UserManager<User> userManager, IEmailService emailService, IConfiguration configuration)
         {
             _context = context;
             _mapper = mapper;
+            _userManager = userManager;
+            _emailService = emailService;
+            _configuration = configuration;
         }
 
         // GET api/patient/profile - Get logged-in patient's profile
@@ -35,6 +45,70 @@ namespace backend.Controllers
 
             // Map the full Model to the safe DTO
             return Ok(_mapper.Map<PatientDto>(patient));
+        }
+
+        // POST api/patient/admin-register - Admin creates a patient and sends set-password link
+        [HttpPost("admin-register")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> AdminRegister([FromBody] PatientDto dto)
+        {
+            var existingUser = await _userManager.FindByEmailAsync(dto.Email);
+            if (existingUser != null)
+                return BadRequest(new { message = "Email already registered" });
+
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                // Create Identity user with random temp password
+                var tempPassword = Guid.NewGuid().ToString("N").Substring(0, 12) + "A1!";
+                var user = new User
+                {
+                    FullName = dto.FullName,
+                    Email = dto.Email,
+                    UserName = dto.Email,
+                    Role = "Patient",
+                    EmailConfirmed = false
+                };
+
+                var result = await _userManager.CreateAsync(user, tempPassword);
+                if (!result.Succeeded)
+                    return BadRequest(new { message = result.Errors.First().Description });
+
+                // Create patient profile
+                var patient = new Models.Patient
+                {
+                    UserId = user.Id,
+                    FullName = dto.FullName,
+                    Email = dto.Email,
+                    Phone = dto.Phone
+                };
+
+                _context.Patients.Add(patient);
+                await _context.SaveChangesAsync();
+
+                // Generate password reset token and encode it for use in URL
+                var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+                var tokenBytes = System.Text.Encoding.UTF8.GetBytes(token);
+                var encodedToken = System.Convert.ToBase64String(tokenBytes)
+                    .TrimEnd('=')
+                    .Replace('+', '-')
+                    .Replace('/', '_');
+
+                var frontendBase = _configuration["Frontend:BaseUrl"] ?? "http://localhost:5173";
+                var link = $"{frontendBase}/set-new-password?email={Uri.EscapeDataString(dto.Email)}&token={encodedToken}";
+
+                var html = $"<p>Hello {dto.FullName},</p><p>An account has been created for you. Please set your password using the link below:</p><p><a href=\"{link}\">Set your password</a></p>";
+
+                await _emailService.SendEmailAsync(dto.Email, "Set your MediBook password", html);
+
+                await transaction.CommitAsync();
+                return Ok(new { message = "Patient account created and set-password link sent." });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return StatusCode(500, new { message = "Error creating patient account", detail = ex.Message });
+            }
         }
 
         // PUT api/patient/profile - Update personal profile

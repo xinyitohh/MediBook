@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import { getAllPatients, deletePatient, getPatientProfileById } from "../services";
+import { adminRegisterPatient } from "../services/patientService";
 import { searchAppointments } from "../services";
 
 /* ── Helpers ─────────────────────────────────────── */
@@ -46,6 +47,11 @@ export default function ManagePatients() {
   const [sort, setSort]                 = useState("name-asc");
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [viewTarget, setViewTarget]     = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const EMPTY_PATIENT_FORM = { fullName: "", email: "", phone: "", nric: "", dob: "", gender: "" };
+  const [form, setForm] = useState(EMPTY_PATIENT_FORM);
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState("");
 
   useEffect(() => { fetchPatients(); }, []);
 
@@ -66,6 +72,46 @@ export default function ManagePatients() {
     } catch (err) {
       alert(err.response?.data?.message || "Failed to delete patient.");
     } finally { setDeleteTarget(null); }
+  }
+
+  async function handleAddPatient(e) {
+    e.preventDefault();
+    setFormError("");
+    if (!form.fullName.trim() || !form.email.trim()) {
+      setFormError("Full name and email are required.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await adminRegisterPatient({
+        FullName: form.fullName.trim(),
+        Email: form.email.trim(),
+        Phone: form.phone.trim() || null,
+        DateOfBirth: form.dob || null,
+        Gender: form.gender || null,
+        // extra fields (NRIC) are not present in backend DTO; omitted
+      });
+      setShowModal(false);
+      setForm(EMPTY_PATIENT_FORM);
+      await fetchPatients();
+      alert("Patient account created and set-password email dispatched.");
+    } catch (err) {
+      // Try to extract useful info from problem details or validation errors
+      const data = err.response?.data;
+      let msg = "Failed to create patient.";
+      if (data) {
+        if (data.errors) {
+          // ASP.NET validation errors object -> join messages
+          const all = Object.values(data.errors).flat();
+          msg = all.join(" ");
+        } else if (data.title) {
+          msg = data.title + (data.detail ? ": " + data.detail : "");
+        } else if (data.message) {
+          msg = data.message;
+        }
+      }
+      setFormError(msg);
+    } finally { setSubmitting(false); }
   }
 
   /* ── Derived stats ── */
@@ -108,7 +154,11 @@ export default function ManagePatients() {
       <PageHeader
         title="Manage Patients"
         subtitle={`${patients.length} registered patient${patients.length !== 1 ? "s" : ""}`}
-      />
+      >
+        <button onClick={() => { setShowModal(true); setForm(EMPTY_PATIENT_FORM); setFormError(""); }} className="btn-primary flex items-center gap-2">
+          Add Patient
+        </button>
+      </PageHeader>
 
       {/* ── Stats ── */}
       {!loading && (
@@ -230,6 +280,69 @@ export default function ManagePatients() {
           onCancel={() => setDeleteTarget(null)}
           onConfirm={handleDelete}
         />
+      )}
+
+      {/* ── Add Patient Modal ── */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+              <h3 className="font-bold text-lg text-heading">Add New Patient</h3>
+              <button onClick={() => setShowModal(false)} className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+            <form onSubmit={handleAddPatient} className="px-6 py-5 space-y-4">
+              {formError && (
+                <div className="px-4 py-3 rounded-xl bg-red-50 text-red-600 text-sm font-medium">{formError}</div>
+              )}
+              <div>
+                <label className="input-label">Full Name *</label>
+                <input type="text" placeholder="Jane Doe" value={form.fullName}
+                  onChange={(e) => setForm({ ...form, fullName: e.target.value })} className="input-field" />
+              </div>
+              <div>
+                <label className="input-label">Email *</label>
+                <input type="email" placeholder="patient@example.com" value={form.email}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })} className="input-field" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="input-label">Phone</label>
+                  <input type="text" placeholder="0123456789" value={form.phone}
+                    onChange={(e) => setForm({ ...form, phone: e.target.value })} className="input-field" />
+                </div>
+                <div>
+                  <label className="input-label">NRIC</label>
+                  <input type="text" placeholder="S1234567A" value={form.nric}
+                    onChange={(e) => setForm({ ...form, nric: e.target.value })} className="input-field" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="input-label">Date of Birth</label>
+                  <input type="date" value={form.dob}
+                    onChange={(e) => setForm({ ...form, dob: e.target.value })} className="input-field" />
+                </div>
+                <div>
+                  <label className="input-label">Gender</label>
+                  <select value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })} className="input-field appearance-none">
+                    <option value="">Select…</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex gap-3 pt-1">
+                <button type="button" onClick={() => setShowModal(false)} className="btn-outline flex-1">Cancel</button>
+                <button type="submit" disabled={submitting} className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed">
+                  {submitting ? "Adding…" : "Add Patient"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );
