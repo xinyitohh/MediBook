@@ -1,176 +1,289 @@
-import { useState, useEffect } from "react";
+﻿import { useState, useEffect } from "react";
 import { useAuth } from "../context/AuthContext";
 import DatePicker from "../components/DatePicker";
 import PageHeader from "../components/PageHeader";
 import {
-  getPatientProfile,
-  updatePatientProfile,
+    getPatientProfile,
+    updatePatientProfile,
 } from "../services/patientService";
 
+function Section({ title, children }) {
+    return (
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 mb-6 hover:shadow-md transition-all duration-200">
+            <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wide mb-3">
+                {title}
+            </h3>
+            <div className="border-t pt-4">{children}</div>
+        </div>
+    );
+}
+
 export default function Profile() {
-  const { user } = useAuth();
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [success, setSuccess] = useState(false);
+    const { user } = useAuth();
 
-  const [form, setForm] = useState({
-    fullName: user?.fullName || "",
-    email: user?.email || "",
-    phone: "",
-    dateOfBirth: "",
-    gender: "",
-    address: "",
-  });
-  const [savedForm, setSavedForm] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [success, setSuccess] = useState(false);
+    const [editMode, setEditMode] = useState(false);
 
-  useEffect(() => {
-    const fetchProfile = async () => {
-      try {
-        const response = await getPatientProfile();
-        if (response.data) {
-          const loaded = {
-            fullName: response.data.fullName || user?.fullName || "",
-            email: response.data.email || user?.email || "",
-            phone: response.data.phone || "",
-            dateOfBirth: response.data.dateOfBirth || "",
-            gender: response.data.gender || "",
-            address: response.data.address || "",
-          };
-          setForm(loaded);
-          setSavedForm(loaded);
+    const [form, setForm] = useState({
+        fullName: user?.fullName || "",
+        email: user?.email || "",
+        phone: "",
+        dateOfBirth: "",
+        gender: "",
+        address: "",
+        bloodType: "",
+        allergies: "",
+        chronicConditions: "",
+        emergencyContactName: "",
+        emergencyContactPhone: "",
+    });
+
+    const [savedForm, setSavedForm] = useState(null);
+
+    useEffect(() => {
+        const fetchProfile = async () => {
+            try {
+                const response = await getPatientProfile();
+
+                if (response.data) {
+                    const loaded = {
+                        fullName: response.data.fullName || user?.fullName || "",
+                        email: response.data.email || user?.email || "",
+                        phone: response.data.phone || "",
+                        dateOfBirth: response.data.dateOfBirth || "",
+                        gender: response.data.gender || "",
+                        address: response.data.address || "",
+                        bloodType: response.data.bloodType || "",
+                        allergies: response.data.allergies || "",
+                        chronicConditions: response.data.chronicConditions || "",
+                        emergencyContactName: response.data.emergencyContactName || "",
+                        emergencyContactPhone: response.data.emergencyContactPhone || "",
+                    };
+
+                    setForm(loaded);
+                    setSavedForm(loaded);
+                }
+            } catch {
+                console.log("No profile found.");
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchProfile();
+    }, [user]);
+
+    const initials = (user?.fullName || "U")
+        .split(" ")
+        .map((n) => n[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase();
+
+    const handleSave = async (e) => {
+        e.preventDefault();
+        setSaving(true);
+        setSuccess(false);
+
+        try {
+            await updatePatientProfile(form);
+            setSavedForm({ ...form });
+            setSuccess(true);
+            setEditMode(false);
+            setTimeout(() => setSuccess(false), 3000);
+        } catch {
+            alert("Failed to save.");
+        } finally {
+            setSaving(false);
         }
-      } catch (error) {
-        console.log("No existing profile found. User needs to create one.");
-      } finally {
-        setLoading(false);
-      }
     };
 
-    fetchProfile();
-  }, [user]);
+    const hasChanges = savedForm
+        ? Object.keys(form).some((k) => form[k] !== savedForm[k])
+        : true;
 
-  const initials = (user?.fullName || "U")
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-
-  const handleSave = async (e) => {
-    e.preventDefault();
-    setSaving(true);
-    setSuccess(false);
-    try {
-      await updatePatientProfile(form);
-      setSavedForm({ ...form });
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
-    } catch {
-      alert("Failed to save.");
-    } finally {
-      setSaving(false);
+    if (loading) {
+        return <div className="p-6 text-center">Loading profile...</div>;
     }
-  };
 
-  const hasChanges = savedForm
-    ? Object.keys(form).some((k) => form[k] !== savedForm[k])
-    : true;
+    return (
+        <div className="pb-10">
+            <PageHeader title="My Profile" />
 
-  const fields = [
-    { key: "fullName", label: "Full Name", type: "text" },
-    { key: "email", label: "Email", type: "email" },
-    { key: "phone", label: "Phone", type: "tel" },
-    { key: "dateOfBirth", label: "Date of Birth", type: "date" },
-    {
-      key: "gender",
-      label: "Gender",
-      type: "select",
-      options: ["", "Male", "Female", "Other"],
-    },
-    { key: "address", label: "Address", type: "text" },
-  ];
+            <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-6 lg:gap-8">
 
-  return (
-    <div>
-      <PageHeader title="My Profile" />
+                {/* Sidebar / Avatar Section */}
+                <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 h-fit text-center relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-br from-brand-100 to-purple-100 opacity-40"></div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-5">
-        {/* Avatar card */}
-        <div className="card-padded text-center h-fit">
-          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-brand-500 to-purple-600 flex items-center justify-center text-white font-extrabold text-3xl mx-auto mb-4">
-            {initials}
-          </div>
-          <h3 className="text-lg font-bold text-heading">{user?.fullName}</h3>
-          <p className="text-sm text-gray-500 mb-4">
-            {user?.role} since Jan 2026
-          </p>
-          <button className="btn-outline w-full text-sm">Change Photo</button>
-        </div>
+                    <div className="relative z-10">
+                        <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-brand-500 to-purple-600 flex items-center justify-center text-white font-extrabold text-4xl mx-auto mb-4 shadow-lg">
+                            {initials}
+                        </div>
 
-        {/* Form */}
-        <div className="card-padded">
-          <h3 className="text-base font-bold text-heading mb-5">
-            Personal Information
-          </h3>
+                        <h3 className="text-xl font-bold text-gray-900">{user?.fullName}</h3>
+                        <p className="text-sm text-gray-500 mb-4">{user?.role} • Member since 2026</p>
 
-          {success && (
-            <div className="mb-5 px-4 py-3 rounded-xl bg-mint-50 text-mint-600 text-sm font-medium">
-              Profile saved successfully!
-            </div>
-          )}
-
-          <form onSubmit={handleSave}>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-              {fields.map((f) => (
-                <div key={f.key}>
-                  <label className="input-label">{f.label}</label>
-                  {f.type === "select" ? (
-                    <select
-                      value={form[f.key]}
-                      onChange={(e) =>
-                        setForm({ ...form, [f.key]: e.target.value })
-                      }
-                      className="input-field"
-                    >
-                      {f.options.map((opt) => (
-                        <option key={opt} value={opt}>
-                          {opt || "Select..."}
-                        </option>
-                      ))}
-                    </select>
-                  ) : f.type === "date" ? (
-                    <DatePicker
-                      maxDate={new Date()}
-                      value={form[f.key]}
-                      onChange={(val) => setForm({ ...form, [f.key]: val })}
-                    />
-                  ) : (
-                    <input
-                      type={f.type}
-                      value={form[f.key]}
-                      onChange={(e) =>
-                        setForm({ ...form, [f.key]: e.target.value })
-                      }
-                      disabled={f.key === "fullName" || f.key === "email"}
-                      className="input-field disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed"
-                    />
-                  )}
+                        {/* Placeholder button for future AWS integration */}
+                        <button
+                            className="btn-outline w-full text-sm hover:shadow-md transition bg-white"
+                            onClick={() => alert("Photo upload coming soon via AWS S3!")}
+                        >
+                            Change Photo
+                        </button>
+                    </div>
                 </div>
-              ))}
-            </div>
 
-            <div className="flex justify-end">
-              <button
-                type="submit"
-                disabled={saving || !hasChanges}
-                className="btn-primary disabled:opacity-60"
-              >
-                {saving ? "Saving..." : "Save Changes"}
-              </button>
+                {/* Main Content */}
+                <div>
+                    <div className="flex justify-between items-center mb-4">
+                        <p className="text-sm text-gray-500">Manage your personal and medical information</p>
+
+                        {!editMode ? (
+                            <button className="btn-primary px-5" onClick={() => setEditMode(true)}>
+                                Edit Profile
+                            </button>
+                        ) : (
+                            <div className="flex gap-2">
+                                <button
+                                    className="btn-outline"
+                                    onClick={() => {
+                                        setForm(savedForm);
+                                        setEditMode(false);
+                                    }}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleSave}
+                                    className="btn-primary"
+                                    disabled={saving || !hasChanges}
+                                >
+                                    {saving ? "Saving..." : "Save"}
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
+                    {success && (
+                        <div className="mb-5 px-4 py-3 rounded-xl bg-green-50 border border-green-100 text-green-600 text-sm font-medium flex items-center gap-2">
+                            ✅ Profile updated successfully
+                        </div>
+                    )}
+
+                    <Section title="Personal Information">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {[
+                                { key: "fullName", label: "Full Name" },
+                                { key: "email", label: "Email" },
+                                { key: "phone", label: "Phone" },
+                            ].map((f) => (
+                                <div key={f.key}>
+                                    <label className="input-label">{f.label}</label>
+                                    <input
+                                        value={form[f.key]}
+                                        disabled={!editMode || f.key === "fullName" || f.key === "email"}
+                                        onChange={(e) => setForm(prev => ({ ...prev, [f.key]: e.target.value }))}
+                                        className="input-field"
+                                    />
+                                </div>
+                            ))}
+
+                            <div>
+                                <label className="input-label">Date of Birth</label>
+                                <DatePicker
+                                    value={form.dateOfBirth}
+                                    onChange={(val) => setForm(prev => ({ ...prev, dateOfBirth: val }))}
+                                    disabled={!editMode}
+                                    maxDate={new Date()}
+                                />
+                            </div>
+
+                            <div>
+                                <label className="input-label">Gender</label>
+                                <select
+                                    value={form.gender}
+                                    disabled={!editMode}
+                                    onChange={(e) => setForm(prev => ({ ...prev, gender: e.target.value }))}
+                                    className="input-field"
+                                >
+                                    <option value="">Select...</option>
+                                    <option>Male</option>
+                                    <option>Female</option>
+                                    <option>Other</option>
+                                </select>
+                            </div>
+
+                            <div className="sm:col-span-2">
+                                <label className="input-label">Address</label>
+                                <input
+                                    value={form.address}
+                                    disabled={!editMode}
+                                    onChange={(e) => setForm(prev => ({ ...prev, address: e.target.value }))}
+                                    className="input-field"
+                                />
+                            </div>
+                        </div>
+                    </Section>
+
+                    <Section title="Medical Information">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label className="input-label">Blood Type</label>
+                                <input
+                                    value={form.bloodType}
+                                    disabled={!editMode}
+                                    onChange={(e) => setForm(prev => ({ ...prev, bloodType: e.target.value }))}
+                                    className="input-field"
+                                />
+                            </div>
+                            <div>
+                                <label className="input-label">Allergies</label>
+                                <input
+                                    value={form.allergies}
+                                    disabled={!editMode}
+                                    onChange={(e) => setForm(prev => ({ ...prev, allergies: e.target.value }))}
+                                    className="input-field"
+                                />
+                            </div>
+                            <div className="sm:col-span-2">
+                                <label className="input-label">Chronic Conditions</label>
+                                <input
+                                    value={form.chronicConditions}
+                                    disabled={!editMode}
+                                    onChange={(e) => setForm(prev => ({ ...prev, chronicConditions: e.target.value }))}
+                                    className="input-field"
+                                />
+                            </div>
+                        </div>
+                    </Section>
+
+                    <Section title="Emergency Contact">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label className="input-label">Contact Name</label>
+                                <input
+                                    value={form.emergencyContactName}
+                                    disabled={!editMode}
+                                    onChange={(e) => setForm(prev => ({ ...prev, emergencyContactName: e.target.value }))}
+                                    className="input-field"
+                                />
+                            </div>
+                            <div>
+                                <label className="input-label">Contact Phone</label>
+                                <input
+                                    value={form.emergencyContactPhone}
+                                    disabled={!editMode}
+                                    onChange={(e) => setForm(prev => ({ ...prev, emergencyContactPhone: e.target.value }))}
+                                    className="input-field"
+                                />
+                            </div>
+                        </div>
+                    </Section>
+                </div>
             </div>
-          </form>
         </div>
-      </div>
-    </div>
-  );
+    );
 }
