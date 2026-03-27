@@ -3,10 +3,10 @@ import {
   Stethoscope, Plus, Search, Trash2, X, Eye, EyeOff,
   ChevronDown, ChevronUp, Star, DollarSign, Users,
   Calendar, Clock, ArrowUpDown, Mail, Phone, FileText,
-  BadgeCheck,
+  BadgeCheck, Pencil,
 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
-import { getAllDoctors, deleteDoctor, getDoctorReviews } from "../services";
+import { getAllDoctors, deleteDoctor, getDoctorReviews, updateDoctor, getDoctorById } from "../services";
 import { registerDoctor } from "../services";
 import { searchAppointments } from "../services";
 
@@ -54,8 +54,9 @@ export default function ManageDoctors() {
   const [search, setSearch]         = useState("");
   const [sort, setSort]             = useState("name-asc");
   const [showModal, setShowModal]   = useState(false);
+  const [editTarget, setEditTarget] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
-  const [viewTarget, setViewTarget] = useState(null);   // profile drawer
+  const [viewTarget, setViewTarget] = useState(null);
   const [form, setForm]             = useState(EMPTY_FORM);
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -85,26 +86,55 @@ export default function ManageDoctors() {
   async function handleAddDoctor(e) {
     e.preventDefault();
     setFormError("");
-    if (!form.fullName.trim() || !form.email.trim() || !form.password.trim() || !form.specialty) {
-      setFormError("Full name, email, password and specialty are required.");
+
+    // password is required only when creating a new doctor
+    if (!form.fullName.trim() || !form.email.trim() || (!editTarget && !form.password.trim()) || !form.specialty) {
+      setFormError("Full name, email, password (for new accounts) and specialty are required.");
       return;
     }
+
     setSubmitting(true);
     try {
-      await registerDoctor({
-        fullName: form.fullName.trim(),
-        email: form.email.trim(),
-        password: form.password,
-        specialty: form.specialty,
-        consultationFee: form.consultationFee ? parseFloat(form.consultationFee) : null,
-        description: form.description.trim() || null,
-      });
-      setShowModal(false);
-      setForm(EMPTY_FORM);
-      fetchDoctors();
+      if (editTarget) {
+        // Update existing doctor
+        const idToUpdate = editTarget.id;
+        await updateDoctor(idToUpdate, {
+          fullName: form.fullName.trim(),
+          email: form.email.trim(),
+          specialty: form.specialty,
+          consultationFee: form.consultationFee ? parseFloat(form.consultationFee) : null,
+          description: form.description.trim() || null,
+        });
+        // Refresh list
+        await fetchDoctors();
+        // Refresh the open drawer content with latest data
+        try {
+          const res = await getDoctorById(idToUpdate);
+          setViewTarget(res.data);
+        } catch {
+          // ignore failure
+        }
+        setEditTarget(null);
+        setShowModal(false);
+        setForm(EMPTY_FORM);
+      } else {
+        await registerDoctor({
+          fullName: form.fullName.trim(),
+          email: form.email.trim(),
+          password: form.password,
+          specialty: form.specialty,
+          consultationFee: form.consultationFee ? parseFloat(form.consultationFee) : null,
+          description: form.description.trim() || null,
+        });
+        setShowModal(false);
+        setForm(EMPTY_FORM);
+        await fetchDoctors();
+      }
     } catch (err) {
-      setFormError(err.response?.data?.message || "Failed to add doctor.");
-    } finally { setSubmitting(false); }
+      setFormError(err.response?.data?.message || (editTarget ? "Failed to update doctor." : "Failed to add doctor."));
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   /* ── Derived stats ── */
@@ -150,7 +180,7 @@ export default function ManageDoctors() {
         subtitle={`${doctors.length} registered doctor${doctors.length !== 1 ? "s" : ""}`}
       >
         <button
-          onClick={() => { setShowModal(true); setForm(EMPTY_FORM); setFormError(""); }}
+          onClick={() => { setShowModal(true); setForm(EMPTY_FORM); setFormError(""); setEditTarget(null); }}
           className="btn-primary flex items-center gap-2"
         >
           <Plus size={16} /> Add Doctor
@@ -271,6 +301,19 @@ export default function ManageDoctors() {
           doctor={viewTarget}
           onClose={() => setViewTarget(null)}
           onDelete={(doc) => { setDeleteTarget(doc); setViewTarget(null); }}
+          onEdit={(doc) => {
+            // Open modal in edit mode with pre-filled values
+            setEditTarget(doc);
+            setForm({
+              fullName: doc.fullName || "",
+              email: doc.email || "",
+              password: "", // leave blank for edits
+              specialty: doc.specialty || "",
+              consultationFee: doc.consultationFee ?? "",
+              description: doc.description || "",
+            });
+            setShowModal(true);
+          }}
         />
       )}
 
@@ -279,7 +322,7 @@ export default function ManageDoctors() {
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h3 className="font-bold text-lg text-heading">Add New Doctor</h3>
+              <h3 className="font-bold text-lg text-heading">{editTarget ? "Edit Doctor" : "Add New Doctor"}</h3>
               <button onClick={() => setShowModal(false)} className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
                 <X size={16} />
               </button>
@@ -289,29 +332,31 @@ export default function ManageDoctors() {
                 <div className="px-4 py-3 rounded-xl bg-red-50 text-red-600 text-sm font-medium">{formError}</div>
               )}
               <div>
-                <label className="input-label">Full Name *</label>
+                <label className="input-label">Full Name{!editTarget && " *"}</label>
                 <input type="text" placeholder="Dr. John Smith" value={form.fullName}
                   onChange={(e) => setForm({ ...form, fullName: e.target.value })} className="input-field" />
               </div>
               <div>
-                <label className="input-label">Email *</label>
+                <label className="input-label">Email{!editTarget && " *"}</label>
                 <input type="email" placeholder="doctor@medibook.com" value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })} className="input-field" />
+                  onChange={(e) => setForm({ ...form, email: e.target.value })} className={`input-field ${editTarget ? 'bg-gray-200 text-gray-700 cursor-not-allowed' : ''}`} disabled={!!editTarget} />
               </div>
-              <div>
-                <label className="input-label">Password *</label>
-                <div className="relative">
-                  <input type={showPassword ? "text" : "password"} placeholder="Minimum 8 characters"
-                    value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })}
-                    className="input-field pr-10" />
-                  <button type="button" onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
+              {!editTarget && (
+                <div>
+                  <label className="input-label">Password *</label>
+                  <div className="relative">
+                    <input type={showPassword ? "text" : "password"} placeholder="Minimum 8 characters"
+                      value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })}
+                      className="input-field pr-10" />
+                    <button type="button" onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
               <div>
-                <label className="input-label">Specialty *</label>
+                <label className="input-label">Specialty{!editTarget && " *"}</label>
                 <div className="relative">
                   <select value={form.specialty} onChange={(e) => setForm({ ...form, specialty: e.target.value })}
                     className="input-field appearance-none pr-9">
@@ -334,7 +379,7 @@ export default function ManageDoctors() {
               <div className="flex gap-3 pt-1">
                 <button type="button" onClick={() => setShowModal(false)} className="btn-outline flex-1">Cancel</button>
                 <button type="submit" disabled={submitting} className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed">
-                  {submitting ? "Adding…" : "Add Doctor"}
+                  {submitting ? (editTarget ? "Updating…" : "Adding…") : (editTarget ? "Update" : "Add Doctor")}
                 </button>
               </div>
             </form>
@@ -356,7 +401,7 @@ export default function ManageDoctors() {
 }
 
 /* ── Doctor detail side drawer ───────────────────── */
-function DoctorDrawer({ doctor, onClose, onDelete }) {
+function DoctorDrawer({ doctor, onClose, onDelete, onEdit }) {
   const [appointments, setAppointments] = useState([]);
   const [reviews, setReviews]           = useState([]);
   const [tab, setTab]                   = useState("info"); // info | schedule | reviews
@@ -393,6 +438,12 @@ function DoctorDrawer({ doctor, onClose, onDelete }) {
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
           <h3 className="font-bold text-lg text-heading">Doctor Profile</h3>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => onEdit ? onEdit(doctor) : null}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+            >
+              <Pencil size={13} /> Edit
+            </button>
             <button
               onClick={() => onDelete(doctor)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-red-500 hover:bg-red-50 transition-colors"
