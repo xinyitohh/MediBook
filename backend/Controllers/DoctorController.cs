@@ -34,10 +34,28 @@ namespace backend.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
-            // ProjectTo makes the SQL query efficient by only selecting DTO fields
+            // Project doctors to DTO and include EmailConfirmed by looking up the linked Identity user
             var doctors = await _context.Doctors
                 .Where(d => d.IsAvailable)
-                .ProjectTo<DoctorDto>(_mapper.ConfigurationProvider)
+                .Select(d => new DoctorDto
+                {
+                    Id = d.Id,
+                    FullName = d.FullName,
+                    Specialty = d.Specialty,
+                    Email = d.Email,
+                    Phone = d.Phone,
+                    ProfileImageUrl = d.ProfileImageUrl,
+                    Description = d.Description,
+                    IsAvailable = d.IsAvailable,
+                    Rating = d.Rating,
+                    ReviewCount = d.ReviewCount,
+                    ConsultationFee = d.ConsultationFee,
+                    CreatedAt = d.CreatedAt,
+                    Experience = d.Experience,
+                    Qualifications = d.Qualifications,
+                    Languages = d.Languages,
+                    EmailConfirmed = _context.Users.Where(u => u.Id == d.UserId).Select(u => u.EmailConfirmed).FirstOrDefault()
+                })
                 .ToListAsync();
 
             return Ok(doctors);

@@ -248,6 +248,7 @@ export default function ManageDoctors() {
                 <Th hide="lg">Fee</Th>
                 <Th hide="lg">Rating</Th>
                 <Th hide="xl">Joined</Th>
+                <Th>Status</Th>
                 <th className="px-5 py-3" />
               </tr>
             </thead>
@@ -281,6 +282,13 @@ export default function ManageDoctors() {
                   </td>
                   <td className="px-5 py-3.5 text-gray-500 text-xs hidden xl:table-cell">
                     {fmtDate(doc.createdAt)}
+                  </td>
+                  <td className="px-5 py-3.5">
+                    {doc.emailConfirmed ? (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-mint-50 text-mint-600">Active</span>
+                    ) : (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-500">Inactive</span>
+                    )}
                   </td>
                   <td className="px-5 py-3.5" onClick={(e) => e.stopPropagation()}>
                     <button

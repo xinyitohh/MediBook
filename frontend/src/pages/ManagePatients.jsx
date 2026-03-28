@@ -215,15 +215,16 @@ export default function ManagePatients() {
         <div className="card overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-100 bg-gray-50/60">
-                <Th>Patient</Th>
-                <Th hide="md">Email</Th>
-                <Th hide="lg">Phone</Th>
-                <Th hide="lg">Date of Birth</Th>
-                <Th hide="xl">Blood Type</Th>
-                <Th hide="xl">Joined</Th>
-                <th className="px-5 py-3" />
-              </tr>
+                <tr className="border-b border-gray-100 bg-gray-50/60">
+                  <Th>Patient</Th>
+                  <Th hide="md">Email</Th>
+                  <Th hide="lg">Phone</Th>
+                  <Th hide="lg">Date of Birth</Th>
+                  <Th hide="xl">Blood Type</Th>
+                  <Th hide="xl">Joined</Th>
+                  <Th>Status</Th>
+                  <th className="px-5 py-3" />
+                </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {displayed.map((patient, idx) => (
@@ -252,6 +253,13 @@ export default function ManagePatients() {
                       : <span className="text-gray-400">—</span>}
                   </td>
                   <td className="px-5 py-3.5 text-gray-500 text-xs hidden xl:table-cell">{fmtDate(patient.createdAt)}</td>
+                  <td className="px-5 py-3.5">
+                    {patient.emailConfirmed ? (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-mint-50 text-mint-600">Active</span>
+                    ) : (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-500">Inactive</span>
+                    )}
+                  </td>
                   <td className="px-5 py-3.5" onClick={(e) => e.stopPropagation()}>
                     <button
                       onClick={() => setDeleteTarget(patient)}

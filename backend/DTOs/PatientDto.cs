@@ -14,6 +14,7 @@
         public string? EmergencyContactName { get; set; }
         public string? EmergencyContactPhone { get; set; }
         public DateTime CreatedAt { get; set; }
+        public bool EmailConfirmed { get; set; }
     }
 
     public class UpdatePatientProfileDto

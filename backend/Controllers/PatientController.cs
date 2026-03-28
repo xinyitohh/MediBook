@@ -187,10 +187,24 @@ namespace backend.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetAll()
         {
-            // Efficiency: ProjectTo tells SQL to only fetch columns defined in PatientDto
-            // This avoids loading massive data (like medical reports or addresses) unless needed
+            // Project patients to DTO and include EmailConfirmed from linked Identity user
             var patients = await _context.Patients
-                .ProjectTo<PatientDto>(_mapper.ConfigurationProvider)
+                .Select(p => new PatientDto
+                {
+                    Id = p.Id,
+                    FullName = p.FullName,
+                    Email = p.Email,
+                    Phone = p.Phone,
+                    DateOfBirth = p.DateOfBirth,
+                    Gender = p.Gender,
+                    BloodType = p.BloodType,
+                    Allergies = p.Allergies,
+                    ChronicConditions = p.ChronicConditions,
+                    EmergencyContactName = p.EmergencyContactName,
+                    EmergencyContactPhone = p.EmergencyContactPhone,
+                    CreatedAt = p.CreatedAt,
+                    EmailConfirmed = _context.Users.Where(u => u.Id == p.UserId).Select(u => u.EmailConfirmed).FirstOrDefault()
+                })
                 .ToListAsync();
 
             return Ok(patients);
