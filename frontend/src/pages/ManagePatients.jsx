@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import {
   Users, Plus, Search, Trash2, X, Calendar, FileText,
-  ChevronDown, Heart, Mail, Phone, Droplets, ArrowUpDown,
+  ChevronDown, Heart, Mail, Phone, Droplets, ArrowUpDown, BadgeCheck,
 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import DatePicker from "../components/DatePicker";
@@ -53,6 +53,8 @@ export default function ManagePatients() {
   const [form, setForm] = useState(EMPTY_PATIENT_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState("");
+  const [successModal, setSuccessModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
 
   useEffect(() => { fetchPatients(); }, []);
 
@@ -94,8 +96,9 @@ export default function ManagePatients() {
       });
       setShowModal(false);
       setForm(EMPTY_PATIENT_FORM);
-      await fetchPatients();
-      alert("Patient account created and set-password email dispatched.");
+  await fetchPatients();
+  setSuccessMessage("Patient account created and set-password email dispatched.");
+  setSuccessModal(true);
     } catch (err) {
       // Try to extract useful info from problem details or validation errors
       const data = err.response?.data;
@@ -281,6 +284,26 @@ export default function ManagePatients() {
           onCancel={() => setDeleteTarget(null)}
           onConfirm={handleDelete}
         />
+      )}
+
+      {/* ── Success Modal ── */}
+      {successModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-lg bg-mint-50 text-mint-600 flex items-center justify-center">
+                <BadgeCheck size={20} />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-bold text-lg text-heading">Success</h3>
+                <p className="text-sm text-gray-600 mt-2">{successMessage}</p>
+              </div>
+            </div>
+            <div className="mt-6 text-right">
+              <button onClick={() => setSuccessModal(false)} className="btn-primary px-4 py-2">OK</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ── Add Patient Modal ── */}

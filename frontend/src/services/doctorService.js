@@ -9,3 +9,4 @@ export const getDoctorById = (id) => api.get(`/api/doctor/${id}`);
 export const updateDoctor = (id, data) => api.put(`/api/doctor/${id}`, data);
 export const getAvailableSlots = (id, date) =>
   api.get(`/api/doctor/${id}/slots?date=${date}`);
+export const adminRegisterDoctor = (data) => api.post('/api/doctor/admin-register', data);

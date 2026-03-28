@@ -6,8 +6,7 @@ import {
   BadgeCheck, Pencil,
 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
-import { getAllDoctors, deleteDoctor, getDoctorReviews, updateDoctor, getDoctorById } from "../services";
-import { registerDoctor } from "../services";
+import { getAllDoctors, deleteDoctor, getDoctorReviews, updateDoctor, getDoctorById, adminRegisterDoctor } from "../services";
 import { searchAppointments } from "../services";
 
 /* ── Constants ───────────────────────────────────── */
@@ -19,7 +18,7 @@ const SPECIALTIES = [
 ];
 
 const EMPTY_FORM = {
-  fullName: "", email: "", password: "", specialty: "",
+  fullName: "", email: "", specialty: "",
   consultationFee: "", description: "",
 };
 
@@ -58,9 +57,11 @@ export default function ManageDoctors() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [viewTarget, setViewTarget] = useState(null);
   const [form, setForm]             = useState(EMPTY_FORM);
-  const [showPassword, setShowPassword] = useState(false);
+  // password removed from admin flow — admin will send a set-password email
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError]   = useState("");
+  const [successModal, setSuccessModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
 
   useEffect(() => { fetchDoctors(); }, []);
 
@@ -87,9 +88,9 @@ export default function ManageDoctors() {
     e.preventDefault();
     setFormError("");
 
-    // password is required only when creating a new doctor
-    if (!form.fullName.trim() || !form.email.trim() || (!editTarget && !form.password.trim()) || !form.specialty) {
-      setFormError("Full name, email, password (for new accounts) and specialty are required.");
+    // For admin-created doctors we send a set-password link; password is not required
+    if (!form.fullName.trim() || !form.email.trim() || !form.specialty) {
+      setFormError("Full name, email and specialty are required.");
       return;
     }
 
@@ -118,17 +119,19 @@ export default function ManageDoctors() {
         setShowModal(false);
         setForm(EMPTY_FORM);
       } else {
-        await registerDoctor({
-          fullName: form.fullName.trim(),
-          email: form.email.trim(),
-          password: form.password,
-          specialty: form.specialty,
-          consultationFee: form.consultationFee ? parseFloat(form.consultationFee) : null,
-          description: form.description.trim() || null,
+        // Admin register flow: create doctor user and send set-password email
+        await adminRegisterDoctor({
+          FullName: form.fullName.trim(),
+          Email: form.email.trim(),
+          Specialty: form.specialty,
+          ConsultationFee: form.consultationFee ? parseFloat(form.consultationFee) : null,
+          Description: form.description.trim() || "",
         });
-        setShowModal(false);
-        setForm(EMPTY_FORM);
-        await fetchDoctors();
+  setShowModal(false);
+  setForm(EMPTY_FORM);
+  await fetchDoctors();
+  setSuccessMessage("Doctor account created and set-password email dispatched.");
+  setSuccessModal(true);
       }
     } catch (err) {
       setFormError(err.response?.data?.message || (editTarget ? "Failed to update doctor." : "Failed to add doctor."));
@@ -341,20 +344,7 @@ export default function ManageDoctors() {
                 <input type="email" placeholder="doctor@medibook.com" value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })} className={`input-field ${editTarget ? 'bg-gray-200 text-gray-700 cursor-not-allowed' : ''}`} disabled={!!editTarget} />
               </div>
-              {!editTarget && (
-                <div>
-                  <label className="input-label">Password *</label>
-                  <div className="relative">
-                    <input type={showPassword ? "text" : "password"} placeholder="Minimum 8 characters"
-                      value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })}
-                      className="input-field pr-10" />
-                    <button type="button" onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                      {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                    </button>
-                  </div>
-                </div>
-              )}
+              {/* Admin creates doctor accounts; a set-password email will be sent to the doctor on creation. */}
               <div>
                 <label className="input-label">Specialty{!editTarget && " *"}</label>
                 <div className="relative">
@@ -395,6 +385,26 @@ export default function ManageDoctors() {
           onCancel={() => setDeleteTarget(null)}
           onConfirm={handleDelete}
         />
+      )}
+
+      {/* ── Success Modal ── */}
+      {successModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-lg bg-mint-50 text-mint-600 flex items-center justify-center">
+                <BadgeCheck size={20} />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-bold text-lg text-heading">Success</h3>
+                <p className="text-sm text-gray-600 mt-2">{successMessage}</p>
+              </div>
+            </div>
+            <div className="mt-6 text-right">
+              <button onClick={() => setSuccessModal(false)} className="btn-primary px-4 py-2">OK</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
