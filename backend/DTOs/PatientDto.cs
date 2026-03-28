@@ -13,6 +13,7 @@
         public string? ChronicConditions { get; set; }
         public string? EmergencyContactName { get; set; }
         public string? EmergencyContactPhone { get; set; }
+        public DateTime CreatedAt { get; set; }
     }
 
     public class UpdatePatientProfileDto
