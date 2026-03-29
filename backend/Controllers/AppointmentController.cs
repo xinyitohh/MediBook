@@ -75,8 +75,13 @@ namespace backend.Controllers
                 return BadRequest(new { message = "This time slot is already booked" });
 
             var appointment = _mapper.Map<Appointment>(dto);
+
+            appointment.AppointmentDate = DateTime.SpecifyKind(dto.AppointmentDate, DateTimeKind.Utc);
+
             appointment.PatientId = CurrentProfileId;
             appointment.Status = "Pending";
+
+            appointment.CreatedAt = DateTime.UtcNow;
 
             _context.Appointments.Add(appointment);
             await _context.SaveChangesAsync();
