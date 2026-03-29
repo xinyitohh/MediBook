@@ -85,6 +85,7 @@ namespace backend.Controllers
             report.FileName = $"Report_{appointment.Patient.FullName.Replace(" ", "_")}_{DateTime.UtcNow:yyyyMMdd}.pdf";
             report.FileType = "application/pdf";
             report.FileUrl = ""; // Placeholder for actual file storage logic
+            report.UploadedByRole = "Doctor";
 
             _context.MedicalReports.Add(report);
             await _context.SaveChangesAsync();

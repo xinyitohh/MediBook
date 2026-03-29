@@ -20,6 +20,7 @@ namespace backend.Models
         public string FollowUpDate { get; set; } = string.Empty;
 
         public DateTime UploadedAt { get; set; } = DateTime.UtcNow;
+        public string UploadedByRole { get; set; } = "Patient";
 
         // Navigation properties
         public Patient Patient { get; set; } = null!;

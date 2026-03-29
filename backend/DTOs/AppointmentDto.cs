@@ -22,6 +22,8 @@ namespace backend.DTOs
         public string DoctorNotes { get; set; } = string.Empty;
         public string AppointmentType { get; set; } = string.Empty;
         public string CancellationReason { get; set; } = string.Empty;
+
+        //public string? PatientReportUrl { get; set; }
     }
 
     public class CompleteAppointmentDto

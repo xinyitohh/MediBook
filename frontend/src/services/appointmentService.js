@@ -13,3 +13,7 @@ export const searchAppointments = (params) => {
   // params could be { doctorId: 1 } or { patientId: 5 } or { doctorId: 1, patientId: 5 }
   return api.get("/api/appointment/search", { params });
 };
+export const doctorCancelAppointment = (id, reasonText) =>
+  api.put(`/api/appointment/${id}/doctor-cancel`, {
+      reason: reasonText 
+ });

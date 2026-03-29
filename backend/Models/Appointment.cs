@@ -19,5 +19,7 @@ namespace backend.Models
         // Navigation properties
         public Patient Patient { get; set; } = null!;
         public Doctor Doctor { get; set; } = null!;
+
+        //public ICollection<MedicalReport> MedicalReports { get; set; } = new List<MedicalReport>();
     }
 }
