@@ -49,6 +49,7 @@ namespace backend.Profiles
             // --- PATIENT MAPPINGS ---
             CreateMap<Patient, PatientDto>();
             CreateMap<UpdatePatientProfileDto, Patient>();
+            CreateMap<AdminUpdatePatientDto, Patient>();
 
             // --- ANNOUNCEMENT MAPPINGS ---
             CreateMap<Announcement, AnnouncementDto>();

@@ -1,12 +1,12 @@
 import { useState, useEffect, useMemo } from "react";
 import {
   Users, Plus, Search, Trash2, X, Calendar, FileText,
-  ChevronDown, Heart, Mail, Phone, Droplets, ArrowUpDown, BadgeCheck,
+  ChevronDown, Heart, Mail, Phone, Droplets, ArrowUpDown, BadgeCheck, Pencil,
 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import DatePicker from "../components/DatePicker";
 import { getAllPatients, deletePatient, getPatientProfileById } from "../services";
-import { adminRegisterPatient } from "../services/patientService";
+import { adminRegisterPatient, adminUpdatePatient } from "../services/patientService";
 import { searchAppointments } from "../services";
 
 /* ── Helpers ─────────────────────────────────────── */
@@ -49,12 +49,35 @@ export default function ManagePatients() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [viewTarget, setViewTarget]     = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const EMPTY_PATIENT_FORM = { fullName: "", email: "", phone: "", dob: "", gender: "" };
+  const [editTarget, setEditTarget] = useState(null);
+  const EMPTY_PATIENT_FORM = { fullName: "", email: "", phone: "", DateOfBirth: "", gender: "", address: "", allergies: "", chronicConditions: "", bloodType: "", emergencyContactName: "", emergencyContactPhone: "" };
   const [form, setForm] = useState(EMPTY_PATIENT_FORM);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState("");
   const [successModal, setSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+
+  // Helper functions for data normalization
+  const normalizeDate = (d) => {
+    if (!d) return null;
+    if (d instanceof Date) return d.toISOString();
+    try { const parsed = new Date(d); if (!isNaN(parsed)) return parsed.toISOString(); } catch {}
+    return null;
+  };
+
+  const stringOrNull = (s) => (s == null ? null : String(s));
+
+  // Format date to yyyy-MM-dd for display in input (removes time portion)
+  const formatDateForInput = (dateString) => {
+    if (!dateString) return "";
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date)) return "";
+      return date.toISOString().split('T')[0]; // Returns yyyy-MM-dd
+    } catch {
+      return "";
+    }
+  };
 
   useEffect(() => { fetchPatients(); }, []);
 
@@ -86,23 +109,69 @@ export default function ManagePatients() {
     }
     setSubmitting(true);
     try {
-      await adminRegisterPatient({
-        FullName: form.fullName.trim(),
-        Email: form.email.trim(),
-        Phone: form.phone.trim() || "",
-        DateOfBirth: form.dob || "",
-        Gender: form.gender || "",
-        // other optional fields in PatientDto are omitted here but backend will accept empty strings
-      });
-      setShowModal(false);
-      setForm(EMPTY_PATIENT_FORM);
-  await fetchPatients();
-  setSuccessMessage("Patient account created and set-password email dispatched.");
-  setSuccessModal(true);
+      if (editTarget) {
+        // Update existing patient
+        const idToUpdate = editTarget.id;
+        const payload = {
+          FullName: form.fullName.trim(),
+          Phone: form.phone || "",
+          DateOfBirth: normalizeDate(form.DateOfBirth) || "",
+          Gender: form.gender || "",
+          Address: form.address?.trim() || "",
+          Allergies: form.allergies?.trim() || "",
+          BloodType: form.bloodType || "",
+          ChronicConditions: form.chronicConditions?.trim() || "",
+          EmergencyContactName: form.emergencyContactName?.trim() || "",
+          EmergencyContactPhone: form.emergencyContactPhone?.trim() || "",
+        };
+
+        console.debug('PUT /api/patient/' + idToUpdate + ' payload:', payload);
+        await adminUpdatePatient(idToUpdate, payload);
+        // Refresh list
+        await fetchPatients();
+        // Refresh both viewTarget (drawer) and editTarget (modal) with latest data from database
+        try {
+          const res = await getPatientProfileById(idToUpdate);
+          const freshData = res.data;
+          setViewTarget(freshData);  // Update the drawer with fresh data
+          setEditTarget(freshData);  // Update the edit form with fresh data
+          setForm({
+            fullName: freshData.fullName || "",
+            email: freshData.email || "",
+            phone: freshData.phone || "",
+            DateOfBirth: formatDateForInput(freshData.dateOfBirth) || "",
+            gender: freshData.gender || "",
+            address: freshData.address || "",
+            allergies: freshData.allergies || "",
+            chronicConditions: freshData.chronicConditions || "",
+            bloodType: freshData.bloodType || "",
+            emergencyContactName: freshData.emergencyContactName || "",
+            emergencyContactPhone: freshData.emergencyContactPhone || "",
+          });
+        } catch {
+          // ignore failure
+        }
+        setShowModal(false);
+        setForm(EMPTY_PATIENT_FORM);
+      } else {
+        // Admin register flow: create patient user and send set-password email
+        await adminRegisterPatient({
+          FullName: form.fullName.trim(),
+          Email: form.email.trim(),
+          Phone: form.phone.trim() || "",
+          DateOfBirth: form.DateOfBirth || "",
+          Gender: form.gender || "",
+        });
+        setShowModal(false);
+        setForm(EMPTY_PATIENT_FORM);
+        await fetchPatients();
+        setSuccessMessage("Patient account created and set-password email dispatched.");
+        setSuccessModal(true);
+      }
     } catch (err) {
       // Try to extract useful info from problem details or validation errors
       const data = err.response?.data;
-      let msg = "Failed to create patient.";
+      let msg = editTarget ? "Failed to update patient." : "Failed to create patient.";
       if (data) {
         if (data.errors) {
           // ASP.NET validation errors object -> join messages
@@ -159,7 +228,7 @@ export default function ManagePatients() {
         title="Manage Patients"
         subtitle={`${patients.length} registered patient${patients.length !== 1 ? "s" : ""}`}
       >
-        <button onClick={() => { setShowModal(true); setForm(EMPTY_PATIENT_FORM); setFormError(""); }} className="btn-primary flex items-center gap-2">
+        <button onClick={() => { setShowModal(true); setForm(EMPTY_PATIENT_FORM); setFormError(""); setEditTarget(null); }} className="btn-primary flex items-center gap-2">
           <Plus size={16} /> Add Patient
         </button>
       </PageHeader>
@@ -282,6 +351,45 @@ export default function ManagePatients() {
           patient={viewTarget}
           onClose={() => setViewTarget(null)}
           onDelete={(p) => { setDeleteTarget(p); setViewTarget(null); }}
+          onEdit={(patient) => {
+            // Fetch the latest patient data from database to ensure we have fresh data
+            getPatientProfileById(patient.id).then((res) => {
+              const freshPatient = res.data;
+              setEditTarget(freshPatient);
+              setForm({
+                fullName: freshPatient.fullName || "",
+                email: freshPatient.email || "",
+                phone: freshPatient.phone || "",
+                DateOfBirth: formatDateForInput(freshPatient.dateOfBirth) || "",
+                gender: freshPatient.gender || "",
+                address: freshPatient.address || "",
+                allergies: freshPatient.allergies || "",
+                chronicConditions: freshPatient.chronicConditions || "",
+                bloodType: freshPatient.bloodType || "",
+                emergencyContactName: freshPatient.emergencyContactName || "",
+                emergencyContactPhone: freshPatient.emergencyContactPhone || "",
+              });
+              setShowModal(true);
+            }).catch((err) => {
+              console.error('Failed to fetch patient data:', err);
+              // Fallback to using the patient passed in if fetch fails
+              setEditTarget(patient);
+              setForm({
+                fullName: patient.fullName || "",
+                email: patient.email || "",
+                phone: patient.phone || "",
+                DateOfBirth: formatDateForInput(patient.dateOfBirth) || "",
+                gender: patient.gender || "",
+                address: patient.address || "",
+                allergies: patient.allergies || "",
+                chronicConditions: patient.chronicConditions || "",
+                bloodType: patient.bloodType || "",
+                emergencyContactName: patient.emergencyContactName || "",
+                emergencyContactPhone: patient.emergencyContactPhone || "",
+              });
+              setShowModal(true);
+            });
+          }}
         />
       )}
 
@@ -314,61 +422,140 @@ export default function ManagePatients() {
         </div>
       )}
 
-      {/* ── Add Patient Modal ── */}
+      {/* ── Add / Edit Patient Modal ── */}
       {showModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h3 className="font-bold text-lg text-heading">Add New Patient</h3>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+              <h3 className="font-bold text-lg text-heading">{editTarget ? "Edit Patient" : "Add New Patient"}</h3>
               <button onClick={() => setShowModal(false)} className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
                 <X size={16} />
               </button>
             </div>
+
             <form onSubmit={handleAddPatient} className="px-6 py-5 space-y-4">
               {formError && (
                 <div className="px-4 py-3 rounded-xl bg-red-50 text-red-600 text-sm font-medium">{formError}</div>
               )}
-              <div>
-                <label className="input-label">Full Name *</label>
-                <input type="text" placeholder="Jane Doe" value={form.fullName}
-                  onChange={(e) => setForm({ ...form, fullName: e.target.value })} className="input-field" />
-              </div>
-              <div>
-                <label className="input-label">Email *</label>
-                <input type="email" placeholder="patient@example.com" value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })} className="input-field" />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
+
+              {/* ── CORE FIELDS (Always Visible) ── */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
+                  <label className="input-label">Full Name{!editTarget && " *"}</label>
+                  <input type="text" placeholder="Jane Doe" value={form.fullName}
+                    onChange={(e) => setForm({ ...form, fullName: e.target.value })} className="input-field" />
+                </div>
+
+                <div>
+                  <label className="input-label">Email{!editTarget && " *"}</label>
+                  <input type="email" placeholder="patient@example.com" value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    className={`input-field ${editTarget ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : ''}`}
+                    disabled={!!editTarget} />
+                </div>
+
                 <div>
                   <label className="input-label">Phone</label>
-                  <input type="text" placeholder="0123456789" value={form.phone}
+                  <input type="text" placeholder="e.g. +60123456789" value={form.phone || ""}
                     onChange={(e) => setForm({ ...form, phone: e.target.value })} className="input-field" />
                 </div>
-                <div>
-                  <label className="input-label">Date of Birth</label>
-                  <DatePicker
-                    maxDate={new Date()}
-                    value={form.dob}
-                    onChange={(val) => setForm({ ...form, dob: val })}
-                  />
-                </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="input-label">Gender</label>
-                  <select value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })} className="input-field appearance-none">
-                    <option value="">Select…</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
-                  </select>
+
+              {/* ── EXTRA FIELDS (Only Visible on Edit) ── */}
+              {editTarget && (
+                <div className="pt-4 border-t border-gray-100 space-y-4">
+
+                  {/* Category 1: General Information */}
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">General Information</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="input-label">Date of Birth</label>
+                        <DatePicker
+                          maxDate={new Date()}
+                          value={form.DateOfBirth}
+                          onChange={(val) => setForm({ ...form, DateOfBirth: val })}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="input-label">Gender</label>
+                        <select value={form.gender || ""} onChange={(e) => setForm({ ...form, gender: e.target.value })} className="input-field">
+                          <option value="">Select...</option>
+                          <option value="Male">Male</option>
+                          <option value="Female">Female</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <label className="input-label">Address</label>
+                        <textarea rows={2} placeholder="Patient's address…" value={form.address || ""}
+                          onChange={(e) => setForm({ ...form, address: e.target.value })} className="input-field resize-none" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Category 2: Medical Information */}
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Medical Information</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="input-label">Blood Type</label>
+                        <select value={form.bloodType || ""} onChange={(e) => setForm({ ...form, bloodType: e.target.value })} className="input-field">
+                          <option value="">Select…</option>
+                          <option value="A+">A+</option>
+                          <option value="A-">A-</option>
+                          <option value="B+">B+</option>
+                          <option value="B-">B-</option>
+                          <option value="AB+">AB+</option>
+                          <option value="AB-">AB-</option>
+                          <option value="O+">O+</option>
+                          <option value="O-">O-</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="input-label">Allergies</label>
+                        <input type="text" placeholder="e.g. Penicillin, Peanuts" value={form.allergies || ""}
+                          onChange={(e) => setForm({ ...form, allergies: e.target.value })} className="input-field" />
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <label className="input-label">Chronic Conditions</label>
+                        <textarea rows={2} placeholder="e.g. Diabetes, Hypertension…" value={form.chronicConditions || ""}
+                          onChange={(e) => setForm({ ...form, chronicConditions: e.target.value })} className="input-field resize-none" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Category 3: Emergency Contact */}
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Emergency Contact</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="input-label">Contact Name</label>
+                        <input type="text" placeholder="Emergency contact name" value={form.emergencyContactName || ""}
+                          onChange={(e) => setForm({ ...form, emergencyContactName: e.target.value })} className="input-field" />
+                      </div>
+
+                      <div>
+                        <label className="input-label">Contact Phone</label>
+                        <input type="text" placeholder="e.g. +60123456789" value={form.emergencyContactPhone || ""}
+                          onChange={(e) => setForm({ ...form, emergencyContactPhone: e.target.value })} className="input-field" />
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <div />
-              </div>
-              <div className="flex gap-3 pt-1">
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4 border-t border-gray-100">
                 <button type="button" onClick={() => setShowModal(false)} className="btn-outline flex-1">Cancel</button>
                 <button type="submit" disabled={submitting} className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed">
-                  {submitting ? "Adding…" : "Add Patient"}
+                  {submitting ? (editTarget ? "Updating…" : "Adding…") : (editTarget ? "Update" : "Add Patient")}
                 </button>
               </div>
             </form>
@@ -380,7 +567,7 @@ export default function ManagePatients() {
 }
 
 /* ── Patient detail side drawer ──────────────────── */
-function PatientDrawer({ patient, onClose, onDelete }) {
+function PatientDrawer({ patient, onClose, onDelete, onEdit }) {
   const [appointments, setAppointments] = useState([]);
   const [tab, setTab]                   = useState("info");
   const [loadingAppts, setLoadingAppts] = useState(false);
@@ -410,6 +597,12 @@ function PatientDrawer({ patient, onClose, onDelete }) {
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
           <h3 className="font-bold text-lg text-heading">Patient Profile</h3>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => onEdit ? onEdit(patient) : null}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+            >
+              <Pencil size={13} /> Edit
+            </button>
             <button
               onClick={() => onDelete(patient)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-red-500 hover:bg-red-50 transition-colors"
