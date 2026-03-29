@@ -29,6 +29,7 @@ namespace backend.Profiles
             // --- DOCTOR MAPPINGS ---
             CreateMap<Doctor, DoctorDto>();
             CreateMap<CreateDoctorDto, Doctor>();
+            CreateMap<AdminUpdateDoctorDto, Doctor>();
             CreateMap<UpdateDoctorProfileDto, Doctor>();
 
             // --- SCHEDULE MAPPINGS ---

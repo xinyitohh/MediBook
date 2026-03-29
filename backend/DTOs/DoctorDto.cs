@@ -15,7 +15,9 @@ namespace backend.DTOs
         public int ReviewCount { get; set; }
         public decimal ConsultationFee { get; set; }
         public DateTime CreatedAt { get; set; }
-    public bool EmailConfirmed { get; set; }
+        public bool EmailConfirmed { get; set; }
+        public string DateOfBirth { get; set; } = string.Empty;
+        public string Gender { get; set; } = string.Empty;
         public string Experience { get; set; } = string.Empty;
         public string Qualifications { get; set; } = string.Empty;
         public string Languages { get; set; } = string.Empty;
@@ -31,6 +33,23 @@ namespace backend.DTOs
         public string Phone { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public decimal ConsultationFee { get; set; }
+        public string DateOfBirth { get; set; } = string.Empty;
+        public string Gender { get; set; } = string.Empty;
+        public string Experience { get; set; } = string.Empty;
+        public string Qualifications { get; set; } = string.Empty;
+        public string Languages { get; set; } = string.Empty;
+    }
+
+    // Used specifically for Admin updating an existing doctor
+    public class AdminUpdateDoctorDto
+    {
+        public string FullName { get; set; } = string.Empty;
+        public string Specialty { get; set; } = string.Empty;
+        public string Phone { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public decimal ConsultationFee { get; set; }
+        public string DateOfBirth { get; set; } = string.Empty;
+        public string Gender { get; set; } = string.Empty;
         public string Experience { get; set; } = string.Empty;
         public string Qualifications { get; set; } = string.Empty;
         public string Languages { get; set; } = string.Empty;

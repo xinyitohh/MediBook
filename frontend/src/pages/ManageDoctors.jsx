@@ -6,6 +6,7 @@ import {
   BadgeCheck, Pencil,
 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
+import DatePicker from "../components/DatePicker";
 import { getAllDoctors, deleteDoctor, getDoctorReviews, updateDoctor, getDoctorById, adminRegisterDoctor } from "../services";
 import { searchAppointments } from "../services";
 
@@ -20,6 +21,8 @@ const SPECIALTIES = [
 const EMPTY_FORM = {
   fullName: "", email: "", specialty: "",
   consultationFee: "", description: "",
+  DateOfBirth: "", gender: "", experience: "",
+  qualifications: "", languages: "", phoneNumber: "",
 };
 
 const SORT_OPTIONS = [
@@ -57,11 +60,32 @@ export default function ManageDoctors() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [viewTarget, setViewTarget] = useState(null);
   const [form, setForm]             = useState(EMPTY_FORM);
-  // password removed from admin flow — admin will send a set-password email
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError]   = useState("");
   const [successModal, setSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+
+  // Helper functions for data normalization
+  const normalizeDate = (d) => {
+    if (!d) return null;
+    if (d instanceof Date) return d.toISOString();
+    try { const parsed = new Date(d); if (!isNaN(parsed)) return parsed.toISOString(); } catch {}
+    return null;
+  };
+
+  const stringOrNull = (s) => (s == null ? null : String(s));
+
+  // Format date to yyyy-MM-dd for display in input (removes time portion)
+  const formatDateForInput = (dateString) => {
+    if (!dateString) return "";
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date)) return "";
+      return date.toISOString().split('T')[0]; // Returns yyyy-MM-dd
+    } catch {
+      return "";
+    }
+  };
 
   useEffect(() => { fetchDoctors(); }, []);
 
@@ -99,23 +123,34 @@ export default function ManageDoctors() {
       if (editTarget) {
         // Update existing doctor
         const idToUpdate = editTarget.id;
-        await updateDoctor(idToUpdate, {
-          fullName: form.fullName.trim(),
-          email: form.email.trim(),
-          specialty: form.specialty,
-          consultationFee: form.consultationFee ? parseFloat(form.consultationFee) : null,
-          description: form.description.trim() || null,
-        });
+        // Build a normalized payload matching AdminUpdateDoctorDto on the server
+        const payload = {
+          FullName: form.fullName.trim(),
+          Specialty: form.specialty,
+          // Ensure ConsultationFee is a number (server expects decimal). Use 0 if empty.
+          ConsultationFee: form.consultationFee ? Number(parseFloat(form.consultationFee)) : 0,
+          Description: form.description?.trim() || "",
+          // Normalize date: if Date object convert to ISO; if string pass through; else empty string
+          DateOfBirth: normalizeDate(form.DateOfBirth) || "",
+          Gender: form.gender || "",
+          Experience: form.experience?.trim() || "",
+          Qualifications: form.qualifications?.trim() || "",
+          Languages: form.languages?.trim() || "",
+          Phone: form.phone || "",
+        };
+
+  console.debug('PUT /api/doctor/' + idToUpdate + ' payload:', payload);
+  await updateDoctor(idToUpdate, payload);
         // Refresh list
         await fetchDoctors();
         // Refresh the open drawer content with latest data
         try {
           const res = await getDoctorById(idToUpdate);
           setViewTarget(res.data);
+          setEditTarget(res.data); // Also refresh editTarget so "Current Values" box shows latest data
         } catch {
           // ignore failure
         }
-        setEditTarget(null);
         setShowModal(false);
         setForm(EMPTY_FORM);
       } else {
@@ -123,6 +158,7 @@ export default function ManageDoctors() {
         await adminRegisterDoctor({
           FullName: form.fullName.trim(),
           Email: form.email.trim(),
+          Phone: form.phone || "",
           Specialty: form.specialty,
           ConsultationFee: form.consultationFee ? parseFloat(form.consultationFee) : null,
           Description: form.description.trim() || "",
@@ -134,7 +170,23 @@ export default function ManageDoctors() {
   setSuccessModal(true);
       }
     } catch (err) {
-      setFormError(err.response?.data?.message || (editTarget ? "Failed to update doctor." : "Failed to add doctor."));
+      // Log full error object for debugging (network errors, axios issues, etc.)
+      console.error('Update doctor full error:', err);
+      const server = err.response?.data;
+      // Prefer problem details or validation messages when present
+      let msg = editTarget ? "Failed to update doctor." : "Failed to add doctor.";
+      if (server) {
+        if (server.errors) {
+          msg = Object.values(server.errors).flat().join(' ');
+        } else if (server.title || server.message) {
+          msg = (server.title ? server.title + ': ' : '') + (server.detail || server.message || '');
+        } else {
+          msg = JSON.stringify(server);
+        }
+      } else if (err.message) {
+        msg = err.message;
+      }
+      setFormError(msg);
     } finally {
       setSubmitting(false);
     }
@@ -313,68 +365,159 @@ export default function ManageDoctors() {
           onClose={() => setViewTarget(null)}
           onDelete={(doc) => { setDeleteTarget(doc); setViewTarget(null); }}
           onEdit={(doc) => {
-            // Open modal in edit mode with pre-filled values
-            setEditTarget(doc);
-            setForm({
-              fullName: doc.fullName || "",
-              email: doc.email || "",
-              password: "", // leave blank for edits
-              specialty: doc.specialty || "",
-              consultationFee: doc.consultationFee ?? "",
-              description: doc.description || "",
+            // Fetch the latest doctor data from database to ensure we have fresh data
+            getDoctorById(doc.id).then((res) => {
+              const freshDoc = res.data;
+              setEditTarget(freshDoc);
+              setForm({
+                fullName: freshDoc.fullName || "",
+                email: freshDoc.email || "",
+                phone: freshDoc.phone || "",
+                specialty: freshDoc.specialty || "",
+                consultationFee: freshDoc.consultationFee ?? "",
+                description: freshDoc.description || "",
+                DateOfBirth: formatDateForInput(freshDoc.dateOfBirth) || "",
+                gender: freshDoc.gender || "",
+                experience: freshDoc.experience || "",
+                qualifications: freshDoc.qualifications || "",
+                languages: freshDoc.languages || "",
+              });
+              setShowModal(true);
+            }).catch((err) => {
+              console.error('Failed to fetch doctor data:', err);
+              // Fallback to using the doc passed in if fetch fails
+              setEditTarget(doc);
+              setForm({
+                fullName: doc.fullName || "",
+                email: doc.email || "",
+                phone: doc.phone || "",
+                specialty: doc.specialty || "",
+                consultationFee: doc.consultationFee ?? "",
+                description: doc.description || "",
+                DateOfBirth: formatDateForInput(doc.dateOfBirth) || "",
+                gender: doc.gender || "",
+                experience: doc.experience || "",
+                qualifications: doc.qualifications || "",
+                languages: doc.languages || "",
+              });
+              setShowModal(true);
             });
-            setShowModal(true);
           }}
         />
       )}
 
-      {/* ── Add Doctor Modal ── */}
+      {/* ── Add / Edit Doctor Modal ── */}
       {showModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
               <h3 className="font-bold text-lg text-heading">{editTarget ? "Edit Doctor" : "Add New Doctor"}</h3>
               <button onClick={() => setShowModal(false)} className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
                 <X size={16} />
               </button>
             </div>
+
             <form onSubmit={handleAddDoctor} className="px-6 py-5 space-y-4">
               {formError && (
                 <div className="px-4 py-3 rounded-xl bg-red-50 text-red-600 text-sm font-medium">{formError}</div>
               )}
-              <div>
-                <label className="input-label">Full Name{!editTarget && " *"}</label>
-                <input type="text" placeholder="Dr. John Smith" value={form.fullName}
-                  onChange={(e) => setForm({ ...form, fullName: e.target.value })} className="input-field" />
-              </div>
-              <div>
-                <label className="input-label">Email{!editTarget && " *"}</label>
-                <input type="email" placeholder="doctor@medibook.com" value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })} className={`input-field ${editTarget ? 'bg-gray-200 text-gray-700 cursor-not-allowed' : ''}`} disabled={!!editTarget} />
-              </div>
-              {/* Admin creates doctor accounts; a set-password email will be sent to the doctor on creation. */}
-              <div>
-                <label className="input-label">Specialty{!editTarget && " *"}</label>
-                <div className="relative">
-                  <select value={form.specialty} onChange={(e) => setForm({ ...form, specialty: e.target.value })}
-                    className="input-field appearance-none pr-9">
-                    <option value="">Select specialty…</option>
-                    {SPECIALTIES.map((s) => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                  <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+
+              {/* ── CORE FIELDS (Always Visible) ── */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
+                  <label className="input-label">Full Name{!editTarget && " *"}</label>
+                  <input type="text" placeholder="Dr. John Smith" value={form.fullName}
+                    onChange={(e) => setForm({ ...form, fullName: e.target.value })} className="input-field" />
+                </div>
+
+                <div>
+                  <label className="input-label">Email{!editTarget && " *"}</label>
+                  <input type="email" placeholder="doctor@medibook.com" value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })} 
+                    className={`input-field ${editTarget ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : ''}`} 
+                    disabled={!!editTarget} />
+                </div>
+
+                <div>
+                  <label className="input-label">Phone</label>
+                  <input type="text" placeholder="e.g. +60123456789" value={form.phone || ""}
+                    onChange={(e) => setForm({ ...form, phone: e.target.value })} className="input-field" />
+                </div>
+
+                <div>
+                  <label className="input-label">Specialty{!editTarget && " *"}</label>
+                  <div className="relative">
+                    <select value={form.specialty} onChange={(e) => setForm({ ...form, specialty: e.target.value })}
+                      className="input-field appearance-none pr-9">
+                      <option value="">Select specialty…</option>
+                      {SPECIALTIES.map((s) => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                    <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="input-label">Consultation Fee (RM)</label>
+                  <input type="number" min="0" step="0.01" placeholder="e.g. 150" value={form.consultationFee}
+                    onChange={(e) => setForm({ ...form, consultationFee: e.target.value })} className="input-field" />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="input-label">Description</label>
+                  <textarea rows={2} placeholder="Brief bio or professional description…" value={form.description}
+                    onChange={(e) => setForm({ ...form, description: e.target.value })} className="input-field resize-none" />
                 </div>
               </div>
-              <div>
-                <label className="input-label">Consultation Fee (RM)</label>
-                <input type="number" min="0" step="0.01" placeholder="e.g. 150" value={form.consultationFee}
-                  onChange={(e) => setForm({ ...form, consultationFee: e.target.value })} className="input-field" />
-              </div>
-              <div>
-                <label className="input-label">Description</label>
-                <textarea rows={3} placeholder="Brief bio or professional description…" value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })} className="input-field resize-none" />
-              </div>
-              <div className="flex gap-3 pt-1">
+
+              {/* ── EXTRA FIELDS (Only Visible on Edit) ── */}
+              {editTarget && (
+                <div className="pt-4 border-t border-gray-100 space-y-4">
+
+                  {/* Edit Fields */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="input-label">Date of Birth</label>
+                      <DatePicker
+                        maxDate={new Date()}
+                        value={form.DateOfBirth}
+                        onChange={(val) => setForm({ ...form, DateOfBirth: val })}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="input-label">Gender</label>
+                      <select value={form.gender || ""} onChange={(e) => setForm({ ...form, gender: e.target.value })} className="input-field">
+                        <option value="">Select...</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="input-label">Experience</label>
+                      <input type="text" placeholder="e.g. 10 years" value={form.experience || ""}
+                        onChange={(e) => setForm({ ...form, experience: e.target.value })} className="input-field" />
+                    </div>
+
+                    <div>
+                      <label className="input-label">Qualifications</label>
+                      <input type="text" placeholder="e.g. MBBS, MD" value={form.qualifications || ""}
+                        onChange={(e) => setForm({ ...form, qualifications: e.target.value })} className="input-field" />
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="input-label">Languages Spoken</label>
+                      <input type="text" placeholder="e.g. English, Mandarin, Malay" value={form.languages || ""}
+                        onChange={(e) => setForm({ ...form, languages: e.target.value })} className="input-field" />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4 border-t border-gray-100">
                 <button type="button" onClick={() => setShowModal(false)} className="btn-outline flex-1">Cancel</button>
                 <button type="submit" disabled={submitting} className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed">
                   {submitting ? (editTarget ? "Updating…" : "Adding…") : (editTarget ? "Update" : "Add Doctor")}

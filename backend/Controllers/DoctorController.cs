@@ -161,20 +161,6 @@ namespace backend.Controllers
             return Ok(new { message = "Availability updated" });
         }
 
-        // POST api/doctor - only admin can add doctors
-        [HttpPost]
-        [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Create([FromBody] CreateDoctorDto dto)
-        {
-            // Legacy create (keeps existing behaviour when admin supplies full DTO)
-            var doctor = _mapper.Map<Doctor>(dto);
-
-            _context.Doctors.Add(doctor);
-            await _context.SaveChangesAsync();
-
-            return Ok(new { message = "Doctor created", id = doctor.Id });
-        }
-
         // POST api/doctor/admin-register - Admin creates a doctor account and sends set-password link
         [HttpPost("admin-register")]
         [Authorize(Roles = "Admin")]
@@ -287,13 +273,14 @@ namespace backend.Controllers
         // PUT api/doctor/5 - only admin can update
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Update(int id, [FromBody] CreateDoctorDto dto)
+        public async Task<IActionResult> Update(int id, [FromBody] AdminUpdateDoctorDto dto)
         {
             var doctor = await _context.Doctors.FindAsync(id);
 
             if (doctor == null)
                 return NotFound(new { message = "Doctor not found" });
 
+            // AutoMapper will map the 5 new fields automatically based on matching names
             _mapper.Map(dto, doctor);
 
             await _context.SaveChangesAsync();

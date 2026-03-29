@@ -241,5 +241,30 @@ namespace backend.Controllers
             await _context.SaveChangesAsync();
             return Ok(new { message = "Patient account and data deleted successfully" });
         }
+
+        // PUT api/patient/{id} - Admin updates a patient record
+        [HttpPut("{id}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> UpdatePatient(int id, [FromBody] UpdatePatientProfileDto dto)
+        {
+            var patient = await _context.Patients.FindAsync(id);
+            if (patient == null) return NotFound(new { message = "Patient not found" });
+
+            // Only update allowed fields
+            patient.FullName = dto.FullName;
+            // Email is intentionally not updated by admin here
+            patient.Phone = dto.Phone;
+            patient.DateOfBirth = dto.DateOfBirth;
+            patient.Gender = dto.Gender;
+            patient.Address = dto.Address;
+            patient.BloodType = dto.BloodType;
+            patient.Allergies = dto.Allergies;
+            patient.ChronicConditions = dto.ChronicConditions;
+            patient.EmergencyContactName = dto.EmergencyContactName;
+            patient.EmergencyContactPhone = dto.EmergencyContactPhone;
+
+            await _context.SaveChangesAsync();
+            return Ok(new { message = "Patient updated" });
+        }
     }
 }
