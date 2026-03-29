@@ -5,7 +5,8 @@ namespace backend.DTOs
     {
         public int Id { get; set; }
         public string FullName { get; set; } = string.Empty;
-        public string Specialty { get; set; } = string.Empty;
+        public int? SpecialtyId { get; set; }
+        public string? Specialty { get; set; } // Specialty name for display
         public string Email { get; set; } = string.Empty;
         public string Phone { get; set; } = string.Empty;
         public string ProfileImageUrl { get; set; } = string.Empty;
@@ -27,7 +28,7 @@ namespace backend.DTOs
     public class CreateDoctorDto
     {
         public string FullName { get; set; } = string.Empty;
-        public string Specialty { get; set; } = string.Empty;
+        public int? SpecialtyId { get; set; } // Use specialty ID instead of name
         public string Email { get; set; } = string.Empty;
         public string Password { get; set; } = string.Empty;
         public string Phone { get; set; } = string.Empty;
@@ -44,7 +45,7 @@ namespace backend.DTOs
     public class AdminUpdateDoctorDto
     {
         public string FullName { get; set; } = string.Empty;
-        public string Specialty { get; set; } = string.Empty;
+        public int? SpecialtyId { get; set; } // Use specialty ID instead of name
         public string Phone { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public decimal ConsultationFee { get; set; }

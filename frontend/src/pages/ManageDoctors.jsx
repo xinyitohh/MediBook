@@ -7,8 +7,10 @@ import {
 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import DatePicker from "../components/DatePicker";
+import EnhancedSpecialtyDropdown from "../components/EnhancedSpecialtyDropdown";
 import { getAllDoctors, deleteDoctor, getDoctorReviews, updateDoctor, getDoctorById, adminRegisterDoctor } from "../services";
 import { searchAppointments } from "../services";
+import { getAllSpecialties } from "../services/specialtyService";
 
 /* ── Constants ───────────────────────────────────── */
 const SPECIALTIES = [
@@ -19,7 +21,7 @@ const SPECIALTIES = [
 ];
 
 const EMPTY_FORM = {
-  fullName: "", email: "", specialty: "",
+  fullName: "", email: "", specialty: "", specialtyId: null,
   consultationFee: "", description: "",
   DateOfBirth: "", gender: "", experience: "",
   qualifications: "", languages: "", phoneNumber: "",
@@ -52,6 +54,7 @@ const badgeStatus = {
 /* ═══════════════════════════════════════════════════ */
 export default function ManageDoctors() {
   const [doctors, setDoctors]       = useState([]);
+  const [specialties, setSpecialties] = useState([]);
   const [loading, setLoading]       = useState(true);
   const [search, setSearch]         = useState("");
   const [sort, setSort]             = useState("name-asc");
@@ -87,7 +90,17 @@ export default function ManageDoctors() {
     }
   };
 
-  useEffect(() => { fetchDoctors(); }, []);
+  useEffect(() => { 
+    fetchDoctors();
+    fetchSpecialties();
+  }, []);
+
+  async function fetchSpecialties() {
+    try {
+      const res = await getAllSpecialties();
+      setSpecialties(res.data ?? []);
+    } catch { /* silent */ }
+  }
 
   async function fetchDoctors() {
     setLoading(true);
@@ -123,10 +136,25 @@ export default function ManageDoctors() {
       if (editTarget) {
         // Update existing doctor
         const idToUpdate = editTarget.id;
+        
+        // Use the specialtyId directly from form state (set when dropdown selection changes)
+        const specialtyId = form.specialtyId;
+        
+        // Validate specialty was selected
+        if (!specialtyId) {
+          setFormError("Please select a valid specialty.");
+          setSubmitting(false);
+          console.error('Specialty not selected in form:', {
+            selectedSpecialtyName: form.specialty,
+            selectedSpecialtyId: form.specialtyId,
+          });
+          return;
+        }
+        
         // Build a normalized payload matching AdminUpdateDoctorDto on the server
         const payload = {
           FullName: form.fullName.trim(),
-          Specialty: form.specialty,
+          SpecialtyId: specialtyId, // Look up from selected specialty name
           // Ensure ConsultationFee is a number (server expects decimal). Use 0 if empty.
           ConsultationFee: form.consultationFee ? Number(parseFloat(form.consultationFee)) : 0,
           Description: form.description?.trim() || "",
@@ -141,25 +169,34 @@ export default function ManageDoctors() {
 
   console.debug('PUT /api/doctor/' + idToUpdate + ' payload:', payload);
   await updateDoctor(idToUpdate, payload);
+        
         // Refresh list
         await fetchDoctors();
-        // Refresh the open drawer content with latest data
+        
+        // Refresh the open drawer content with latest data BEFORE closing modal
         try {
           const res = await getDoctorById(idToUpdate);
+          // Update the view target first so the profile drawer shows fresh data
           setViewTarget(res.data);
           setEditTarget(res.data); // Also refresh editTarget so "Current Values" box shows latest data
-        } catch {
-          // ignore failure
+          console.log('Doctor updated successfully, profile refreshed:', res.data);
+        } catch (err) {
+          console.error('Failed to refresh doctor profile:', err);
         }
+        
+        // Now close the modal and reset form
         setShowModal(false);
         setForm(EMPTY_FORM);
       } else {
         // Admin register flow: create doctor user and send set-password email
+        // Use the SpecialtyId directly from form state (set when dropdown selection changes)
+        const specialtyId = form.specialtyId;
+        
         await adminRegisterDoctor({
           FullName: form.fullName.trim(),
           Email: form.email.trim(),
           Phone: form.phone || "",
-          Specialty: form.specialty,
+          SpecialtyId: specialtyId,
           ConsultationFee: form.consultationFee ? parseFloat(form.consultationFee) : null,
           Description: form.description.trim() || "",
         });
@@ -374,6 +411,7 @@ export default function ManageDoctors() {
                 email: freshDoc.email || "",
                 phone: freshDoc.phone || "",
                 specialty: freshDoc.specialty || "",
+                specialtyId: freshDoc.specialtyId || null,
                 consultationFee: freshDoc.consultationFee ?? "",
                 description: freshDoc.description || "",
                 DateOfBirth: formatDateForInput(freshDoc.dateOfBirth) || "",
@@ -392,6 +430,7 @@ export default function ManageDoctors() {
                 email: doc.email || "",
                 phone: doc.phone || "",
                 specialty: doc.specialty || "",
+                specialtyId: doc.specialtyId || null,
                 consultationFee: doc.consultationFee ?? "",
                 description: doc.description || "",
                 DateOfBirth: formatDateForInput(doc.dateOfBirth) || "",
@@ -448,14 +487,10 @@ export default function ManageDoctors() {
 
                 <div>
                   <label className="input-label">Specialty{!editTarget && " *"}</label>
-                  <div className="relative">
-                    <select value={form.specialty} onChange={(e) => setForm({ ...form, specialty: e.target.value })}
-                      className="input-field appearance-none pr-9">
-                      <option value="">Select specialty…</option>
-                      {SPECIALTIES.map((s) => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                    <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-                  </div>
+                  <EnhancedSpecialtyDropdown 
+                    value={form.specialty} 
+                    onChange={(val) => setForm({ ...form, specialty: val.name, specialtyId: val.id })} 
+                  />
                 </div>
 
                 <div>

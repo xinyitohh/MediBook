@@ -18,7 +18,7 @@ namespace backend.Profiles
             // --- APPOINTMENT MAPPINGS ---
             CreateMap<Appointment, AppointmentResponseDto>()
                 .ForMember(dest => dest.Doctor, opt => opt.MapFrom(src => src.Doctor.FullName))
-                .ForMember(dest => dest.Specialty, opt => opt.MapFrom(src => src.Doctor.Specialty))
+                .ForMember(dest => dest.Specialty, opt => opt.MapFrom(src => src.Doctor.Specialty != null ? src.Doctor.Specialty.Name : ""))
                 .ForMember(dest => dest.Patient, opt => opt.MapFrom(src => src.Patient.FullName))
                 .ForMember(dest => dest.Date, opt => opt.MapFrom(src => src.AppointmentDate.ToString("yyyy-MM-dd")))
                 .ForMember(dest => dest.Time, opt => opt.MapFrom(src => src.TimeSlot));
@@ -27,7 +27,9 @@ namespace backend.Profiles
             CreateMap<CompleteAppointmentDto, Appointment>();
 
             // --- DOCTOR MAPPINGS ---
-            CreateMap<Doctor, DoctorDto>();
+            CreateMap<Doctor, DoctorDto>()
+                .ForMember(dest => dest.Specialty, opt => opt.MapFrom(src => src.Specialty != null ? src.Specialty.Name : null))
+                .ForMember(dest => dest.SpecialtyId, opt => opt.MapFrom(src => src.SpecialtyId));
             CreateMap<CreateDoctorDto, Doctor>();
             CreateMap<AdminUpdateDoctorDto, Doctor>();
             CreateMap<UpdateDoctorProfileDto, Doctor>();

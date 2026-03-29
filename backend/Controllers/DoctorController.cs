@@ -36,12 +36,14 @@ namespace backend.Controllers
         {
             // Project doctors to DTO and include EmailConfirmed by looking up the linked Identity user
             var doctors = await _context.Doctors
+                .Include(d => d.Specialty)
                 .Where(d => d.IsAvailable)
                 .Select(d => new DoctorDto
                 {
                     Id = d.Id,
                     FullName = d.FullName,
-                    Specialty = d.Specialty,
+                    SpecialtyId = d.SpecialtyId,
+                    Specialty = d.Specialty != null ? d.Specialty.Name : null,
                     Email = d.Email,
                     Phone = d.Phone,
                     ProfileImageUrl = d.ProfileImageUrl,
@@ -65,8 +67,8 @@ namespace backend.Controllers
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)
         {
-            // FindAsync is fine here as we want the full object for a single detail view
-            var doctor = await _context.Doctors.FindAsync(id);
+            // Include specialty relationship so the DTO can map the specialty name
+            var doctor = await _context.Doctors.Include(d => d.Specialty).FirstOrDefaultAsync(d => d.Id == id);
 
             if (doctor == null)
                 return NotFound(new { message = "Doctor not found" });
@@ -280,7 +282,7 @@ namespace backend.Controllers
             if (doctor == null)
                 return NotFound(new { message = "Doctor not found" });
 
-            // AutoMapper will map the 5 new fields automatically based on matching names
+            // AutoMapper will map the properties automatically based on matching names
             _mapper.Map(dto, doctor);
 
             await _context.SaveChangesAsync();

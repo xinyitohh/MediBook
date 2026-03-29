@@ -6,7 +6,11 @@ namespace backend.Models
     {
         public int Id { get; set; }
         public string FullName { get; set; } = string.Empty;
-        public string Specialty { get; set; } = string.Empty;
+        
+        // Foreign key to Specialty - nullable to allow existing doctors without specialty
+        public int? SpecialtyId { get; set; }
+        public Specialty? Specialty { get; set; }
+        
         public string Email { get; set; } = string.Empty;
         public string Phone { get; set; } = string.Empty;
         public string DateOfBirth { get; set; } = string.Empty;
