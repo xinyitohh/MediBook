@@ -29,6 +29,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import ManageDoctors from "./pages/ManageDoctors";
 import ManagePatients from "./pages/ManagePatients";
 import ManageAppointments from "./pages/ManageAppointments";
+import AdminPushNotification from "./pages/AdminPushNotification";
 
 // Notifications page
 import Notifications from "./pages/Notifications";
@@ -81,6 +82,7 @@ function App() {
             <Route path="/admin/doctors" element={<ManageDoctors />} />
             <Route path="/admin/patients" element={<ManagePatients />} />
             <Route path="/admin/appointments" element={<ManageAppointments />} />
+            <Route path="/admin/push-notifications" element={<AdminPushNotification />} />
           </Route>
 
           {/* Fallback */}

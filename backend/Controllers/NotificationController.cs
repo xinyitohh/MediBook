@@ -2,6 +2,7 @@
 using AutoMapper.QueryableExtensions;
 using backend.Data;
 using backend.DTOs;
+using backend.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -109,6 +110,101 @@ namespace backend.Controllers
             }
 
             return Ok(new { message = "All notifications cleared" });
+        }
+
+        // POST: api/notification/admin/push - Admin sends push notifications to target audience
+        [HttpPost("admin/push")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> SendPushNotification([FromBody] SendPushNotificationDto dto)
+        {
+            // Validation
+            if (string.IsNullOrWhiteSpace(dto.Title) || string.IsNullOrWhiteSpace(dto.Message))
+            {
+                return BadRequest(new { message = "Title and Message are required." });
+            }
+
+            if (string.IsNullOrWhiteSpace(dto.TargetAudience))
+            {
+                return BadRequest(new { message = "TargetAudience is required (all, doctors, patients, specific)." });
+            }
+
+            if (dto.TargetAudience == "specific" && string.IsNullOrWhiteSpace(dto.TargetUserId))
+            {
+                return BadRequest(new { message = "TargetUserId is required when TargetAudience is 'specific'." });
+            }
+
+            // Query users based on target audience
+            IQueryable<User> usersQuery = _context.Users;
+
+            switch (dto.TargetAudience.ToLower())
+            {
+                case "all":
+                    // All active users (no filter)
+                    break;
+
+                case "doctors":
+                    usersQuery = usersQuery.Where(u => u.Role == "Doctor");
+                    break;
+
+                case "patients":
+                    usersQuery = usersQuery.Where(u => u.Role == "Patient");
+                    break;
+
+                case "specific":
+                    usersQuery = usersQuery.Where(u => u.Id == dto.TargetUserId);
+                    break;
+
+                default:
+                    return BadRequest(new { message = "Invalid TargetAudience. Use: all, doctors, patients, or specific." });
+            }
+
+            var targetUsers = await usersQuery.ToListAsync();
+
+            if (!targetUsers.Any())
+            {
+                return NotFound(new { message = "No users found for the specified target audience." });
+            }
+
+            // Create notification for each target user
+            var now = DateTime.UtcNow;
+            var notifications = targetUsers.Select(u => new Notification
+            {
+                UserId = u.Id,
+                Title = dto.Title,
+                Message = dto.Message,
+                Type = dto.Type,
+                IsRead = false,
+                CreatedAt = now
+            }).ToList();
+
+            _context.Notifications.AddRange(notifications);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { 
+                message = $"Push notification sent to {notifications.Count} user(s).",
+                recipientCount = notifications.Count
+            });
+        }
+
+        // GET: api/notification/admin/history - Get admin push notification history
+        [HttpGet("admin/history")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetNotificationHistory()
+        {
+            var history = await _context.Notifications
+                .GroupBy(n => new { n.Title, n.Message, n.Type, SendDate = n.CreatedAt.Date })
+                .Select(g => new PushNotificationHistoryDto
+                {
+                    Title = g.Key.Title,
+                    Message = g.Key.Message,
+                    Type = g.Key.Type,
+                    SentDate = g.Key.SendDate,
+                    RecipientCount = g.Count()
+                })
+                .OrderByDescending(h => h.SentDate)
+                .ToListAsync();
+
+            return Ok(history);
         }
     }
 }

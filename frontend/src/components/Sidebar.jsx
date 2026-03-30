@@ -14,6 +14,7 @@ import {
   ChevronLeft,
   Menu,
   ChevronRight,
+  Send,
 } from "lucide-react";
 
 /* ── Menu config per role ────────────────────────────── */
@@ -37,7 +38,7 @@ const menuConfig = {
     { to: "/admin/doctors", label: "Manage Doctors",   icon: Stethoscope },
     { to: "/admin/patients",label: "Manage Patients",  icon: Users },
     { to: "/admin/appointments", label: "Manage Appointments",  icon: Calendar },
-    { to: "/notifications",      label: "Notifications", icon: Bell },
+    { to: "/admin/push-notifications", label: "Push Notifications", icon: Send },
     { to: "/profile",            label: "Profile",       icon: User },
   ],
   SuperAdmin: [
