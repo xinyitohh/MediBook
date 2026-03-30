@@ -5,7 +5,8 @@ import {
 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import DatePicker from "../components/DatePicker";
-import { getAllPatients, deletePatient, getPatientProfileById } from "../services";
+import ActionDropdown from "../components/ActionDropdown";
+import { getAllPatients, deletePatient, getPatientProfileById, resendPatientSetupLink } from "../services";
 import { adminRegisterPatient, adminUpdatePatient } from "../services/patientService";
 import { searchAppointments } from "../services";
 
@@ -56,6 +57,7 @@ export default function ManagePatients() {
   const [formError, setFormError] = useState("");
   const [successModal, setSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+  const [resendingId, setResendingId] = useState(null);
 
   // Helper functions for data normalization
   const normalizeDate = (d) => {
@@ -98,6 +100,21 @@ export default function ManagePatients() {
     } catch (err) {
       alert(err.response?.data?.message || "Failed to delete patient.");
     } finally { setDeleteTarget(null); }
+  }
+
+  async function handleResendLink(patient) {
+    try {
+      setResendingId(patient.id);
+      await resendPatientSetupLink(patient.id);
+      setSuccessMessage(`Setup link resent successfully to ${patient.fullName}`);
+      setSuccessModal(true);
+    } catch (err) {
+      const errorMsg = err.response?.data?.message || "Failed to resend setup link.";
+      alert(errorMsg);
+      console.error('Resend link error:', err);
+    } finally {
+      setResendingId(null);
+    }
   }
 
   async function handleAddPatient(e) {
@@ -282,7 +299,8 @@ export default function ManagePatients() {
         </div>
       ) : (
         <div className="card overflow-hidden">
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
             <thead>
                 <tr className="border-b border-gray-100 bg-gray-50/60">
                   <Th>Patient</Th>
@@ -292,14 +310,14 @@ export default function ManagePatients() {
                   <Th hide="xl">Blood Type</Th>
                   <Th hide="xl">Joined</Th>
                   <Th>Status</Th>
-                  <th className="px-5 py-3" />
+                  <th className="px-5 py-3 sticky right-0 bg-gray-50/60 border-l-[3px] border-gray-200 z-10 w-[140px] text-center">ACTION</th>
                 </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {displayed.map((patient, idx) => (
                 <tr
                   key={patient.id}
-                  className="hover:bg-gray-50 transition-colors cursor-pointer"
+                  className="group hover:bg-gray-50 transition-colors cursor-pointer"
                   onClick={() => setViewTarget(patient)}
                 >
                   <td className="px-5 py-3.5">
@@ -329,19 +347,59 @@ export default function ManagePatients() {
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-500">Inactive</span>
                     )}
                   </td>
-                  <td className="px-5 py-3.5" onClick={(e) => e.stopPropagation()}>
-                    <button
-                      onClick={() => setDeleteTarget(patient)}
-                      className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors ml-auto"
-                      title="Delete patient"
-                    >
-                      <Trash2 size={15} />
-                    </button>
+                  <td className="px-5 py-3.5 sticky right-0 bg-white border-l-[3px] border-gray-200 z-10 w-[140px] text-center" onClick={(e) => e.stopPropagation()}>
+                    <ActionDropdown
+                      user={patient}
+                      type="Patient"
+                      onEdit={(patient) => {
+                        // Fetch the latest patient data from database to ensure we have fresh data
+                        getPatientProfileById(patient.id).then((res) => {
+                          const freshPatient = res.data;
+                          setEditTarget(freshPatient);
+                          setForm({
+                            fullName: freshPatient.fullName || "",
+                            email: freshPatient.email || "",
+                            phone: freshPatient.phone || "",
+                            DateOfBirth: formatDateForInput(freshPatient.dateOfBirth) || "",
+                            gender: freshPatient.gender || "",
+                            address: freshPatient.address || "",
+                            allergies: freshPatient.allergies || "",
+                            chronicConditions: freshPatient.chronicConditions || "",
+                            bloodType: freshPatient.bloodType || "",
+                            emergencyContactName: freshPatient.emergencyContactName || "",
+                            emergencyContactPhone: freshPatient.emergencyContactPhone || "",
+                          });
+                          setShowModal(true);
+                        }).catch((err) => {
+                          console.error('Failed to fetch patient data:', err);
+                          // Fallback to using the patient passed in if fetch fails
+                          setEditTarget(patient);
+                          setForm({
+                            fullName: patient.fullName || "",
+                            email: patient.email || "",
+                            phone: patient.phone || "",
+                            DateOfBirth: formatDateForInput(patient.dateOfBirth) || "",
+                            gender: patient.gender || "",
+                            address: patient.address || "",
+                            allergies: patient.allergies || "",
+                            chronicConditions: patient.chronicConditions || "",
+                            bloodType: patient.bloodType || "",
+                            emergencyContactName: patient.emergencyContactName || "",
+                            emergencyContactPhone: patient.emergencyContactPhone || "",
+                          });
+                          setShowModal(true);
+                        });
+                      }}
+                      onDelete={setDeleteTarget}
+                      onResendLink={handleResendLink}
+                      isResending={resendingId === patient.id}
+                    />
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
@@ -663,7 +721,6 @@ function PatientDrawer({ patient, onClose, onDelete, onEdit }) {
               <InfoRow label="Gender"       value={patient.gender || "Not set"} />
               <InfoRow label="Date of Birth" value={fmtDate(patient.dateOfBirth)} />
               <InfoRow label="Blood Type"   value={patient.bloodType || "Not set"} />
-              <InfoRow label="Address"      value={patient.address || "Not set"} />
               <InfoRow label="Joined"       value={fmtDate(patient.createdAt)} />
               {patient.emergencyContact && (
                 <InfoRow label="Emergency Contact" value={patient.emergencyContact} />

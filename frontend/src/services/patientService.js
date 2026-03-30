@@ -8,3 +8,4 @@ export const deletePatient = (id) => api.delete(`/api/patient/${id}`);
 export const getAllPatients = () => api.get("/api/patient/all");
 export const adminRegisterPatient = (data) => api.post("/api/patient/admin-register", data);
 export const adminUpdatePatient = (id, data) => api.put(`/api/patient/${id}`, data);
+export const resendPatientSetupLink = (id) => api.post(`/api/patient/${id}/resend-setup`);

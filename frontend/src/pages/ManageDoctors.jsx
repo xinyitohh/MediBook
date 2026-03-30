@@ -8,7 +8,8 @@ import {
 import PageHeader from "../components/PageHeader";
 import DatePicker from "../components/DatePicker";
 import EnhancedSpecialtyDropdown from "../components/EnhancedSpecialtyDropdown";
-import { getAllDoctors, deleteDoctor, getDoctorReviews, updateDoctor, getDoctorById, adminRegisterDoctor } from "../services";
+import ActionDropdown from "../components/ActionDropdown";
+import { getAllDoctors, deleteDoctor, getDoctorReviews, updateDoctor, getDoctorById, adminRegisterDoctor, resendDoctorSetupLink } from "../services";
 import { searchAppointments } from "../services";
 import { getAllSpecialties } from "../services/specialtyService";
 
@@ -67,6 +68,7 @@ export default function ManageDoctors() {
   const [formError, setFormError]   = useState("");
   const [successModal, setSuccessModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+  const [resendingId, setResendingId] = useState(null);
 
   // Helper functions for data normalization
   const normalizeDate = (d) => {
@@ -119,6 +121,21 @@ export default function ManageDoctors() {
     } catch (err) {
       alert(err.response?.data?.message || "Failed to delete doctor.");
     } finally { setDeleteTarget(null); }
+  }
+
+  async function handleResendLink(doc) {
+    try {
+      setResendingId(doc.id);
+      await resendDoctorSetupLink(doc.id);
+      setSuccessMessage(`Setup link resent successfully to ${doc.FullName || doc.fullName}`);
+      setSuccessModal(true);
+    } catch (err) {
+      const errorMsg = err.response?.data?.message || "Failed to resend setup link.";
+      alert(errorMsg);
+      console.error('Resend link error:', err);
+    } finally {
+      setResendingId(null);
+    }
   }
 
   async function handleAddDoctor(e) {
@@ -328,7 +345,8 @@ export default function ManageDoctors() {
         </div>
       ) : (
         <div className="card overflow-hidden">
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50/60">
                 <Th>Doctor</Th>
@@ -338,14 +356,14 @@ export default function ManageDoctors() {
                 <Th hide="lg">Rating</Th>
                 <Th hide="xl">Joined</Th>
                 <Th>Status</Th>
-                <th className="px-5 py-3" />
+                <th className="px-5 py-3 sticky right-0 bg-gray-50/60 border-l-[3px] border-gray-200 z-10 w-[140px] text-center">ACTION</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {displayed.map((doc) => (
                 <tr
                   key={doc.id}
-                  className="hover:bg-gray-50 transition-colors cursor-pointer"
+                  className="group hover:bg-gray-50 transition-colors cursor-pointer"
                   onClick={() => setViewTarget(doc)}
                 >
                   <td className="px-5 py-3.5">
@@ -379,19 +397,61 @@ export default function ManageDoctors() {
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-500">Inactive</span>
                     )}
                   </td>
-                  <td className="px-5 py-3.5" onClick={(e) => e.stopPropagation()}>
-                    <button
-                      onClick={() => setDeleteTarget(doc)}
-                      className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors ml-auto"
-                      title="Delete doctor"
-                    >
-                      <Trash2 size={15} />
-                    </button>
+                  <td className="px-5 py-3.5 sticky right-0 bg-white border-l-[3px] border-gray-200 z-10 w-[140px] text-center" onClick={(e) => e.stopPropagation()}>
+                    <ActionDropdown 
+                      user={doc}
+                      type="Doctor"
+                      onEdit={(doc) => {
+                        getDoctorById(doc.id).then((res) => {
+                          const freshDoc = res.data;
+                          setEditTarget(freshDoc);
+                          setForm({
+                            fullName: freshDoc.fullName || "",
+                            email: freshDoc.email || "",
+                            phone: freshDoc.phone || "",
+                            specialty: freshDoc.specialty || "",
+                            specialtyId: freshDoc.specialtyId || null,
+                            consultationFee: freshDoc.consultationFee ?? "",
+                            description: freshDoc.description || "",
+                            DateOfBirth: formatDateForInput(freshDoc.dateOfBirth) || "",
+                            gender: freshDoc.gender || "",
+                            experience: freshDoc.experience || "",
+                            qualifications: freshDoc.qualifications || "",
+                            languages: freshDoc.languages || "",
+                            phoneNumber: freshDoc.phone || "",
+                          });
+                          setShowModal(true);
+                        }).catch((err) => {
+                          console.error('Failed to fetch doctor data:', err);
+                          setEditTarget(doc);
+                          setForm({
+                            fullName: doc.fullName || "",
+                            email: doc.email || "",
+                            phone: doc.phone || "",
+                            specialty: doc.specialty || "",
+                            specialtyId: doc.specialtyId || null,
+                            consultationFee: doc.consultationFee ?? "",
+                            description: doc.description || "",
+                            DateOfBirth: formatDateForInput(doc.dateOfBirth) || "",
+                            gender: doc.gender || "",
+                            experience: doc.experience || "",
+                            qualifications: doc.qualifications || "",
+                            languages: doc.languages || "",
+                            phoneNumber: doc.phone || "",
+                          });
+                          setShowModal(true);
+                        });
+                      }}
+                      onDelete={setDeleteTarget}
+                      onResendLink={handleResendLink}
+                      isResending={resendingId === doc.id}
+                    />
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
