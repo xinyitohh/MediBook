@@ -26,5 +26,6 @@
         public string Type { get; set; } = string.Empty;
         public DateTime SentDate { get; set; }
         public int RecipientCount { get; set; }
+        public string TargetedAudience { get; set; } = string.Empty; // "all", "doctors", "patients", or user full name
     }
 }

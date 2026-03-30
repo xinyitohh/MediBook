@@ -1,15 +1,20 @@
-import { useState, useEffect } from "react";
-import { Send, Loader } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Send, Loader, X, Search } from "lucide-react";
 import PageHeader from "../components/PageHeader";
-import { sendPushNotification, getAdminNotificationHistory } from "../services/notificationService";
+import {
+  sendPushNotification,
+  getAdminNotificationHistory,
+  getAdminNotificationUsers,
+} from "../services/notificationService";
 
 export default function AdminPushNotification() {
-  const [loading, setLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [history, setHistory] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [users, setUsers] = useState([]);
+  const [usersLoading, setUsersLoading] = useState(true);
 
   const [form, setForm] = useState({
     title: "",
@@ -19,10 +24,27 @@ export default function AdminPushNotification() {
     targetUserId: "",
   });
 
-  // Load notification history
+  const [userSearch, setUserSearch] = useState("");
+  const [showUserDropdown, setShowUserDropdown] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+
+  // Load users and notification history
   useEffect(() => {
+    fetchUsers();
     fetchHistory();
   }, []);
+
+  const fetchUsers = async () => {
+    try {
+      setUsersLoading(true);
+      const res = await getAdminNotificationUsers();
+      setUsers(res.data ?? []);
+    } catch (err) {
+      console.error("Failed to fetch users:", err);
+    } finally {
+      setUsersLoading(false);
+    }
+  };
 
   const fetchHistory = async () => {
     try {
@@ -36,9 +58,37 @@ export default function AdminPushNotification() {
     }
   };
 
+  // Filter users based on search query (by name or email)
+  const filteredUsers = useMemo(() => {
+    if (!userSearch.trim()) return users.slice(0, 10); // Show first 10 by default
+    const query = userSearch.toLowerCase();
+    return users.filter(
+      (u) =>
+        u.fullName.toLowerCase().includes(query) ||
+        u.email.toLowerCase().includes(query)
+    );
+  }, [userSearch, users]);
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
+
+    // Reset user selection when target audience changes
+    if (name === "targetAudience" && value !== "specific") {
+      setSelectedUser(null);
+      setUserSearch("");
+      setForm((prev) => ({ ...prev, targetUserId: "" }));
+    }
+  };
+
+  const handleUserSelect = (user) => {
+    setSelectedUser(user);
+    setForm((prev) => ({
+      ...prev,
+      targetUserId: user.id,
+    }));
+    setUserSearch("");
+    setShowUserDropdown(false);
   };
 
   const handleSubmit = async (e) => {
@@ -53,7 +103,7 @@ export default function AdminPushNotification() {
     }
 
     if (form.targetAudience === "specific" && !form.targetUserId.trim()) {
-      setError("User ID is required for 'Specific User' target.");
+      setError("Please select a user for 'Specific User' target.");
       return;
     }
 
@@ -78,6 +128,8 @@ export default function AdminPushNotification() {
         targetAudience: "all",
         targetUserId: "",
       });
+      setSelectedUser(null);
+      setUserSearch("");
 
       // Refresh history
       await fetchHistory();
@@ -91,7 +143,8 @@ export default function AdminPushNotification() {
 
   const formatDate = (dateString) => {
     try {
-      return new Date(dateString).toLocaleDateString("en-US", {
+      const date = new Date(dateString);
+      return date.toLocaleDateString("en-US", {
         year: "numeric",
         month: "short",
         day: "numeric",
@@ -185,16 +238,73 @@ export default function AdminPushNotification() {
 
               {form.targetAudience === "specific" && (
                 <div>
-                  <label className="input-label">User ID *</label>
-                  <input
-                    type="text"
-                    name="targetUserId"
-                    placeholder="Enter user ID"
-                    value={form.targetUserId}
-                    onChange={handleInputChange}
-                    className="input-field"
-                    required
-                  />
+                  <label className="input-label">Username *</label>
+                  <div className="relative">
+                    <div className="relative">
+                      <Search
+                        size={16}
+                        className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Search by name or email..."
+                        value={userSearch}
+                        onChange={(e) => setUserSearch(e.target.value)}
+                        onFocus={() => setShowUserDropdown(true)}
+                        className="input-field pl-9"
+                      />
+                    </div>
+
+                    {showUserDropdown && !usersLoading && (
+                      <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-20 max-h-64 overflow-y-auto">
+                        {filteredUsers.length === 0 ? (
+                          <div className="p-4 text-center text-gray-400 text-sm">
+                            No users found
+                          </div>
+                        ) : (
+                          <div className="divide-y divide-gray-100">
+                            {filteredUsers.map((user) => (
+                              <button
+                                key={user.id}
+                                type="button"
+                                onClick={() => handleUserSelect(user)}
+                                className="w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors focus:outline-none"
+                              >
+                                <div className="font-semibold text-gray-800">
+                                  {user.fullName}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  {user.email} • {user.role}
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {selectedUser && (
+                    <div className="mt-2 p-3 rounded-lg bg-blue-50 border border-blue-200 flex items-center justify-between">
+                      <div>
+                        <div className="font-semibold text-blue-900 text-sm">
+                          {selectedUser.fullName}
+                        </div>
+                        <div className="text-xs text-blue-700">{selectedUser.email}</div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedUser(null);
+                          setForm((prev) => ({ ...prev, targetUserId: "" }));
+                          setUserSearch("");
+                        }}
+                        className="text-blue-500 hover:text-blue-700"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -238,23 +348,45 @@ export default function AdminPushNotification() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-gray-100 bg-gray-50/60">
-                      <th className="px-4 py-3 text-left font-semibold text-gray-600">Title</th>
-                      <th className="px-4 py-3 text-left font-semibold text-gray-600">Type</th>
-                      <th className="px-4 py-3 text-left font-semibold text-gray-600">Recipients</th>
-                      <th className="px-4 py-3 text-left font-semibold text-gray-600">Date Sent</th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-600 whitespace-nowrap">
+                        Title
+                      </th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-600 whitespace-nowrap">
+                        Type
+                      </th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-600 whitespace-nowrap">
+                        Recipients
+                      </th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-600 whitespace-nowrap">
+                        Targeted Audience
+                      </th>
+                      <th className="px-4 py-3 text-left font-semibold text-gray-600 whitespace-nowrap">
+                        Date Sent
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
                     {history.map((item, idx) => (
                       <tr key={idx} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-4 py-3 text-gray-700 font-medium">{item.title}</td>
+                        <td className="px-4 py-3 text-gray-700 font-medium max-w-xs truncate">
+                          {item.title}
+                        </td>
                         <td className="px-4 py-3">
-                          <span className="px-2 py-1 rounded-lg text-xs font-semibold bg-blue-50 text-blue-600">
+                          <span className="px-2 py-1 rounded-lg text-xs font-semibold bg-blue-50 text-blue-600 whitespace-nowrap">
                             {item.type}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-gray-600">{item.recipientCount}</td>
-                        <td className="px-4 py-3 text-gray-500">{formatDate(item.sentDate)}</td>
+                        <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
+                          {item.recipientCount}
+                        </td>
+                        <td className="px-4 py-3 text-gray-600 whitespace-nowrap">
+                          <span className="px-2 py-1 rounded-lg text-xs font-semibold bg-purple-50 text-purple-600 capitalize">
+                            {item.targetedAudience}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-gray-500 whitespace-nowrap">
+                          {formatDate(item.sentDate)}
+                        </td>
                       </tr>
                     ))}
                   </tbody>

@@ -16,3 +16,5 @@ export const getAdminNotificationHistory = () =>
   api.get("/api/notification/admin/history");
 export const sendPushNotification = (data) =>
   api.post("/api/notification/admin/push", data);
+export const getAdminNotificationUsers = () =>
+  api.get("/api/notification/admin/users");

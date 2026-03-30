@@ -39,7 +39,6 @@ const menuConfig = {
     { to: "/admin/patients",label: "Manage Patients",  icon: Users },
     { to: "/admin/appointments", label: "Manage Appointments",  icon: Calendar },
     { to: "/admin/push-notifications", label: "Push Notifications", icon: Send },
-    { to: "/profile",            label: "Profile",       icon: User },
   ],
   SuperAdmin: [
     { to: "/admin",         label: "Dashboard",        icon: Activity },

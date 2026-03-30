@@ -133,25 +133,34 @@ namespace backend.Controllers
                 return BadRequest(new { message = "TargetUserId is required when TargetAudience is 'specific'." });
             }
 
-            // Query users based on target audience
-            IQueryable<User> usersQuery = _context.Users;
+            // Query users based on target audience (exclude Admins)
+            IQueryable<User> usersQuery = _context.Users.Where(u => u.Role != "Admin");
+            string targetAudienceLabel = "";
 
             switch (dto.TargetAudience.ToLower())
             {
                 case "all":
-                    // All active users (no filter)
+                    // All active users except admins (no additional filter)
+                    targetAudienceLabel = "all";
                     break;
 
                 case "doctors":
                     usersQuery = usersQuery.Where(u => u.Role == "Doctor");
+                    targetAudienceLabel = "doctors";
                     break;
 
                 case "patients":
                     usersQuery = usersQuery.Where(u => u.Role == "Patient");
+                    targetAudienceLabel = "patients";
                     break;
 
                 case "specific":
+                    var specificUser = await _context.Users.FirstOrDefaultAsync(u => u.Id == dto.TargetUserId);
+                    if (specificUser == null)
+                        return NotFound(new { message = "User not found." });
+                    
                     usersQuery = usersQuery.Where(u => u.Id == dto.TargetUserId);
+                    targetAudienceLabel = specificUser.FullName;
                     break;
 
                 default:
@@ -192,19 +201,44 @@ namespace backend.Controllers
         public async Task<IActionResult> GetNotificationHistory()
         {
             var history = await _context.Notifications
-                .GroupBy(n => new { n.Title, n.Message, n.Type, SendDate = n.CreatedAt.Date })
+                .Join(_context.Users, n => n.UserId, u => u.Id, (n, u) => new { n, u })
+                .GroupBy(x => new { x.n.Title, x.n.Message, x.n.Type, x.n.CreatedAt })
                 .Select(g => new PushNotificationHistoryDto
                 {
                     Title = g.Key.Title,
                     Message = g.Key.Message,
                     Type = g.Key.Type,
-                    SentDate = g.Key.SendDate,
-                    RecipientCount = g.Count()
+                    SentDate = g.Key.CreatedAt,
+                    RecipientCount = g.Count(),
+                    // Determine target audience based on the roles of recipients
+                    TargetedAudience = g.Select(x => x.u.Role).Distinct().Count() > 1 ? "all" : 
+                                     g.First().u.Role == "Doctor" ? "doctors" :
+                                     g.First().u.Role == "Patient" ? "patients" : "specific"
                 })
                 .OrderByDescending(h => h.SentDate)
                 .ToListAsync();
 
             return Ok(history);
+        }
+
+        // GET: api/notification/admin/users - Get list of users for push notification targeting
+        [HttpGet("admin/users")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> GetUsersForNotification()
+        {
+            var users = await _context.Users
+                .Where(u => u.Role != "Admin") // Exclude admins
+                .Select(u => new
+                {
+                    u.Id,
+                    u.FullName,
+                    u.Email,
+                    u.Role
+                })
+                .OrderBy(u => u.FullName)
+                .ToListAsync();
+
+            return Ok(users);
         }
     }
 }
