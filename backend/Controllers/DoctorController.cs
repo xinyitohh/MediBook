@@ -250,12 +250,22 @@ namespace backend.Controllers
             if (doctor == null)
                 return NotFound(new { message = "Doctor not found" });
 
-            // Use a transaction so both doctor and associated Identity user are removed together
+            // Use a transaction so all related data is removed together
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
             {
                 var userId = doctor.UserId;
 
+                // Delete all related records first (cascade delete)
+                var appointments = await _context.Appointments.Where(a => a.DoctorId == id).ToListAsync();
+                var reviews = await _context.Reviews.Where(r => r.DoctorId == id).ToListAsync();
+                var schedules = await _context.DoctorSchedules.Where(s => s.DoctorId == id).ToListAsync();
+
+                _context.Appointments.RemoveRange(appointments);
+                _context.Reviews.RemoveRange(reviews);
+                _context.DoctorSchedules.RemoveRange(schedules);
+
+                // Delete the doctor
                 _context.Doctors.Remove(doctor);
                 await _context.SaveChangesAsync();
 

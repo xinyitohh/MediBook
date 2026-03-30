@@ -180,17 +180,46 @@ namespace backend.Controllers
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> DeletePatient(int id)
         {
-            var patient = await _context.Patients.FindAsync(id);
+            var patient = await _context.Patients
+                .Include(p => p.Appointments)
+                .FirstOrDefaultAsync(p => p.Id == id);
+            
             if (patient == null) return NotFound();
 
-            // Optional: Also find the User account linked to this patient to delete both
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == patient.UserId.ToString());
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                // Delete all related records first (cascade delete)
+                var appointments = await _context.Appointments.Where(a => a.PatientId == id).ToListAsync();
+                var reviews = await _context.Reviews.Where(r => r.PatientId == id).ToListAsync();
+                var questionnaires = await _context.HealthQuestionnaires.Where(h => h.PatientId == id).ToListAsync();
+                var medicalReports = await _context.MedicalReports.Where(m => m.PatientId == id).ToListAsync();
 
-            if (user != null) _context.Users.Remove(user);
-            _context.Patients.Remove(patient);
+                _context.Appointments.RemoveRange(appointments);
+                _context.Reviews.RemoveRange(reviews);
+                _context.HealthQuestionnaires.RemoveRange(questionnaires);
+                _context.MedicalReports.RemoveRange(medicalReports);
 
-            await _context.SaveChangesAsync();
-            return Ok(new { message = "Patient account and data deleted successfully" });
+                // Delete the patient
+                _context.Patients.Remove(patient);
+
+                // Also delete the associated User account
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.Id == patient.UserId);
+                if (user != null)
+                {
+                    _context.Users.Remove(user);
+                }
+
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                return Ok(new { message = "Patient account and all associated data deleted successfully" });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return StatusCode(500, new { message = "Error deleting patient", details = ex.Message });
+            }
         }
 
         // PUT api/patient/{id} - Admin updates a patient record
