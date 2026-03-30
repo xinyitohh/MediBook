@@ -217,9 +217,16 @@ function NotificationRow({ notification: n, onMarkRead, onDelete }) {
 
       {/* Content */}
       <div className="flex-1 min-w-0">
-        <p className={`text-sm leading-snug ${!n.isRead ? "font-semibold text-gray-800" : "text-gray-600"}`}>
-          {n.message ?? n.title ?? n.content ?? "Notification"}
-        </p>
+        {n.title && (
+          <p className={`text-base font-bold leading-snug ${!n.isRead ? "text-gray-900" : "text-gray-800"}`}>
+            {n.title}
+          </p>
+        )}
+        {n.message && (
+          <p className={`text-sm leading-snug mt-1.5 ${!n.isRead ? "text-gray-700" : "text-gray-600"}`}>
+            {n.message}
+          </p>
+        )}
         {n.description && (
           <p className="text-xs text-gray-400 mt-0.5 leading-snug">{n.description}</p>
         )}

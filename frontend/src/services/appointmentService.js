@@ -6,7 +6,7 @@ export const cancelAppointment = (id) =>
   api.put(`/api/appointment/${id}/cancel`);
 export const confirmAppointment = (id) =>
   api.put(`/api/appointment/${id}/confirm`);
-export const completeAppointment = (id, data) =>
+export const completeAppointment = (id, data = {}) =>
   api.put(`/api/appointment/${id}/complete`, data);
 export const getAllAppointments = () => api.get("/api/appointment/all");
 export const searchAppointments = (params) => {

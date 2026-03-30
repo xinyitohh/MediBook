@@ -3,12 +3,15 @@ import {
   Stethoscope, Plus, Search, Trash2, X, Eye, EyeOff,
   ChevronDown, ChevronUp, Star, DollarSign, Users,
   Calendar, Clock, ArrowUpDown, Mail, Phone, FileText,
-  BadgeCheck,
+  BadgeCheck, Pencil,
 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
-import { getAllDoctors, deleteDoctor, getDoctorReviews } from "../services";
-import { registerDoctor } from "../services";
+import DatePicker from "../components/DatePicker";
+import EnhancedSpecialtyDropdown from "../components/EnhancedSpecialtyDropdown";
+import ActionDropdown from "../components/ActionDropdown";
+import { getAllDoctors, deleteDoctor, getDoctorReviews, updateDoctor, getDoctorById, adminRegisterDoctor, resendDoctorSetupLink } from "../services";
 import { searchAppointments } from "../services";
+import { getAllSpecialties } from "../services/specialtyService";
 
 /* ── Constants ───────────────────────────────────── */
 const SPECIALTIES = [
@@ -19,8 +22,10 @@ const SPECIALTIES = [
 ];
 
 const EMPTY_FORM = {
-  fullName: "", email: "", password: "", specialty: "",
+  fullName: "", email: "", specialty: "", specialtyId: null,
   consultationFee: "", description: "",
+  DateOfBirth: "", gender: "", experience: "",
+  qualifications: "", languages: "", phoneNumber: "",
 };
 
 const SORT_OPTIONS = [
@@ -50,18 +55,54 @@ const badgeStatus = {
 /* ═══════════════════════════════════════════════════ */
 export default function ManageDoctors() {
   const [doctors, setDoctors]       = useState([]);
+  const [specialties, setSpecialties] = useState([]);
   const [loading, setLoading]       = useState(true);
   const [search, setSearch]         = useState("");
   const [sort, setSort]             = useState("name-asc");
   const [showModal, setShowModal]   = useState(false);
+  const [editTarget, setEditTarget] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
-  const [viewTarget, setViewTarget] = useState(null);   // profile drawer
+  const [viewTarget, setViewTarget] = useState(null);
   const [form, setForm]             = useState(EMPTY_FORM);
-  const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError]   = useState("");
+  const [successModal, setSuccessModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+  const [resendingId, setResendingId] = useState(null);
 
-  useEffect(() => { fetchDoctors(); }, []);
+  // Helper functions for data normalization
+  const normalizeDate = (d) => {
+    if (!d) return null;
+    if (d instanceof Date) return d.toISOString();
+    try { const parsed = new Date(d); if (!isNaN(parsed)) return parsed.toISOString(); } catch {}
+    return null;
+  };
+
+  const stringOrNull = (s) => (s == null ? null : String(s));
+
+  // Format date to yyyy-MM-dd for display in input (removes time portion)
+  const formatDateForInput = (dateString) => {
+    if (!dateString) return "";
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date)) return "";
+      return date.toISOString().split('T')[0]; // Returns yyyy-MM-dd
+    } catch {
+      return "";
+    }
+  };
+
+  useEffect(() => { 
+    fetchDoctors();
+    fetchSpecialties();
+  }, []);
+
+  async function fetchSpecialties() {
+    try {
+      const res = await getAllSpecialties();
+      setSpecialties(res.data ?? []);
+    } catch { /* silent */ }
+  }
 
   async function fetchDoctors() {
     setLoading(true);
@@ -82,29 +123,127 @@ export default function ManageDoctors() {
     } finally { setDeleteTarget(null); }
   }
 
+  async function handleResendLink(doc) {
+    try {
+      setResendingId(doc.id);
+      await resendDoctorSetupLink(doc.id);
+      setSuccessMessage(`Setup link resent successfully to ${doc.FullName || doc.fullName}`);
+      setSuccessModal(true);
+    } catch (err) {
+      const errorMsg = err.response?.data?.message || "Failed to resend setup link.";
+      alert(errorMsg);
+      console.error('Resend link error:', err);
+    } finally {
+      setResendingId(null);
+    }
+  }
+
   async function handleAddDoctor(e) {
     e.preventDefault();
     setFormError("");
-    if (!form.fullName.trim() || !form.email.trim() || !form.password.trim() || !form.specialty) {
-      setFormError("Full name, email, password and specialty are required.");
+
+    // For admin-created doctors we send a set-password link; password is not required
+    if (!form.fullName.trim() || !form.email.trim() || !form.specialty) {
+      setFormError("Full name, email and specialty are required.");
       return;
     }
+
     setSubmitting(true);
     try {
-      await registerDoctor({
-        fullName: form.fullName.trim(),
-        email: form.email.trim(),
-        password: form.password,
-        specialty: form.specialty,
-        consultationFee: form.consultationFee ? parseFloat(form.consultationFee) : null,
-        description: form.description.trim() || null,
-      });
-      setShowModal(false);
-      setForm(EMPTY_FORM);
-      fetchDoctors();
+      if (editTarget) {
+        // Update existing doctor
+        const idToUpdate = editTarget.id;
+        
+        // Use the specialtyId directly from form state (set when dropdown selection changes)
+        const specialtyId = form.specialtyId;
+        
+        // Validate specialty was selected
+        if (!specialtyId) {
+          setFormError("Please select a valid specialty.");
+          setSubmitting(false);
+          console.error('Specialty not selected in form:', {
+            selectedSpecialtyName: form.specialty,
+            selectedSpecialtyId: form.specialtyId,
+          });
+          return;
+        }
+        
+        // Build a normalized payload matching AdminUpdateDoctorDto on the server
+        const payload = {
+          FullName: form.fullName.trim(),
+          SpecialtyId: specialtyId, // Look up from selected specialty name
+          // Ensure ConsultationFee is a number (server expects decimal). Use 0 if empty.
+          ConsultationFee: form.consultationFee ? Number(parseFloat(form.consultationFee)) : 0,
+          Description: form.description?.trim() || "",
+          // Normalize date: if Date object convert to ISO; if string pass through; else empty string
+          DateOfBirth: normalizeDate(form.DateOfBirth) || "",
+          Gender: form.gender || "",
+          Experience: form.experience?.trim() || "",
+          Qualifications: form.qualifications?.trim() || "",
+          Languages: form.languages?.trim() || "",
+          Phone: form.phone || "",
+        };
+
+  console.debug('PUT /api/doctor/' + idToUpdate + ' payload:', payload);
+  await updateDoctor(idToUpdate, payload);
+        
+        // Refresh list
+        await fetchDoctors();
+        
+        // Refresh the open drawer content with latest data BEFORE closing modal
+        try {
+          const res = await getDoctorById(idToUpdate);
+          // Update the view target first so the profile drawer shows fresh data
+          setViewTarget(res.data);
+          setEditTarget(res.data); // Also refresh editTarget so "Current Values" box shows latest data
+          console.log('Doctor updated successfully, profile refreshed:', res.data);
+        } catch (err) {
+          console.error('Failed to refresh doctor profile:', err);
+        }
+        
+        // Now close the modal and reset form
+        setShowModal(false);
+        setForm(EMPTY_FORM);
+      } else {
+        // Admin register flow: create doctor user and send set-password email
+        // Use the SpecialtyId directly from form state (set when dropdown selection changes)
+        const specialtyId = form.specialtyId;
+        
+        await adminRegisterDoctor({
+          FullName: form.fullName.trim(),
+          Email: form.email.trim(),
+          Phone: form.phone || "",
+          SpecialtyId: specialtyId,
+          ConsultationFee: form.consultationFee ? parseFloat(form.consultationFee) : null,
+          Description: form.description.trim() || "",
+        });
+  setShowModal(false);
+  setForm(EMPTY_FORM);
+  await fetchDoctors();
+  setSuccessMessage("Doctor account created and set-password email dispatched.");
+  setSuccessModal(true);
+      }
     } catch (err) {
-      setFormError(err.response?.data?.message || "Failed to add doctor.");
-    } finally { setSubmitting(false); }
+      // Log full error object for debugging (network errors, axios issues, etc.)
+      console.error('Update doctor full error:', err);
+      const server = err.response?.data;
+      // Prefer problem details or validation messages when present
+      let msg = editTarget ? "Failed to update doctor." : "Failed to add doctor.";
+      if (server) {
+        if (server.errors) {
+          msg = Object.values(server.errors).flat().join(' ');
+        } else if (server.title || server.message) {
+          msg = (server.title ? server.title + ': ' : '') + (server.detail || server.message || '');
+        } else {
+          msg = JSON.stringify(server);
+        }
+      } else if (err.message) {
+        msg = err.message;
+      }
+      setFormError(msg);
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   /* ── Derived stats ── */
@@ -150,7 +289,7 @@ export default function ManageDoctors() {
         subtitle={`${doctors.length} registered doctor${doctors.length !== 1 ? "s" : ""}`}
       >
         <button
-          onClick={() => { setShowModal(true); setForm(EMPTY_FORM); setFormError(""); }}
+          onClick={() => { setShowModal(true); setForm(EMPTY_FORM); setFormError(""); setEditTarget(null); }}
           className="btn-primary flex items-center gap-2"
         >
           <Plus size={16} /> Add Doctor
@@ -206,7 +345,8 @@ export default function ManageDoctors() {
         </div>
       ) : (
         <div className="card overflow-hidden">
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-gray-100 bg-gray-50/60">
                 <Th>Doctor</Th>
@@ -215,14 +355,15 @@ export default function ManageDoctors() {
                 <Th hide="lg">Fee</Th>
                 <Th hide="lg">Rating</Th>
                 <Th hide="xl">Joined</Th>
-                <th className="px-5 py-3" />
+                <Th>Status</Th>
+                <th className="px-5 py-3 sticky right-0 bg-gray-50/60 border-l-[3px] border-gray-200 z-10 w-[140px] text-center">ACTION</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {displayed.map((doc) => (
                 <tr
                   key={doc.id}
-                  className="hover:bg-gray-50 transition-colors cursor-pointer"
+                  className="group hover:bg-gray-50 transition-colors cursor-pointer"
                   onClick={() => setViewTarget(doc)}
                 >
                   <td className="px-5 py-3.5">
@@ -249,19 +390,68 @@ export default function ManageDoctors() {
                   <td className="px-5 py-3.5 text-gray-500 text-xs hidden xl:table-cell">
                     {fmtDate(doc.createdAt)}
                   </td>
-                  <td className="px-5 py-3.5" onClick={(e) => e.stopPropagation()}>
-                    <button
-                      onClick={() => setDeleteTarget(doc)}
-                      className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors ml-auto"
-                      title="Delete doctor"
-                    >
-                      <Trash2 size={15} />
-                    </button>
+                  <td className="px-5 py-3.5">
+                    {doc.emailConfirmed ? (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-mint-50 text-mint-600">Active</span>
+                    ) : (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-500">Inactive</span>
+                    )}
+                  </td>
+                  <td className="px-5 py-3.5 sticky right-0 bg-white border-l-[3px] border-gray-200 z-10 w-[140px] text-center" onClick={(e) => e.stopPropagation()}>
+                    <ActionDropdown 
+                      user={doc}
+                      type="Doctor"
+                      onEdit={(doc) => {
+                        getDoctorById(doc.id).then((res) => {
+                          const freshDoc = res.data;
+                          setEditTarget(freshDoc);
+                          setForm({
+                            fullName: freshDoc.fullName || "",
+                            email: freshDoc.email || "",
+                            phone: freshDoc.phone || "",
+                            specialty: freshDoc.specialty || "",
+                            specialtyId: freshDoc.specialtyId || null,
+                            consultationFee: freshDoc.consultationFee ?? "",
+                            description: freshDoc.description || "",
+                            DateOfBirth: formatDateForInput(freshDoc.dateOfBirth) || "",
+                            gender: freshDoc.gender || "",
+                            experience: freshDoc.experience || "",
+                            qualifications: freshDoc.qualifications || "",
+                            languages: freshDoc.languages || "",
+                            phoneNumber: freshDoc.phone || "",
+                          });
+                          setShowModal(true);
+                        }).catch((err) => {
+                          console.error('Failed to fetch doctor data:', err);
+                          setEditTarget(doc);
+                          setForm({
+                            fullName: doc.fullName || "",
+                            email: doc.email || "",
+                            phone: doc.phone || "",
+                            specialty: doc.specialty || "",
+                            specialtyId: doc.specialtyId || null,
+                            consultationFee: doc.consultationFee ?? "",
+                            description: doc.description || "",
+                            DateOfBirth: formatDateForInput(doc.dateOfBirth) || "",
+                            gender: doc.gender || "",
+                            experience: doc.experience || "",
+                            qualifications: doc.qualifications || "",
+                            languages: doc.languages || "",
+                            phoneNumber: doc.phone || "",
+                          });
+                          setShowModal(true);
+                        });
+                      }}
+                      onDelete={setDeleteTarget}
+                      onResendLink={handleResendLink}
+                      isResending={resendingId === doc.id}
+                    />
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
@@ -271,70 +461,161 @@ export default function ManageDoctors() {
           doctor={viewTarget}
           onClose={() => setViewTarget(null)}
           onDelete={(doc) => { setDeleteTarget(doc); setViewTarget(null); }}
+          onEdit={(doc) => {
+            // Fetch the latest doctor data from database to ensure we have fresh data
+            getDoctorById(doc.id).then((res) => {
+              const freshDoc = res.data;
+              setEditTarget(freshDoc);
+              setForm({
+                fullName: freshDoc.fullName || "",
+                email: freshDoc.email || "",
+                phone: freshDoc.phone || "",
+                specialty: freshDoc.specialty || "",
+                specialtyId: freshDoc.specialtyId || null,
+                consultationFee: freshDoc.consultationFee ?? "",
+                description: freshDoc.description || "",
+                DateOfBirth: formatDateForInput(freshDoc.dateOfBirth) || "",
+                gender: freshDoc.gender || "",
+                experience: freshDoc.experience || "",
+                qualifications: freshDoc.qualifications || "",
+                languages: freshDoc.languages || "",
+              });
+              setShowModal(true);
+            }).catch((err) => {
+              console.error('Failed to fetch doctor data:', err);
+              // Fallback to using the doc passed in if fetch fails
+              setEditTarget(doc);
+              setForm({
+                fullName: doc.fullName || "",
+                email: doc.email || "",
+                phone: doc.phone || "",
+                specialty: doc.specialty || "",
+                specialtyId: doc.specialtyId || null,
+                consultationFee: doc.consultationFee ?? "",
+                description: doc.description || "",
+                DateOfBirth: formatDateForInput(doc.dateOfBirth) || "",
+                gender: doc.gender || "",
+                experience: doc.experience || "",
+                qualifications: doc.qualifications || "",
+                languages: doc.languages || "",
+              });
+              setShowModal(true);
+            });
+          }}
         />
       )}
 
-      {/* ── Add Doctor Modal ── */}
+      {/* ── Add / Edit Doctor Modal ── */}
       {showModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-              <h3 className="font-bold text-lg text-heading">Add New Doctor</h3>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+              <h3 className="font-bold text-lg text-heading">{editTarget ? "Edit Doctor" : "Add New Doctor"}</h3>
               <button onClick={() => setShowModal(false)} className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
                 <X size={16} />
               </button>
             </div>
+
             <form onSubmit={handleAddDoctor} className="px-6 py-5 space-y-4">
               {formError && (
                 <div className="px-4 py-3 rounded-xl bg-red-50 text-red-600 text-sm font-medium">{formError}</div>
               )}
-              <div>
-                <label className="input-label">Full Name *</label>
-                <input type="text" placeholder="Dr. John Smith" value={form.fullName}
-                  onChange={(e) => setForm({ ...form, fullName: e.target.value })} className="input-field" />
-              </div>
-              <div>
-                <label className="input-label">Email *</label>
-                <input type="email" placeholder="doctor@medibook.com" value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })} className="input-field" />
-              </div>
-              <div>
-                <label className="input-label">Password *</label>
-                <div className="relative">
-                  <input type={showPassword ? "text" : "password"} placeholder="Minimum 8 characters"
-                    value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })}
-                    className="input-field pr-10" />
-                  <button type="button" onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
+
+              {/* ── CORE FIELDS (Always Visible) ── */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
+                  <label className="input-label">Full Name{!editTarget && " *"}</label>
+                  <input type="text" placeholder="Dr. John Smith" value={form.fullName}
+                    onChange={(e) => setForm({ ...form, fullName: e.target.value })} className="input-field" />
+                </div>
+
+                <div>
+                  <label className="input-label">Email{!editTarget && " *"}</label>
+                  <input type="email" placeholder="doctor@medibook.com" value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })} 
+                    className={`input-field ${editTarget ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : ''}`} 
+                    disabled={!!editTarget} />
+                </div>
+
+                <div>
+                  <label className="input-label">Phone</label>
+                  <input type="text" placeholder="e.g. +60123456789" value={form.phone || ""}
+                    onChange={(e) => setForm({ ...form, phone: e.target.value })} className="input-field" />
+                </div>
+
+                <div>
+                  <label className="input-label">Specialty{!editTarget && " *"}</label>
+                  <EnhancedSpecialtyDropdown 
+                    value={form.specialty} 
+                    onChange={(val) => setForm({ ...form, specialty: val.name, specialtyId: val.id })} 
+                  />
+                </div>
+
+                <div>
+                  <label className="input-label">Consultation Fee (RM)</label>
+                  <input type="number" min="0" step="0.01" placeholder="e.g. 150" value={form.consultationFee}
+                    onChange={(e) => setForm({ ...form, consultationFee: e.target.value })} className="input-field" />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="input-label">Description</label>
+                  <textarea rows={2} placeholder="Brief bio or professional description…" value={form.description}
+                    onChange={(e) => setForm({ ...form, description: e.target.value })} className="input-field resize-none" />
                 </div>
               </div>
-              <div>
-                <label className="input-label">Specialty *</label>
-                <div className="relative">
-                  <select value={form.specialty} onChange={(e) => setForm({ ...form, specialty: e.target.value })}
-                    className="input-field appearance-none pr-9">
-                    <option value="">Select specialty…</option>
-                    {SPECIALTIES.map((s) => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                  <ChevronDown size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+
+              {/* ── EXTRA FIELDS (Only Visible on Edit) ── */}
+              {editTarget && (
+                <div className="pt-4 border-t border-gray-100 space-y-4">
+
+                  {/* Edit Fields */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="input-label">Date of Birth</label>
+                      <DatePicker
+                        maxDate={new Date()}
+                        value={form.DateOfBirth}
+                        onChange={(val) => setForm({ ...form, DateOfBirth: val })}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="input-label">Gender</label>
+                      <select value={form.gender || ""} onChange={(e) => setForm({ ...form, gender: e.target.value })} className="input-field">
+                        <option value="">Select...</option>
+                        <option value="Male">Male</option>
+                        <option value="Female">Female</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="input-label">Experience</label>
+                      <input type="text" placeholder="e.g. 10 years" value={form.experience || ""}
+                        onChange={(e) => setForm({ ...form, experience: e.target.value })} className="input-field" />
+                    </div>
+
+                    <div>
+                      <label className="input-label">Qualifications</label>
+                      <input type="text" placeholder="e.g. MBBS, MD" value={form.qualifications || ""}
+                        onChange={(e) => setForm({ ...form, qualifications: e.target.value })} className="input-field" />
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="input-label">Languages Spoken</label>
+                      <input type="text" placeholder="e.g. English, Mandarin, Malay" value={form.languages || ""}
+                        onChange={(e) => setForm({ ...form, languages: e.target.value })} className="input-field" />
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div>
-                <label className="input-label">Consultation Fee (RM)</label>
-                <input type="number" min="0" step="0.01" placeholder="e.g. 150" value={form.consultationFee}
-                  onChange={(e) => setForm({ ...form, consultationFee: e.target.value })} className="input-field" />
-              </div>
-              <div>
-                <label className="input-label">Description</label>
-                <textarea rows={3} placeholder="Brief bio or professional description…" value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })} className="input-field resize-none" />
-              </div>
-              <div className="flex gap-3 pt-1">
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4 border-t border-gray-100">
                 <button type="button" onClick={() => setShowModal(false)} className="btn-outline flex-1">Cancel</button>
                 <button type="submit" disabled={submitting} className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed">
-                  {submitting ? "Adding…" : "Add Doctor"}
+                  {submitting ? (editTarget ? "Updating…" : "Adding…") : (editTarget ? "Update" : "Add Doctor")}
                 </button>
               </div>
             </form>
@@ -351,12 +632,32 @@ export default function ManageDoctors() {
           onConfirm={handleDelete}
         />
       )}
+
+      {/* ── Success Modal ── */}
+      {successModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-lg bg-mint-50 text-mint-600 flex items-center justify-center">
+                <BadgeCheck size={20} />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-bold text-lg text-heading">Success</h3>
+                <p className="text-sm text-gray-600 mt-2">{successMessage}</p>
+              </div>
+            </div>
+            <div className="mt-6 text-right">
+              <button onClick={() => setSuccessModal(false)} className="btn-primary px-4 py-2">OK</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 /* ── Doctor detail side drawer ───────────────────── */
-function DoctorDrawer({ doctor, onClose, onDelete }) {
+function DoctorDrawer({ doctor, onClose, onDelete, onEdit }) {
   const [appointments, setAppointments] = useState([]);
   const [reviews, setReviews]           = useState([]);
   const [tab, setTab]                   = useState("info"); // info | schedule | reviews
@@ -393,6 +694,12 @@ function DoctorDrawer({ doctor, onClose, onDelete }) {
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 shrink-0">
           <h3 className="font-bold text-lg text-heading">Doctor Profile</h3>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => onEdit ? onEdit(doctor) : null}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+            >
+              <Pencil size={13} /> Edit
+            </button>
             <button
               onClick={() => onDelete(doctor)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-red-500 hover:bg-red-50 transition-colors"

@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using backend.Data;
@@ -6,6 +7,7 @@ using backend.DTOs;
 using backend.Models;
 using AutoMapper;
 using AutoMapper.QueryableExtensions;
+using backend.Services;
 
 namespace backend.Controllers
 {
@@ -15,21 +17,47 @@ namespace backend.Controllers
     {
         private readonly AppDbContext _context;
         private readonly IMapper _mapper;
+        private readonly UserManager<User> _userManager;
+        private readonly IEmailService _emailService;
+        private readonly IConfiguration _configuration;
 
-        public DoctorController(AppDbContext context, IMapper mapper)
+        public DoctorController(AppDbContext context, IMapper mapper, UserManager<User> userManager, IEmailService emailService, IConfiguration configuration)
         {
             _context = context;
             _mapper = mapper;
+            _userManager = userManager;
+            _emailService = emailService;
+            _configuration = configuration;
         }
 
         // GET api/doctor - public, anyone can view doctors
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
-            // ProjectTo makes the SQL query efficient by only selecting DTO fields
+            // Project doctors to DTO and include EmailConfirmed by looking up the linked Identity user
             var doctors = await _context.Doctors
+                .Include(d => d.Specialty)
                 .Where(d => d.IsAvailable)
-                .ProjectTo<DoctorDto>(_mapper.ConfigurationProvider)
+                .Select(d => new DoctorDto
+                {
+                    Id = d.Id,
+                    FullName = d.FullName,
+                    SpecialtyId = d.SpecialtyId,
+                    Specialty = d.Specialty != null ? d.Specialty.Name : null,
+                    Email = d.Email,
+                    Phone = d.Phone,
+                    ProfileImageUrl = d.ProfileImageUrl,
+                    Description = d.Description,
+                    IsAvailable = d.IsAvailable,
+                    Rating = d.Rating,
+                    ReviewCount = d.ReviewCount,
+                    ConsultationFee = d.ConsultationFee,
+                    CreatedAt = d.CreatedAt,
+                    Experience = d.Experience,
+                    Qualifications = d.Qualifications,
+                    Languages = d.Languages,
+                    EmailConfirmed = _context.Users.Where(u => u.Id == d.UserId).Select(u => u.EmailConfirmed).FirstOrDefault()
+                })
                 .ToListAsync();
 
             return Ok(doctors);
@@ -39,8 +67,8 @@ namespace backend.Controllers
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(int id)
         {
-            // FindAsync is fine here as we want the full object for a single detail view
-            var doctor = await _context.Doctors.FindAsync(id);
+            // Include specialty relationship so the DTO can map the specialty name
+            var doctor = await _context.Doctors.Include(d => d.Specialty).FirstOrDefaultAsync(d => d.Id == id);
 
             if (doctor == null)
                 return NotFound(new { message = "Doctor not found" });
@@ -135,29 +163,77 @@ namespace backend.Controllers
             return Ok(new { message = "Availability updated" });
         }
 
-        // POST api/doctor - only admin can add doctors
-        [HttpPost]
+        // POST api/doctor/admin-register - Admin creates a doctor account and sends set-password link
+        [HttpPost("admin-register")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Create([FromBody] CreateDoctorDto dto)
+        public async Task<IActionResult> AdminRegister([FromBody] CreateDoctorDto dto)
         {
-            var doctor = _mapper.Map<Doctor>(dto);
+            var existingUser = await _userManager.FindByEmailAsync(dto.Email);
+            if (existingUser != null)
+                return BadRequest(new { message = "Email already registered" });
 
-            _context.Doctors.Add(doctor);
-            await _context.SaveChangesAsync();
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                // Create Identity user with random temp password
+                var tempPassword = Guid.NewGuid().ToString("N").Substring(0, 12) + "A1!";
+                var user = new User
+                {
+                    FullName = dto.FullName,
+                    Email = dto.Email,
+                    UserName = dto.Email,
+                    Role = "Doctor",
+                    EmailConfirmed = false
+                };
 
-            return Ok(new { message = "Doctor created", id = doctor.Id });
+                var result = await _userManager.CreateAsync(user, tempPassword);
+                if (!result.Succeeded)
+                    return BadRequest(new { message = result.Errors.First().Description });
+
+                // Create doctor profile and link to Identity user
+                var doctor = _mapper.Map<Doctor>(dto);
+                doctor.UserId = user.Id;
+
+                _context.Doctors.Add(doctor);
+                await _context.SaveChangesAsync();
+
+                // Generate password reset token and encode it for use in URL
+                var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+                var tokenBytes = System.Text.Encoding.UTF8.GetBytes(token);
+                var encodedToken = System.Convert.ToBase64String(tokenBytes)
+                    .TrimEnd('=')
+                    .Replace('+', '-')
+                    .Replace('/', '_');
+
+                var frontendBase = _configuration["Frontend:BaseUrl"] ?? "http://localhost:5173";
+                var link = $"{frontendBase}/set-new-password?email={Uri.EscapeDataString(dto.Email)}&token={encodedToken}";
+                var logoUrl = frontendBase.TrimEnd('/') + "/favicon.svg";
+
+                var emailBody = GenerateWelcomeEmailHtml(dto.FullName, link, logoUrl);
+
+                await _emailService.SendEmailAsync(dto.Email, "Action Required: Complete Your MediBook Account Setup", emailBody);
+
+                await transaction.CommitAsync();
+                return Ok(new { message = "Doctor account created and set-password link sent." });
+            }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync();
+                return StatusCode(500, new { message = "Error creating doctor account", detail = ex.Message });
+            }
         }
 
         // PUT api/doctor/5 - only admin can update
         [HttpPut("{id}")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> Update(int id, [FromBody] CreateDoctorDto dto)
+        public async Task<IActionResult> Update(int id, [FromBody] AdminUpdateDoctorDto dto)
         {
             var doctor = await _context.Doctors.FindAsync(id);
 
             if (doctor == null)
                 return NotFound(new { message = "Doctor not found" });
 
+            // AutoMapper will map the properties automatically based on matching names
             _mapper.Map(dto, doctor);
 
             await _context.SaveChangesAsync();
@@ -174,10 +250,84 @@ namespace backend.Controllers
             if (doctor == null)
                 return NotFound(new { message = "Doctor not found" });
 
-            _context.Doctors.Remove(doctor);
-            await _context.SaveChangesAsync();
+            // Use a transaction so both doctor and associated Identity user are removed together
+            using var transaction = await _context.Database.BeginTransactionAsync();
+            try
+            {
+                var userId = doctor.UserId;
 
-            return Ok(new { message = "Doctor deleted" });
+                _context.Doctors.Remove(doctor);
+                await _context.SaveChangesAsync();
+
+                // If a linked Identity user exists, attempt to delete it so the email can be reused
+                if (!string.IsNullOrEmpty(userId) && _userManager != null)
+                {
+                    var user = await _userManager.FindByIdAsync(userId);
+                    if (user != null)
+                    {
+                        var deleteResult = await _userManager.DeleteAsync(user);
+                        if (!deleteResult.Succeeded)
+                        {
+                            await transaction.RollbackAsync();
+                            return StatusCode(500, new { message = "Failed to delete associated user." });
+                        }
+                    }
+                }
+
+                await transaction.CommitAsync();
+                return Ok(new { message = "Doctor deleted" });
+            }
+            catch (Exception)
+            {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
+
+        // POST api/doctor/{id}/resend-setup
+        [HttpPost("{id}/resend-setup")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> ResendSetupLink(int id)
+        {
+            try
+            {
+                // Find the doctor
+                var doctor = await _context.Doctors.FindAsync(id);
+                if (doctor == null)
+                    return NotFound(new { message = "Doctor not found" });
+
+                // Get the associated Identity user
+                var user = await _userManager.FindByIdAsync(doctor.UserId);
+                if (user == null)
+                    return BadRequest(new { message = "Doctor user account not found" });
+
+                // Check if account is already confirmed
+                if (user.EmailConfirmed)
+                    return BadRequest(new { message = "Account is already active. Cannot resend setup link for confirmed accounts." });
+
+                // Generate a new password reset token
+                var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+                var tokenBytes = System.Text.Encoding.UTF8.GetBytes(token);
+                var encodedToken = System.Convert.ToBase64String(tokenBytes)
+                    .TrimEnd('=')
+                    .Replace('+', '-')
+                    .Replace('/', '_');
+
+                var frontendBase = _configuration["Frontend:BaseUrl"] ?? "http://localhost:5173";
+                var email = user.Email ?? doctor.Email;
+                var link = $"{frontendBase}/set-new-password?email={Uri.EscapeDataString(email)}&token={encodedToken}";
+                var logoUrl = frontendBase.TrimEnd('/') + "/favicon.svg";
+
+                // Generate and send welcome email using the helper method
+                var emailBody = GenerateWelcomeEmailHtml(doctor.FullName, link, logoUrl);
+                await _emailService.SendEmailAsync(email, "Action Required: Complete Your MediBook Account Setup", emailBody);
+
+                return Ok(new { message = "Setup link resent successfully to doctor email." });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Failed to resend setup link", error = ex.Message });
+            }
         }
     }
 }

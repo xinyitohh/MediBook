@@ -14,3 +14,4 @@ export const verifyResetCode = (data) =>
   api.post("/api/auth/verify-reset-code", data);
 export const resetPassword = (data) =>
   api.post("/api/auth/reset-password", data);
+export const setNewPassword = (data) => api.post("/api/auth/set-new-password", data);

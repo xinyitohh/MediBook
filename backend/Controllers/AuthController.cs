@@ -38,6 +38,13 @@ namespace backend.Controllers
             _otpService = otpService;
         }
 
+        public class SetNewPasswordDto
+        {
+            public string Email { get; set; } = string.Empty;
+            public string Token { get; set; } = string.Empty; // Base64Url encoded
+            public string NewPassword { get; set; } = string.Empty;
+        }
+
         // ════════════════════════════════════════════════════
         //  REGISTER — Creates account + Patient Profile + OTP
         // ════════════════════════════════════════════════════
@@ -181,7 +188,13 @@ namespace backend.Controllers
                     EmailConfirmed = true // Admins create active accounts
                 };
 
-                var result = await _userManager.CreateAsync(user, "Doctor123!");
+                // Use the provided password from the DTO so admin can set the initial password.
+                if (string.IsNullOrWhiteSpace(dto.Password) || dto.Password.Length < 6)
+                {
+                    return BadRequest(new { message = "Password is required and must be at least 6 characters." });
+                }
+
+                var result = await _userManager.CreateAsync(user, dto.Password);
                 if (!result.Succeeded)
                     return BadRequest(new { message = result.Errors.First().Description });
 
@@ -265,6 +278,40 @@ namespace backend.Controllers
                 return BadRequest(new { message = result.Errors.First().Description });
 
             return Ok(new { message = "Password reset successful." });
+        }
+
+        // POST api/auth/set-new-password - Accepts email, Base64Url token, and new password
+        [HttpPost("set-new-password")]
+        public async Task<IActionResult> SetNewPassword([FromBody] SetNewPasswordDto dto)
+        {
+            var user = await _userManager.FindByEmailAsync(dto.Email);
+            if (user == null) return BadRequest(new { message = "Invalid request" });
+
+            // Decode Base64Url token to original token string
+            try
+            {
+                var padded = dto.Token.Replace('-', '+').Replace('_', '/');
+                switch (padded.Length % 4)
+                {
+                    case 2: padded += "=="; break;
+                    case 3: padded += "="; break;
+                }
+                var tokenBytes = System.Convert.FromBase64String(padded);
+                var token = System.Text.Encoding.UTF8.GetString(tokenBytes);
+
+                var result = await _userManager.ResetPasswordAsync(user, token, dto.NewPassword);
+                if (!result.Succeeded)
+                    return BadRequest(new { message = result.Errors.First().Description });
+
+                user.EmailConfirmed = true;
+                await _userManager.UpdateAsync(user);
+
+                return Ok(new { message = "Password set successfully." });
+            }
+            catch (Exception)
+            {
+                return BadRequest(new { message = "Invalid token" });
+            }
         }
 
         // ════════════════════════════════════════════════════
