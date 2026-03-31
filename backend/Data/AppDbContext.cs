@@ -13,6 +13,7 @@ namespace backend.Data
 
         public DbSet<Doctor> Doctors { get; set; }
         public DbSet<Patient> Patients { get; set; }
+        public DbSet<Specialty> Specialties { get; set; }
         public DbSet<Appointment> Appointments { get; set; }
         public DbSet<MedicalReport> MedicalReports { get; set; }
         public DbSet<DoctorSchedule> DoctorSchedules { get; set; }
@@ -179,13 +180,40 @@ namespace backend.Data
                 .HasForeignKey<ReportAnalysis>(ra => ra.MedicalReportId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // 8. Seed Doctor Data
+            // Doctor & Specialty Configuration
+            builder.Entity<Doctor>()
+                .HasOne(d => d.Specialty)
+                .WithMany(s => s.Doctors)
+                .HasForeignKey(d => d.SpecialtyId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // 8. Seed Specialty Data
+            builder.Entity<Specialty>().HasData(
+                new Specialty { Id = 1, Name = "Cardiology" },
+                new Specialty { Id = 2, Name = "Dermatology" },
+                new Specialty { Id = 3, Name = "Endocrinology" },
+                new Specialty { Id = 4, Name = "Gastroenterology" },
+                new Specialty { Id = 5, Name = "General Practice" },
+                new Specialty { Id = 6, Name = "Neurology" },
+                new Specialty { Id = 7, Name = "Obstetrics & Gynecology" },
+                new Specialty { Id = 8, Name = "Oncology" },
+                new Specialty { Id = 9, Name = "Ophthalmology" },
+                new Specialty { Id = 10, Name = "Orthopedics" },
+                new Specialty { Id = 11, Name = "Pediatrics" },
+                new Specialty { Id = 12, Name = "Psychiatry" },
+                new Specialty { Id = 13, Name = "Pulmonology" },
+                new Specialty { Id = 14, Name = "Radiology" },
+                new Specialty { Id = 15, Name = "Surgery" },
+                new Specialty { Id = 16, Name = "Urology" }
+            );
+
+            // 9. Seed Doctor Data
             builder.Entity<Doctor>().HasData(
                 new Doctor
                 {
                     Id = 1,
                     FullName = "Dr. Sarah Johnson",
-                    Specialty = "Cardiology",
+                    SpecialtyId = 1, // Cardiology
                     Email = "sarah.johnson@medibook.com",
                     Phone = "012-3456789",
                     Description = "Specialist in heart diseases with 10 years experience",
@@ -199,7 +227,7 @@ namespace backend.Data
                 {
                     Id = 2,
                     FullName = "Dr. Michael Chen",
-                    Specialty = "General Practice",
+                    SpecialtyId = 5, // General Practice
                     Email = "michael.chen@medibook.com",
                     Phone = "012-9876543",
                     Description = "General practitioner with focus on preventive care",
@@ -213,7 +241,7 @@ namespace backend.Data
                 {
                     Id = 3,
                     FullName = "Dr. Aisha Rahman",
-                    Specialty = "Dermatology",
+                    SpecialtyId = 2, // Dermatology
                     Email = "aisha.rahman@medibook.com",
                     Phone = "011-2345678",
                     Description = "Skin specialist with expertise in cosmetic dermatology",
@@ -228,7 +256,7 @@ namespace backend.Data
                     Id = 4,
                     UserId = DOCTOR_USER_ID,
                     FullName = "Doctor 1",
-                    Specialty = "General Practice",
+                    SpecialtyId = 5, // General Practice
                     Email = "doctor@2.com",
                     Phone = "011-9999999",
                     Description = "Demo doctor account.",
@@ -240,7 +268,7 @@ namespace backend.Data
                 }
             );
 
-            // 9. Seed Schedule Data
+            // 10. Seed Schedule Data
             int scheduleId = 1;
             // Simplified seeding loop for demo (Doctors 1-4)
             for (int docId = 1; docId <= 4; docId++)

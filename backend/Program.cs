@@ -27,6 +27,9 @@ builder.Services.AddAutoMapper(typeof(MappingProfile));
 // ── Notification ───────────────────────────────────────────
 builder.Services.AddScoped<INotificationService, NotificationService>();
 
+// ── Email Service (SMTP) ───────────────────────────────────
+builder.Services.AddScoped<backend.Services.IEmailService, backend.Services.SmtpEmailService>();
+
 // ── Otp ───────────────────────────────────────────-────────-
 builder.Services.AddScoped<OtpService>();
 
@@ -88,7 +91,6 @@ var app = builder.Build();
 // ── Middleware Pipeline ───────────────────────────────────
 app.UseSwagger();
 app.UseSwaggerUI();
-app.UseHttpsRedirection();
 app.UseCors("AllowReact");
 
 // Serve uploaded files (reports, profile images)

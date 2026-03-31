@@ -123,6 +123,34 @@ namespace backend.Controllers
             return Ok(new { message = "Appointment cancelled" });
         }
 
+        // PUT api/appointment/{id}/doctor-cancel
+        [HttpPut("{id}/doctor-cancel")]
+        [Authorize(Roles = "Doctor")] // Only doctors can hit this endpoint
+        public async Task<IActionResult> DoctorCancelAppointment(int id, [FromBody] DoctorCancelDto dto)
+        {
+            var appointment = await _context.Appointments
+                .Include(a => a.Patient)
+                .Include(a => a.Doctor)
+                .FirstOrDefaultAsync(a => a.Id == id && a.DoctorId == CurrentProfileId);
+
+            if (appointment == null)
+                return NotFound(new { message = "Appointment not found or unauthorized" });
+
+            appointment.Status = "Cancelled";
+            appointment.CancellationReason = dto.Reason;
+            await _context.SaveChangesAsync();
+
+            // Notify the patient that the doctor cancelled and tell them why
+            await _notificationService.SendAsync(
+                appointment.Patient.UserId,
+                "Appointment Cancelled by Doctor",
+                $"Dr. {appointment.Doctor.FullName} cancelled your appointment on {appointment.AppointmentDate:dd MMM yyyy}. Reason: {dto.Reason}",
+                "Appointment"
+            );
+
+            return Ok(new { message = "Appointment cancelled successfully." });
+        }
+
         // PUT api/appointment/{id}/confirm
         [HttpPut("{id}/confirm")]
         [Authorize(Roles = "Admin,Doctor")]

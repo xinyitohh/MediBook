@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using backend.Data;
@@ -11,9 +12,11 @@ using backend.Data;
 namespace backend.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260328075103_AddUploadedByRole")]
+    partial class AddUploadedByRole
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -748,16 +751,15 @@ namespace backend.Migrations
                     b.Property<int>("ReviewCount")
                         .HasColumnType("integer");
 
-                    b.Property<int?>("SpecialtyId")
-                        .HasColumnType("integer");
+                    b.Property<string>("Specialty")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<string>("UserId")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("SpecialtyId");
 
                     b.ToTable("Doctors");
 
@@ -766,7 +768,7 @@ namespace backend.Migrations
                         {
                             Id = 1,
                             ConsultationFee = 200m,
-                            CreatedAt = new DateTime(2026, 3, 29, 14, 25, 36, 442, DateTimeKind.Utc).AddTicks(6930),
+                            CreatedAt = new DateTime(2026, 3, 28, 7, 51, 2, 591, DateTimeKind.Utc).AddTicks(292),
                             DateOfBirth = "",
                             Description = "Specialist in heart diseases with 10 years experience",
                             Email = "sarah.johnson@medibook.com",
@@ -780,14 +782,14 @@ namespace backend.Migrations
                             Qualifications = "",
                             Rating = 4.9000000000000004,
                             ReviewCount = 312,
-                            SpecialtyId = 1,
+                            Specialty = "Cardiology",
                             UserId = ""
                         },
                         new
                         {
                             Id = 2,
                             ConsultationFee = 85m,
-                            CreatedAt = new DateTime(2026, 3, 29, 14, 25, 36, 442, DateTimeKind.Utc).AddTicks(6940),
+                            CreatedAt = new DateTime(2026, 3, 28, 7, 51, 2, 591, DateTimeKind.Utc).AddTicks(304),
                             DateOfBirth = "",
                             Description = "General practitioner with focus on preventive care",
                             Email = "michael.chen@medibook.com",
@@ -801,14 +803,14 @@ namespace backend.Migrations
                             Qualifications = "",
                             Rating = 4.7999999999999998,
                             ReviewCount = 187,
-                            SpecialtyId = 5,
+                            Specialty = "General Practice",
                             UserId = ""
                         },
                         new
                         {
                             Id = 3,
                             ConsultationFee = 150m,
-                            CreatedAt = new DateTime(2026, 3, 29, 14, 25, 36, 442, DateTimeKind.Utc).AddTicks(6950),
+                            CreatedAt = new DateTime(2026, 3, 28, 7, 51, 2, 591, DateTimeKind.Utc).AddTicks(307),
                             DateOfBirth = "",
                             Description = "Skin specialist with expertise in cosmetic dermatology",
                             Email = "aisha.rahman@medibook.com",
@@ -822,14 +824,14 @@ namespace backend.Migrations
                             Qualifications = "",
                             Rating = 4.7000000000000002,
                             ReviewCount = 156,
-                            SpecialtyId = 2,
+                            Specialty = "Dermatology",
                             UserId = ""
                         },
                         new
                         {
                             Id = 4,
                             ConsultationFee = 50m,
-                            CreatedAt = new DateTime(2026, 3, 29, 14, 25, 36, 442, DateTimeKind.Utc).AddTicks(6950),
+                            CreatedAt = new DateTime(2026, 3, 28, 7, 51, 2, 591, DateTimeKind.Utc).AddTicks(309),
                             DateOfBirth = "",
                             Description = "Demo doctor account.",
                             Email = "doctor@2.com",
@@ -843,7 +845,7 @@ namespace backend.Migrations
                             Qualifications = "",
                             Rating = 0.0,
                             ReviewCount = 0,
-                            SpecialtyId = 5,
+                            Specialty = "General Practice",
                             UserId = "040901f0-abcd-422c-afbf-59f706d72cf6"
                         });
                 });
@@ -1030,7 +1032,7 @@ namespace backend.Migrations
                             Allergies = "",
                             BloodType = "",
                             ChronicConditions = "",
-                            CreatedAt = new DateTime(2026, 3, 29, 14, 25, 36, 442, DateTimeKind.Utc).AddTicks(1700),
+                            CreatedAt = new DateTime(2026, 3, 28, 7, 51, 2, 589, DateTimeKind.Utc).AddTicks(5942),
                             DateOfBirth = "1998-09-24",
                             Email = "patient@2.com",
                             EmergencyContactName = "",
@@ -1040,124 +1042,6 @@ namespace backend.Migrations
                             MedicalReportUrl = "",
                             Phone = "012-3456789",
                             UserId = "341743f0-abcd-422c-afbf-59f706d72cf6"
-                        });
-                });
-
-            modelBuilder.Entity("backend.Models.Specialty", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Specialties");
-
-                    b.HasData(
-                        new
-                        {
-                            Id = 1,
-                            CreatedAt = new DateTime(2026, 3, 29, 14, 25, 36, 442, DateTimeKind.Utc).AddTicks(6900),
-                            Name = "Cardiology"
-                        },
-                        new
-                        {
-                            Id = 2,
-                            CreatedAt = new DateTime(2026, 3, 29, 14, 25, 36, 442, DateTimeKind.Utc).AddTicks(6900),
-                            Name = "Dermatology"
-                        },
-                        new
-                        {
-                            Id = 3,
-                            CreatedAt = new DateTime(2026, 3, 29, 14, 25, 36, 442, DateTimeKind.Utc).AddTicks(6900),
-                            Name = "Endocrinology"
-                        },
-                        new
-                        {
-                            Id = 4,
-                            CreatedAt = new DateTime(2026, 3, 29, 14, 25, 36, 442, DateTimeKind.Utc).AddTicks(6900),
-                            Name = "Gastroenterology"
-                        },
-                        new
-                        {
-                            Id = 5,
-                            CreatedAt = new DateTime(2026, 3, 29, 14, 25, 36, 442, DateTimeKind.Utc).AddTicks(6900),
-                            Name = "General Practice"
-                        },
-                        new
-                        {
-                            Id = 6,
-                            CreatedAt = new DateTime(2026, 3, 29, 14, 25, 36, 442, DateTimeKind.Utc).AddTicks(6900),
-                            Name = "Neurology"
-                        },
-                        new
-                        {
-                            Id = 7,
-                            CreatedAt = new DateTime(2026, 3, 29, 14, 25, 36, 442, DateTimeKind.Utc).AddTicks(6900),
-                            Name = "Obstetrics & Gynecology"
-                        },
-                        new
-                        {
-                            Id = 8,
-                            CreatedAt = new DateTime(2026, 3, 29, 14, 25, 36, 442, DateTimeKind.Utc).AddTicks(6900),
-                            Name = "Oncology"
-                        },
-                        new
-                        {
-                            Id = 9,
-                            CreatedAt = new DateTime(2026, 3, 29, 14, 25, 36, 442, DateTimeKind.Utc).AddTicks(6900),
-                            Name = "Ophthalmology"
-                        },
-                        new
-                        {
-                            Id = 10,
-                            CreatedAt = new DateTime(2026, 3, 29, 14, 25, 36, 442, DateTimeKind.Utc).AddTicks(6900),
-                            Name = "Orthopedics"
-                        },
-                        new
-                        {
-                            Id = 11,
-                            CreatedAt = new DateTime(2026, 3, 29, 14, 25, 36, 442, DateTimeKind.Utc).AddTicks(6900),
-                            Name = "Pediatrics"
-                        },
-                        new
-                        {
-                            Id = 12,
-                            CreatedAt = new DateTime(2026, 3, 29, 14, 25, 36, 442, DateTimeKind.Utc).AddTicks(6910),
-                            Name = "Psychiatry"
-                        },
-                        new
-                        {
-                            Id = 13,
-                            CreatedAt = new DateTime(2026, 3, 29, 14, 25, 36, 442, DateTimeKind.Utc).AddTicks(6910),
-                            Name = "Pulmonology"
-                        },
-                        new
-                        {
-                            Id = 14,
-                            CreatedAt = new DateTime(2026, 3, 29, 14, 25, 36, 442, DateTimeKind.Utc).AddTicks(6910),
-                            Name = "Radiology"
-                        },
-                        new
-                        {
-                            Id = 15,
-                            CreatedAt = new DateTime(2026, 3, 29, 14, 25, 36, 442, DateTimeKind.Utc).AddTicks(6910),
-                            Name = "Surgery"
-                        },
-                        new
-                        {
-                            Id = 16,
-                            CreatedAt = new DateTime(2026, 3, 29, 14, 25, 36, 442, DateTimeKind.Utc).AddTicks(6910),
-                            Name = "Urology"
                         });
                 });
 
@@ -1240,18 +1124,18 @@ namespace backend.Migrations
                         {
                             Id = "02174cf0-9412-4cfe-afbf-59f706d72cf6",
                             AccessFailedCount = 0,
-                            ConcurrencyStamp = "4e0e1a32-07f5-41c4-9f32-b51d507145d8",
-                            CreatedAt = new DateTime(2026, 3, 29, 14, 25, 36, 329, DateTimeKind.Utc).AddTicks(5880),
+                            ConcurrencyStamp = "70671476-1f58-4b49-bb3d-48a02f2b7ade",
+                            CreatedAt = new DateTime(2026, 3, 28, 7, 51, 2, 432, DateTimeKind.Utc).AddTicks(4422),
                             Email = "admin@2.com",
                             EmailConfirmed = true,
                             FullName = "Admin 1",
                             LockoutEnabled = false,
                             NormalizedEmail = "ADMIN@2.COM",
                             NormalizedUserName = "ADMIN@2.COM",
-                            PasswordHash = "AQAAAAIAAYagAAAAEGmFT5Hyo+XYsImq7a99VjM/pmhY2noR9h7avmnpoFvT8/zl+P1y5DM+eCVBFkmtew==",
+                            PasswordHash = "AQAAAAIAAYagAAAAELcFK7WJnHM5a2Of1/De0hJIVyOZ3/Ff2RQYruX9wuVh60a4SXXmpDt6aZHNVoPzLA==",
                             PhoneNumberConfirmed = false,
                             Role = "Admin",
-                            SecurityStamp = "5a0f8c7b-156d-45fe-97c7-a993aef52a5d",
+                            SecurityStamp = "d28141e5-92cc-4565-bd95-96ee8f8e6ee4",
                             TwoFactorEnabled = false,
                             UserName = "admin@2.com"
                         },
@@ -1259,18 +1143,18 @@ namespace backend.Migrations
                         {
                             Id = "341743f0-abcd-422c-afbf-59f706d72cf6",
                             AccessFailedCount = 0,
-                            ConcurrencyStamp = "2399723c-ee71-4f0e-b077-9ca881b35c1b",
-                            CreatedAt = new DateTime(2026, 3, 29, 14, 25, 36, 367, DateTimeKind.Utc).AddTicks(330),
+                            ConcurrencyStamp = "12844941-1962-4992-9c7b-f28482b2925d",
+                            CreatedAt = new DateTime(2026, 3, 28, 7, 51, 2, 482, DateTimeKind.Utc).AddTicks(9060),
                             Email = "patient@2.com",
                             EmailConfirmed = true,
                             FullName = "Patient 1",
                             LockoutEnabled = false,
                             NormalizedEmail = "PATIENT@2.COM",
                             NormalizedUserName = "PATIENT@2.COM",
-                            PasswordHash = "AQAAAAIAAYagAAAAENO3XK0p7CqIKdGwqzMkdDcI5SA4kEgzZ3fx90LgNIoC9GOCmiDcPmR/KZGxvG7A1A==",
+                            PasswordHash = "AQAAAAIAAYagAAAAEFVrBxIZ6GS0lUyodAs0YSvfbnfqQrv8znZg2pNgGtNiUVhuBGB1GEIgm7aMMtGorQ==",
                             PhoneNumberConfirmed = false,
                             Role = "Patient",
-                            SecurityStamp = "549c8f8b-e275-471a-acd5-07e52054e928",
+                            SecurityStamp = "991be299-d82a-47b2-a2ce-e70c6954e949",
                             TwoFactorEnabled = false,
                             UserName = "patient@2.com"
                         },
@@ -1278,18 +1162,18 @@ namespace backend.Migrations
                         {
                             Id = "040901f0-abcd-422c-afbf-59f706d72cf6",
                             AccessFailedCount = 0,
-                            ConcurrencyStamp = "5039ff11-48d8-4ab3-95d9-74fc289d1e58",
-                            CreatedAt = new DateTime(2026, 3, 29, 14, 25, 36, 404, DateTimeKind.Utc).AddTicks(6050),
+                            ConcurrencyStamp = "bfd24c66-0b2c-4a2a-a6a1-77a55afbf021",
+                            CreatedAt = new DateTime(2026, 3, 28, 7, 51, 2, 533, DateTimeKind.Utc).AddTicks(3022),
                             Email = "doctor@2.com",
                             EmailConfirmed = true,
                             FullName = "Doctor 1",
                             LockoutEnabled = false,
                             NormalizedEmail = "DOCTOR@2.COM",
                             NormalizedUserName = "DOCTOR@2.COM",
-                            PasswordHash = "AQAAAAIAAYagAAAAEMbQf+rwabKl+MHkBuyEarNRnPi6KQCgITaWwsMiXDWjgkF3KBpFx3TYWuvcb1OjWQ==",
+                            PasswordHash = "AQAAAAIAAYagAAAAEB+q9K01uijG+146f9E452MczTR1FKYcu0Ld3qcTBeD31aZrCSuPJKh5NgfxrnY5ow==",
                             PhoneNumberConfirmed = false,
                             Role = "Doctor",
-                            SecurityStamp = "ef16de84-4555-4cb6-9b12-6324e2a62c35",
+                            SecurityStamp = "044190fa-692e-4477-954c-b274f6324b30",
                             TwoFactorEnabled = false,
                             UserName = "doctor@2.com"
                         });
@@ -1444,16 +1328,6 @@ namespace backend.Migrations
                     b.Navigation("Patient");
                 });
 
-            modelBuilder.Entity("backend.Models.Doctor", b =>
-                {
-                    b.HasOne("backend.Models.Specialty", "Specialty")
-                        .WithMany("Doctors")
-                        .HasForeignKey("SpecialtyId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("Specialty");
-                });
-
             modelBuilder.Entity("backend.Models.MedicalReport", b =>
                 {
                     b.HasOne("backend.Models.Appointment", "Appointment")
@@ -1482,11 +1356,6 @@ namespace backend.Migrations
             modelBuilder.Entity("backend.Models.Patient", b =>
                 {
                     b.Navigation("Appointments");
-                });
-
-            modelBuilder.Entity("backend.Models.Specialty", b =>
-                {
-                    b.Navigation("Doctors");
                 });
 #pragma warning restore 612, 618
         }

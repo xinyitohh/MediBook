@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Bell, Check, CheckCheck, Trash2, X, ChevronRight } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 import {
   getNotifications,
   getUnreadCount,
@@ -10,12 +11,18 @@ import {
 } from "../services";
 
 export default function NotificationBell() {
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(false);
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
+
+  // Don't show notification bell for Admin users
+  if (user?.role === "Admin") {
+    return null;
+  }
 
   /* ── Fetch unread count on mount & periodically ── */
   useEffect(() => {

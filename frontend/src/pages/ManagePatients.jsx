@@ -1,10 +1,13 @@
 import { useState, useEffect, useMemo } from "react";
 import {
-  Users, Search, Trash2, X, Calendar, FileText,
-  ChevronDown, Heart, Mail, Phone, Droplets, ArrowUpDown,
+  Users, Plus, Search, Trash2, X, Calendar, FileText,
+  ChevronDown, Heart, Mail, Phone, Droplets, ArrowUpDown, BadgeCheck, Pencil,
 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
-import { getAllPatients, deletePatient, getPatientProfileById } from "../services";
+import DatePicker from "../components/DatePicker";
+import ActionDropdown from "../components/ActionDropdown";
+import { getAllPatients, deletePatient, getPatientProfileById, resendPatientSetupLink } from "../services";
+import { adminRegisterPatient, adminUpdatePatient } from "../services/patientService";
 import { searchAppointments } from "../services";
 
 /* ── Helpers ─────────────────────────────────────── */
@@ -46,6 +49,37 @@ export default function ManagePatients() {
   const [sort, setSort]                 = useState("name-asc");
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [viewTarget, setViewTarget]     = useState(null);
+  const [showModal, setShowModal] = useState(false);
+  const [editTarget, setEditTarget] = useState(null);
+  const EMPTY_PATIENT_FORM = { fullName: "", email: "", phone: "", DateOfBirth: "", gender: "", address: "", allergies: "", chronicConditions: "", bloodType: "", emergencyContactName: "", emergencyContactPhone: "" };
+  const [form, setForm] = useState(EMPTY_PATIENT_FORM);
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState("");
+  const [successModal, setSuccessModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+  const [resendingId, setResendingId] = useState(null);
+
+  // Helper functions for data normalization
+  const normalizeDate = (d) => {
+    if (!d) return null;
+    if (d instanceof Date) return d.toISOString();
+    try { const parsed = new Date(d); if (!isNaN(parsed)) return parsed.toISOString(); } catch {}
+    return null;
+  };
+
+  const stringOrNull = (s) => (s == null ? null : String(s));
+
+  // Format date to yyyy-MM-dd for display in input (removes time portion)
+  const formatDateForInput = (dateString) => {
+    if (!dateString) return "";
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date)) return "";
+      return date.toISOString().split('T')[0]; // Returns yyyy-MM-dd
+    } catch {
+      return "";
+    }
+  };
 
   useEffect(() => { fetchPatients(); }, []);
 
@@ -68,10 +102,112 @@ export default function ManagePatients() {
     } finally { setDeleteTarget(null); }
   }
 
+  async function handleResendLink(patient) {
+    try {
+      setResendingId(patient.id);
+      await resendPatientSetupLink(patient.id);
+      setSuccessMessage(`Setup link resent successfully to ${patient.fullName}`);
+      setSuccessModal(true);
+    } catch (err) {
+      const errorMsg = err.response?.data?.message || "Failed to resend setup link.";
+      alert(errorMsg);
+      console.error('Resend link error:', err);
+    } finally {
+      setResendingId(null);
+    }
+  }
+
+  async function handleAddPatient(e) {
+    e.preventDefault();
+    setFormError("");
+    if (!form.fullName.trim() || !form.email.trim()) {
+      setFormError("Full name and email are required.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      if (editTarget) {
+        // Update existing patient
+        const idToUpdate = editTarget.id;
+        const payload = {
+          FullName: form.fullName.trim(),
+          Phone: form.phone || "",
+          DateOfBirth: normalizeDate(form.DateOfBirth) || "",
+          Gender: form.gender || "",
+          Address: form.address?.trim() || "",
+          Allergies: form.allergies?.trim() || "",
+          BloodType: form.bloodType || "",
+          ChronicConditions: form.chronicConditions?.trim() || "",
+          EmergencyContactName: form.emergencyContactName?.trim() || "",
+          EmergencyContactPhone: form.emergencyContactPhone?.trim() || "",
+        };
+
+        console.debug('PUT /api/patient/' + idToUpdate + ' payload:', payload);
+        await adminUpdatePatient(idToUpdate, payload);
+        // Refresh list
+        await fetchPatients();
+        // Refresh both viewTarget (drawer) and editTarget (modal) with latest data from database
+        try {
+          const res = await getPatientProfileById(idToUpdate);
+          const freshData = res.data;
+          setViewTarget(freshData);  // Update the drawer with fresh data
+          setEditTarget(freshData);  // Update the edit form with fresh data
+          setForm({
+            fullName: freshData.fullName || "",
+            email: freshData.email || "",
+            phone: freshData.phone || "",
+            DateOfBirth: formatDateForInput(freshData.dateOfBirth) || "",
+            gender: freshData.gender || "",
+            address: freshData.address || "",
+            allergies: freshData.allergies || "",
+            chronicConditions: freshData.chronicConditions || "",
+            bloodType: freshData.bloodType || "",
+            emergencyContactName: freshData.emergencyContactName || "",
+            emergencyContactPhone: freshData.emergencyContactPhone || "",
+          });
+        } catch {
+          // ignore failure
+        }
+        setShowModal(false);
+        setForm(EMPTY_PATIENT_FORM);
+      } else {
+        // Admin register flow: create patient user and send set-password email
+        await adminRegisterPatient({
+          FullName: form.fullName.trim(),
+          Email: form.email.trim(),
+          Phone: form.phone.trim() || "",
+          DateOfBirth: form.DateOfBirth || "",
+          Gender: form.gender || "",
+        });
+        setShowModal(false);
+        setForm(EMPTY_PATIENT_FORM);
+        await fetchPatients();
+        setSuccessMessage("Patient account created and set-password email dispatched.");
+        setSuccessModal(true);
+      }
+    } catch (err) {
+      // Try to extract useful info from problem details or validation errors
+      const data = err.response?.data;
+      let msg = editTarget ? "Failed to update patient." : "Failed to create patient.";
+      if (data) {
+        if (data.errors) {
+          // ASP.NET validation errors object -> join messages
+          const all = Object.values(data.errors).flat();
+          msg = all.join(" ");
+        } else if (data.title) {
+          msg = data.title + (data.detail ? ": " + data.detail : "");
+        } else if (data.message) {
+          msg = data.message;
+        }
+      }
+      setFormError(msg);
+    } finally { setSubmitting(false); }
+  }
+
   /* ── Derived stats ── */
   const stats = useMemo(() => {
     const withBlood  = patients.filter((p) => p.bloodType).length;
-    const withPhone  = patients.filter((p) => p.phoneNumber).length;
+  const withPhone  = patients.filter((p) => p.phone).length;
     const thisMonth  = patients.filter((p) => {
       if (!p.createdAt) return false;
       const d = new Date(p.createdAt);
@@ -87,7 +223,7 @@ export default function ManagePatients() {
       (p) =>
         p.fullName?.toLowerCase().includes(search.toLowerCase()) ||
         p.email?.toLowerCase().includes(search.toLowerCase()) ||
-        p.phoneNumber?.includes(search)
+  p.phone?.includes(search)
     );
     const [field, dir] = sort.split("-");
     list = [...list].sort((a, b) => {
@@ -108,7 +244,11 @@ export default function ManagePatients() {
       <PageHeader
         title="Manage Patients"
         subtitle={`${patients.length} registered patient${patients.length !== 1 ? "s" : ""}`}
-      />
+      >
+        <button onClick={() => { setShowModal(true); setForm(EMPTY_PATIENT_FORM); setFormError(""); setEditTarget(null); }} className="btn-primary flex items-center gap-2">
+          <Plus size={16} /> Add Patient
+        </button>
+      </PageHeader>
 
       {/* ── Stats ── */}
       {!loading && (
@@ -159,23 +299,25 @@ export default function ManagePatients() {
         </div>
       ) : (
         <div className="card overflow-hidden">
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-gray-100 bg-gray-50/60">
-                <Th>Patient</Th>
-                <Th hide="md">Email</Th>
-                <Th hide="lg">Phone</Th>
-                <Th hide="lg">Date of Birth</Th>
-                <Th hide="xl">Blood Type</Th>
-                <Th hide="xl">Joined</Th>
-                <th className="px-5 py-3" />
-              </tr>
+                <tr className="border-b border-gray-100 bg-gray-50/60">
+                  <Th>Patient</Th>
+                  <Th hide="md">Email</Th>
+                  <Th hide="lg">Phone</Th>
+                  <Th hide="lg">Date of Birth</Th>
+                  <Th hide="xl">Blood Type</Th>
+                  <Th hide="xl">Joined</Th>
+                  <Th>Status</Th>
+                  <th className="px-5 py-3 sticky right-0 bg-gray-50/60 border-l-[3px] border-gray-200 z-10 w-[140px] text-center">ACTION</th>
+                </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {displayed.map((patient, idx) => (
                 <tr
                   key={patient.id}
-                  className="hover:bg-gray-50 transition-colors cursor-pointer"
+                  className="group hover:bg-gray-50 transition-colors cursor-pointer"
                   onClick={() => setViewTarget(patient)}
                 >
                   <td className="px-5 py-3.5">
@@ -190,7 +332,7 @@ export default function ManagePatients() {
                     </div>
                   </td>
                   <td className="px-5 py-3.5 text-gray-500 hidden md:table-cell">{patient.email}</td>
-                  <td className="px-5 py-3.5 text-gray-600 hidden lg:table-cell">{patient.phoneNumber || "—"}</td>
+                  <td className="px-5 py-3.5 text-gray-600 hidden lg:table-cell">{patient.phone || "—"}</td>
                   <td className="px-5 py-3.5 text-gray-600 hidden lg:table-cell">{fmtDate(patient.dateOfBirth)}</td>
                   <td className="px-5 py-3.5 hidden xl:table-cell">
                     {patient.bloodType
@@ -198,19 +340,66 @@ export default function ManagePatients() {
                       : <span className="text-gray-400">—</span>}
                   </td>
                   <td className="px-5 py-3.5 text-gray-500 text-xs hidden xl:table-cell">{fmtDate(patient.createdAt)}</td>
-                  <td className="px-5 py-3.5" onClick={(e) => e.stopPropagation()}>
-                    <button
-                      onClick={() => setDeleteTarget(patient)}
-                      className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors ml-auto"
-                      title="Delete patient"
-                    >
-                      <Trash2 size={15} />
-                    </button>
+                  <td className="px-5 py-3.5">
+                    {patient.emailConfirmed ? (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-mint-50 text-mint-600">Active</span>
+                    ) : (
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-500">Inactive</span>
+                    )}
+                  </td>
+                  <td className="px-5 py-3.5 sticky right-0 bg-white border-l-[3px] border-gray-200 z-10 w-[140px] text-center" onClick={(e) => e.stopPropagation()}>
+                    <ActionDropdown
+                      user={patient}
+                      type="Patient"
+                      onEdit={(patient) => {
+                        // Fetch the latest patient data from database to ensure we have fresh data
+                        getPatientProfileById(patient.id).then((res) => {
+                          const freshPatient = res.data;
+                          setEditTarget(freshPatient);
+                          setForm({
+                            fullName: freshPatient.fullName || "",
+                            email: freshPatient.email || "",
+                            phone: freshPatient.phone || "",
+                            DateOfBirth: formatDateForInput(freshPatient.dateOfBirth) || "",
+                            gender: freshPatient.gender || "",
+                            address: freshPatient.address || "",
+                            allergies: freshPatient.allergies || "",
+                            chronicConditions: freshPatient.chronicConditions || "",
+                            bloodType: freshPatient.bloodType || "",
+                            emergencyContactName: freshPatient.emergencyContactName || "",
+                            emergencyContactPhone: freshPatient.emergencyContactPhone || "",
+                          });
+                          setShowModal(true);
+                        }).catch((err) => {
+                          console.error('Failed to fetch patient data:', err);
+                          // Fallback to using the patient passed in if fetch fails
+                          setEditTarget(patient);
+                          setForm({
+                            fullName: patient.fullName || "",
+                            email: patient.email || "",
+                            phone: patient.phone || "",
+                            DateOfBirth: formatDateForInput(patient.dateOfBirth) || "",
+                            gender: patient.gender || "",
+                            address: patient.address || "",
+                            allergies: patient.allergies || "",
+                            chronicConditions: patient.chronicConditions || "",
+                            bloodType: patient.bloodType || "",
+                            emergencyContactName: patient.emergencyContactName || "",
+                            emergencyContactPhone: patient.emergencyContactPhone || "",
+                          });
+                          setShowModal(true);
+                        });
+                      }}
+                      onDelete={setDeleteTarget}
+                      onResendLink={handleResendLink}
+                      isResending={resendingId === patient.id}
+                    />
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
@@ -220,6 +409,45 @@ export default function ManagePatients() {
           patient={viewTarget}
           onClose={() => setViewTarget(null)}
           onDelete={(p) => { setDeleteTarget(p); setViewTarget(null); }}
+          onEdit={(patient) => {
+            // Fetch the latest patient data from database to ensure we have fresh data
+            getPatientProfileById(patient.id).then((res) => {
+              const freshPatient = res.data;
+              setEditTarget(freshPatient);
+              setForm({
+                fullName: freshPatient.fullName || "",
+                email: freshPatient.email || "",
+                phone: freshPatient.phone || "",
+                DateOfBirth: formatDateForInput(freshPatient.dateOfBirth) || "",
+                gender: freshPatient.gender || "",
+                address: freshPatient.address || "",
+                allergies: freshPatient.allergies || "",
+                chronicConditions: freshPatient.chronicConditions || "",
+                bloodType: freshPatient.bloodType || "",
+                emergencyContactName: freshPatient.emergencyContactName || "",
+                emergencyContactPhone: freshPatient.emergencyContactPhone || "",
+              });
+              setShowModal(true);
+            }).catch((err) => {
+              console.error('Failed to fetch patient data:', err);
+              // Fallback to using the patient passed in if fetch fails
+              setEditTarget(patient);
+              setForm({
+                fullName: patient.fullName || "",
+                email: patient.email || "",
+                phone: patient.phone || "",
+                DateOfBirth: formatDateForInput(patient.dateOfBirth) || "",
+                gender: patient.gender || "",
+                address: patient.address || "",
+                allergies: patient.allergies || "",
+                chronicConditions: patient.chronicConditions || "",
+                bloodType: patient.bloodType || "",
+                emergencyContactName: patient.emergencyContactName || "",
+                emergencyContactPhone: patient.emergencyContactPhone || "",
+              });
+              setShowModal(true);
+            });
+          }}
         />
       )}
 
@@ -231,12 +459,173 @@ export default function ManagePatients() {
           onConfirm={handleDelete}
         />
       )}
+
+      {/* ── Success Modal ── */}
+      {successModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-lg bg-mint-50 text-mint-600 flex items-center justify-center">
+                <BadgeCheck size={20} />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-bold text-lg text-heading">Success</h3>
+                <p className="text-sm text-gray-600 mt-2">{successMessage}</p>
+              </div>
+            </div>
+            <div className="mt-6 text-right">
+              <button onClick={() => setSuccessModal(false)} className="btn-primary px-4 py-2">OK</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Add / Edit Patient Modal ── */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+              <h3 className="font-bold text-lg text-heading">{editTarget ? "Edit Patient" : "Add New Patient"}</h3>
+              <button onClick={() => setShowModal(false)} className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddPatient} className="px-6 py-5 space-y-4">
+              {formError && (
+                <div className="px-4 py-3 rounded-xl bg-red-50 text-red-600 text-sm font-medium">{formError}</div>
+              )}
+
+              {/* ── CORE FIELDS (Always Visible) ── */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
+                  <label className="input-label">Full Name{!editTarget && " *"}</label>
+                  <input type="text" placeholder="Jane Doe" value={form.fullName}
+                    onChange={(e) => setForm({ ...form, fullName: e.target.value })} className="input-field" />
+                </div>
+
+                <div>
+                  <label className="input-label">Email{!editTarget && " *"}</label>
+                  <input type="email" placeholder="patient@example.com" value={form.email}
+                    onChange={(e) => setForm({ ...form, email: e.target.value })}
+                    className={`input-field ${editTarget ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : ''}`}
+                    disabled={!!editTarget} />
+                </div>
+
+                <div>
+                  <label className="input-label">Phone</label>
+                  <input type="text" placeholder="e.g. +60123456789" value={form.phone || ""}
+                    onChange={(e) => setForm({ ...form, phone: e.target.value })} className="input-field" />
+                </div>
+              </div>
+
+              {/* ── EXTRA FIELDS (Only Visible on Edit) ── */}
+              {editTarget && (
+                <div className="pt-4 border-t border-gray-100 space-y-4">
+
+                  {/* Category 1: General Information */}
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">General Information</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="input-label">Date of Birth</label>
+                        <DatePicker
+                          maxDate={new Date()}
+                          value={form.DateOfBirth}
+                          onChange={(val) => setForm({ ...form, DateOfBirth: val })}
+                        />
+                      </div>
+
+                      <div>
+                        <label className="input-label">Gender</label>
+                        <select value={form.gender || ""} onChange={(e) => setForm({ ...form, gender: e.target.value })} className="input-field">
+                          <option value="">Select...</option>
+                          <option value="Male">Male</option>
+                          <option value="Female">Female</option>
+                          <option value="Other">Other</option>
+                        </select>
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <label className="input-label">Address</label>
+                        <textarea rows={2} placeholder="Patient's address…" value={form.address || ""}
+                          onChange={(e) => setForm({ ...form, address: e.target.value })} className="input-field resize-none" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Category 2: Medical Information */}
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Medical Information</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="input-label">Blood Type</label>
+                        <select value={form.bloodType || ""} onChange={(e) => setForm({ ...form, bloodType: e.target.value })} className="input-field">
+                          <option value="">Select…</option>
+                          <option value="A+">A+</option>
+                          <option value="A-">A-</option>
+                          <option value="B+">B+</option>
+                          <option value="B-">B-</option>
+                          <option value="AB+">AB+</option>
+                          <option value="AB-">AB-</option>
+                          <option value="O+">O+</option>
+                          <option value="O-">O-</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="input-label">Allergies</label>
+                        <input type="text" placeholder="e.g. Penicillin, Peanuts" value={form.allergies || ""}
+                          onChange={(e) => setForm({ ...form, allergies: e.target.value })} className="input-field" />
+                      </div>
+
+                      <div className="md:col-span-2">
+                        <label className="input-label">Chronic Conditions</label>
+                        <textarea rows={2} placeholder="e.g. Diabetes, Hypertension…" value={form.chronicConditions || ""}
+                          onChange={(e) => setForm({ ...form, chronicConditions: e.target.value })} className="input-field resize-none" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Category 3: Emergency Contact */}
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Emergency Contact</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="input-label">Contact Name</label>
+                        <input type="text" placeholder="Emergency contact name" value={form.emergencyContactName || ""}
+                          onChange={(e) => setForm({ ...form, emergencyContactName: e.target.value })} className="input-field" />
+                      </div>
+
+                      <div>
+                        <label className="input-label">Contact Phone</label>
+                        <input type="text" placeholder="e.g. +60123456789" value={form.emergencyContactPhone || ""}
+                          onChange={(e) => setForm({ ...form, emergencyContactPhone: e.target.value })} className="input-field" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4 border-t border-gray-100">
+                <button type="button" onClick={() => setShowModal(false)} className="btn-outline flex-1">Cancel</button>
+                <button type="submit" disabled={submitting} className="btn-primary flex-1 disabled:opacity-50 disabled:cursor-not-allowed">
+                  {submitting ? (editTarget ? "Updating…" : "Adding…") : (editTarget ? "Update" : "Add Patient")}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 /* ── Patient detail side drawer ──────────────────── */
-function PatientDrawer({ patient, onClose, onDelete }) {
+function PatientDrawer({ patient, onClose, onDelete, onEdit }) {
   const [appointments, setAppointments] = useState([]);
   const [tab, setTab]                   = useState("info");
   const [loadingAppts, setLoadingAppts] = useState(false);
@@ -267,6 +656,12 @@ function PatientDrawer({ patient, onClose, onDelete }) {
           <h3 className="font-bold text-lg text-heading">Patient Profile</h3>
           <div className="flex items-center gap-2">
             <button
+              onClick={() => onEdit ? onEdit(patient) : null}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-gray-600 hover:bg-gray-50 transition-colors"
+            >
+              <Pencil size={13} /> Edit
+            </button>
+            <button
               onClick={() => onDelete(patient)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-red-500 hover:bg-red-50 transition-colors"
             >
@@ -289,7 +684,7 @@ function PatientDrawer({ patient, onClose, onDelete }) {
               {patient.gender && <p className="text-sm text-gray-500">{patient.gender}</p>}
               <div className="flex flex-wrap gap-3 mt-2 text-xs text-gray-500">
                 <span className="flex items-center gap-1"><Mail size={12} />{patient.email}</span>
-                {patient.phoneNumber && <span className="flex items-center gap-1"><Phone size={12} />{patient.phoneNumber}</span>}
+                {patient.phone && <span className="flex items-center gap-1"><Phone size={12} />{patient.phone}</span>}
               </div>
             </div>
           </div>
@@ -322,11 +717,10 @@ function PatientDrawer({ patient, onClose, onDelete }) {
             <div className="space-y-1">
               <InfoRow label="Full Name"    value={patient.fullName} />
               <InfoRow label="Email"        value={patient.email} />
-              <InfoRow label="Phone"        value={patient.phoneNumber || "Not set"} />
+              <InfoRow label="Phone"        value={patient.phone || "Not set"} />
               <InfoRow label="Gender"       value={patient.gender || "Not set"} />
               <InfoRow label="Date of Birth" value={fmtDate(patient.dateOfBirth)} />
               <InfoRow label="Blood Type"   value={patient.bloodType || "Not set"} />
-              <InfoRow label="Address"      value={patient.address || "Not set"} />
               <InfoRow label="Joined"       value={fmtDate(patient.createdAt)} />
               {patient.emergencyContact && (
                 <InfoRow label="Emergency Contact" value={patient.emergencyContact} />

@@ -454,3 +454,12 @@ FodyWeavers.xsd
 *.msm
 *.msp
 .project
+*.zip
+
+# Ignore production configuration files
+appsettings.Production.json
+*.appsettings.Production.json
+
+# Ignore environment secret files
+.env.production
+*.env.production

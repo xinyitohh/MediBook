@@ -55,9 +55,9 @@ export default function ManageAppointments() {
     } catch (err) { alert(err.response?.data?.message || "Failed to confirm."); }
   }
 
-  async function handleComplete(id) {
+  async function handleComplete(id, notes) {
     try {
-      await completeAppointment(id);
+      await completeAppointment(id,{ doctorNotes: notes });
       setAppointments((prev) =>
         prev.map((a) => (a.id === id ? { ...a, status: "Completed" } : a))
       );

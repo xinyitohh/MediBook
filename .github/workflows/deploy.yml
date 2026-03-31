@@ -1,0 +1,161 @@
+name: Deploy MediBook to AWS
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy-backend:
+    name: Build & Deploy Backend via ECR
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push Docker image to ECR
+        run: |
+          IMAGE_URI=965377250388.dkr.ecr.us-east-1.amazonaws.com/medibook-backend:${{ github.sha }}
+          docker build -t $IMAGE_URI ./backend
+          docker push $IMAGE_URI
+          echo "IMAGE_URI=$IMAGE_URI" >> $GITHUB_ENV
+
+      - name: Create Dockerrun.aws.json
+        run: |
+          cat > Dockerrun.aws.json << EOF
+          {
+            "AWSEBDockerrunVersion": "1",
+            "Image": {
+              "Name": "${{ env.IMAGE_URI }}",
+              "Update": "true"
+            },
+            "Ports": [
+              { "ContainerPort": "8080" }
+            ]
+          }
+          EOF
+
+      - name: ZIP Dockerrun only
+        run: zip medibook-backend.zip Dockerrun.aws.json
+
+      - name: Upload ZIP to S3
+        run: |
+          aws s3 cp medibook-backend.zip \
+            s3://${{ secrets.S3_BUCKET_NAME }}/deployments/medibook-backend-${{ github.sha }}.zip
+
+      - name: Create EB application version
+        run: |
+          aws elasticbeanstalk create-application-version \
+            --application-name ${{ secrets.EB_APPLICATION_NAME }} \
+            --version-label "v-${{ github.sha }}" \
+            --source-bundle S3Bucket=${{ secrets.S3_BUCKET_NAME }},S3Key=deployments/medibook-backend-${{ github.sha }}.zip
+
+      - name: Wait for EB to be Ready
+        run: |
+          for i in {1..20}; do
+            STATUS=$(aws elasticbeanstalk describe-environments \
+              --application-name ${{ secrets.EB_APPLICATION_NAME }} \
+              --environment-names ${{ secrets.EB_ENVIRONMENT_NAME }} \
+              --query "Environments[0].Status" \
+              --output text)
+            echo "Status: $STATUS"
+            if [ "$STATUS" = "Ready" ]; then break; fi
+            sleep 30
+          done
+
+      - name: Deploy to Elastic Beanstalk
+        run: |
+          aws elasticbeanstalk update-environment \
+            --application-name ${{ secrets.EB_APPLICATION_NAME }} \
+            --environment-name ${{ secrets.EB_ENVIRONMENT_NAME }} \
+            --version-label "v-${{ github.sha }}"
+
+      - name: Wait for deployment to finish
+        run: |
+          for i in {1..30}; do
+            STATUS=$(aws elasticbeanstalk describe-environments \
+              --application-name ${{ secrets.EB_APPLICATION_NAME }} \
+              --environment-names ${{ secrets.EB_ENVIRONMENT_NAME }} \
+              --query "Environments[0].Status" \
+              --output text)
+            HEALTH=$(aws elasticbeanstalk describe-environments \
+              --application-name ${{ secrets.EB_APPLICATION_NAME }} \
+              --environment-names ${{ secrets.EB_ENVIRONMENT_NAME }} \
+              --query "Environments[0].Health" \
+              --output text)
+            echo "Status: $STATUS | Health: $HEALTH"
+            if [ "$STATUS" = "Ready" ]; then
+              echo "Deployment complete!"
+              exit 0
+            fi
+            sleep 30
+          done
+
+      - name: Invalidate API CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.CLOUDFRONT_API_DISTRIBUTION_ID }} \
+            --paths "/*"
+
+  deploy-frontend:
+    name: Deploy Frontend to S3
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install dependencies
+        run: |
+          cd frontend
+          rm -rf node_modules package-lock.json
+          npm install
+        env:
+          npm_config_platform: linux
+          npm_config_arch: x64
+          npm_config_libc: glibc
+
+      - name: Build React app
+        run: |
+          cd frontend
+          npm run build
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Upload dist/ to S3
+        run: |
+          aws s3 sync frontend/dist/ s3://${{ secrets.S3_BUCKET_NAME }} \
+            --delete \
+            --cache-control "max-age=31536000" \
+            --exclude "index.html"
+          aws s3 cp frontend/dist/index.html \
+            s3://${{ secrets.S3_BUCKET_NAME }}/index.html \
+            --cache-control "no-cache, no-store, must-revalidate"
+
+      - name: Invalidate frontend CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
+            --paths "/*"
+          echo "Frontend deployment complete"

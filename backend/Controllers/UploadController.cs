@@ -35,8 +35,32 @@ namespace backend.Controllers
             if (file == null || file.Length == 0)
                 return BadRequest(new { message = "No file provided" });
 
-            // We no longer need to find the Patient by UserId; 
-            // CurrentProfileId is already the Patient's ID from the JWT.
+            long maxSizeInBytes = 10 * 1024 * 1024; // 10 Megabytes
+            if (file.Length > maxSizeInBytes)
+                return BadRequest(new { message = "File size exceeds the 10MB limit." });
+
+            // File Type Validation (Extension & MIME Type)
+            var allowedExtensions = new[] { ".pdf", ".jpg", ".jpeg", ".png" };
+            var allowedMimeTypes = new[] { "application/pdf", "image/jpeg", "image/png" };
+
+            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+            var mimeType = file.ContentType.ToLowerInvariant();
+
+            if (string.IsNullOrEmpty(extension) || !allowedExtensions.Contains(extension) || !allowedMimeTypes.Contains(mimeType))
+            {
+                return BadRequest(new { message = "Invalid file type. Only PDF, JPG, and PNG files are allowed." });
+            }
+
+            // Check if the patient has ALREADY uploaded a file
+            var existingReport = await _context.MedicalReports.FirstOrDefaultAsync(mr => mr.PatientId == CurrentProfileId && mr.UploadedByRole == "Patient");
+
+            if (existingReport != null)
+            {
+                // Block the upload and tell the frontend exactly why
+                return BadRequest(new { message = "You have already uploaded a medical report. Please delete your existing file before uploading a new one." });
+            }
+
+            // patient Verification
             var patientExists = await _context.Patients.AnyAsync(p => p.Id == CurrentProfileId);
             if (!patientExists)
                 return BadRequest(new { message = "Patient profile not found" });
@@ -60,7 +84,8 @@ namespace backend.Controllers
                 FileType = file.ContentType,
                 FileSize = file.Length,
                 FileUrl = $"/uploads/reports/{uniqueName}",
-                Description = description
+                Description = description,
+                UploadedByRole = "Patient"
             };
 
             _context.MedicalReports.Add(report);
