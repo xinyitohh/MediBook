@@ -67,10 +67,28 @@ jobs:
 
       - name: Wait for EB deployment to finish
         run: |
-          aws elasticbeanstalk wait environment-updated \
-            --application-name ${{ secrets.EB_APPLICATION_NAME }} \
-            --environment-name ${{ secrets.EB_ENVIRONMENT_NAME }}
-          echo "Backend deployment complete"
+          echo "Waiting for deployment to complete..."
+          for i in {1..30}; do
+            STATUS=$(aws elasticbeanstalk describe-environments \
+              --application-name ${{ secrets.EB_APPLICATION_NAME }} \
+              --environment-names ${{ secrets.EB_ENVIRONMENT_NAME }} \
+              --query "Environments[0].Status" \
+              --output text)
+            HEALTH=$(aws elasticbeanstalk describe-environments \
+              --application-name ${{ secrets.EB_APPLICATION_NAME }} \
+              --environment-names ${{ secrets.EB_ENVIRONMENT_NAME }} \
+              --query "Environments[0].Health" \
+              --output text)
+            echo "Status: $STATUS | Health: $HEALTH"
+            if [ "$STATUS" = "Ready" ]; then
+              echo "Deployment complete!"
+              exit 0
+            fi
+            echo "Still deploying... attempt $i/30, waiting 30s"
+            sleep 30
+          done
+          echo "Timed out waiting for EB"
+          exit 1
 
       - name: Invalidate API CloudFront cache
         run: |
