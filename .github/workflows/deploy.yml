@@ -5,11 +5,9 @@ on:
     branches: [main]
 
 jobs:
-  # ─── BACKEND → Elastic Beanstalk ────────────────────────
   deploy-backend:
     name: Deploy Backend to Elastic Beanstalk
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -42,6 +40,24 @@ jobs:
             --version-label "v-${{ github.sha }}" \
             --source-bundle S3Bucket=${{ secrets.S3_BUCKET_NAME }},S3Key=deployments/medibook-backend-${{ github.sha }}.zip
 
+      - name: Wait for EB to be Ready
+        run: |
+          echo "Waiting for environment to be Ready..."
+          for i in {1..20}; do
+            STATUS=$(aws elasticbeanstalk describe-environments \
+              --application-name ${{ secrets.EB_APPLICATION_NAME }} \
+              --environment-names ${{ secrets.EB_ENVIRONMENT_NAME }} \
+              --query "Environments[0].Status" \
+              --output text)
+            echo "Current status: $STATUS"
+            if [ "$STATUS" = "Ready" ]; then
+              echo "Environment is Ready"
+              break
+            fi
+            echo "Not ready yet, waiting 30s..."
+            sleep 30
+          done
+
       - name: Deploy to Elastic Beanstalk
         run: |
           aws elasticbeanstalk update-environment \
@@ -49,25 +65,22 @@ jobs:
             --environment-name ${{ secrets.EB_ENVIRONMENT_NAME }} \
             --version-label "v-${{ github.sha }}"
 
-      - name: Wait for EB deployment
+      - name: Wait for EB deployment to finish
         run: |
           aws elasticbeanstalk wait environment-updated \
             --application-name ${{ secrets.EB_APPLICATION_NAME }} \
             --environment-name ${{ secrets.EB_ENVIRONMENT_NAME }}
-          echo "EB deployment complete"
+          echo "Backend deployment complete"
 
       - name: Invalidate API CloudFront cache
         run: |
           aws cloudfront create-invalidation \
             --distribution-id ${{ secrets.CLOUDFRONT_API_DISTRIBUTION_ID }} \
             --paths "/*"
-          echo "API CloudFront invalidated"
 
-  # ─── FRONTEND → S3 + CloudFront ─────────────────────────
   deploy-frontend:
     name: Deploy Frontend to S3
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -76,12 +89,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "18"
-          cache: "npm"
-          cache-dependency-path: frontend/package-lock.json
 
       - name: Install dependencies
         run: |
           cd frontend
+          rm -rf node_modules
           rm -f package-lock.json
           npm install
 
@@ -101,13 +113,11 @@ jobs:
 
       - name: Upload dist/ to S3
         run: |
-          # Upload assets with long cache (they have hashed filenames)
           aws s3 sync frontend/dist/ s3://${{ secrets.S3_BUCKET_NAME }} \
             --delete \
             --cache-control "max-age=31536000" \
             --exclude "index.html"
 
-          # index.html — never cache this
           aws s3 cp frontend/dist/index.html \
             s3://${{ secrets.S3_BUCKET_NAME }}/index.html \
             --cache-control "no-cache, no-store, must-revalidate"
@@ -117,4 +127,4 @@ jobs:
           aws cloudfront create-invalidation \
             --distribution-id ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }} \
             --paths "/*"
-          echo "Frontend CloudFront invalidated"
+          echo "Frontend deployment complete"
