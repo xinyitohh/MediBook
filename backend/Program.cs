@@ -91,7 +91,6 @@ var app = builder.Build();
 // ── Middleware Pipeline ───────────────────────────────────
 app.UseSwagger();
 app.UseSwaggerUI();
-app.UseHttpsRedirection();
 app.UseCors("AllowReact");
 
 // Serve uploaded files (reports, profile images)
