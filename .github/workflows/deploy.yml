@@ -96,6 +96,7 @@ jobs:
           rm -rf node_modules
           rm -f package-lock.json
           npm install
+          npm rebuild @tailwindcss/oxide
 
       - name: Build React app
         run: |
