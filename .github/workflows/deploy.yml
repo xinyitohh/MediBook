@@ -88,15 +88,17 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "18"
+          node-version: "22"
 
       - name: Install dependencies
         run: |
           cd frontend
-          rm -rf node_modules
-          rm -f package-lock.json
+          rm -rf node_modules package-lock.json
           npm install
-          npm rebuild @tailwindcss/oxide
+        env:
+          npm_config_platform: linux
+          npm_config_arch: x64
+          npm_config_libc: glibc
 
       - name: Build React app
         run: |
