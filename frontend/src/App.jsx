@@ -19,6 +19,7 @@ import DoctorDetail from "./pages/DoctorDetail";
 import Appointments from "./pages/Appointments";
 import MedicalReports from "./pages/MedicalReports";
 import Profile from "./pages/Profile";
+import DoctorProfile from "./pages/DoctorProfile";
 
 // Doctor pages (lazy — contains @react-pdf/renderer)
 import { lazy, Suspense } from "react";
@@ -74,6 +75,7 @@ function App() {
             />
             <Route path="/medical-reports" element={<MedicalReports />} />
             <Route path="/profile" element={<Profile />} />
+            <Route path="/doctor-profile" element={<DoctorProfile />} />
 
             <Route path="/notifications" element={<Notifications />} />
 

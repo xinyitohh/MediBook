@@ -129,6 +129,21 @@ namespace backend.Controllers
             return Ok(available);
         }
 
+        // GET api/doctor/profile - doctor views their own profile
+        [HttpGet("profile")]
+        [Authorize(Roles = "Doctor")]
+        public async Task<IActionResult> GetProfile()
+        {
+            var doctor = await _context.Doctors
+                .Include(d => d.Specialty)
+                .FirstOrDefaultAsync(d => d.Id == CurrentProfileId);
+
+            if (doctor == null)
+                return NotFound(new { message = "Doctor profile not found" });
+
+            return Ok(_mapper.Map<DoctorDto>(doctor));
+        }
+
         // PUT api/doctor/profile - doctor updates own profile
         [HttpPut("profile")]
         [Authorize(Roles = "Doctor")]

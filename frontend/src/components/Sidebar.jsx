@@ -31,7 +31,7 @@ const menuConfig = {
     { to: "/",              label: "Dashboard",        icon: Home },
     { to: "/appointments",  label: "My Schedule",      icon: Calendar },
     { to: "/notifications", label: "Notifications",    icon: Bell },
-    { to: "/profile",       label: "My Profile",       icon: User },
+    { to: "/doctor-profile",       label: "My Profile",       icon: User },
   ],
   Admin: [
     { to: "/admin",         label: "Dashboard",        icon: Activity },
