@@ -30,9 +30,22 @@ namespace backend.Controllers
 
         // GET api/appointment/my - get logged in user's appointments
         [HttpGet("my")]
-        public async Task<IActionResult> GetMyAppointments()
+        public async Task<IActionResult> GetMyAppointments([FromQuery] DateTime? startDate = null, [FromQuery] DateTime? endDate = null)
         {
             var query = _context.Appointments.AsQueryable();
+
+            if (startDate.HasValue)
+            {
+                // Ensure date comparison works properly with postgres timestamp without time zone
+                var sDate = DateTime.SpecifyKind(startDate.Value.Date, DateTimeKind.Utc);
+                query = query.Where(a => a.AppointmentDate >= sDate);
+            }
+            
+            if (endDate.HasValue)
+            {
+                var eDate = DateTime.SpecifyKind(endDate.Value.Date.AddDays(1).AddTicks(-1), DateTimeKind.Utc);
+                query = query.Where(a => a.AppointmentDate <= eDate);
+            }
 
             // Use CurrentProfileId from BaseController
             if (UserRole == "Doctor")

@@ -75,4 +75,5 @@ namespace backend.DTOs
     {
         public bool IsAvailable { get; set; }
     }
+
 }

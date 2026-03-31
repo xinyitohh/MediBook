@@ -178,6 +178,61 @@ namespace backend.Controllers
             return Ok(new { message = "Availability updated" });
         }
 
+        // GET api/doctor/schedule
+        [HttpGet("schedule")]
+        [Authorize(Roles = "Doctor")]
+        public async Task<IActionResult> GetSchedule()
+        {
+            var schedules = await _context.DoctorSchedules
+                .Where(s => s.DoctorId == CurrentProfileId)
+                .Select(s => new DoctorScheduleDto
+                {
+                    DayOfWeek = s.DayOfWeek,
+                    StartTime = s.StartTime,
+                    EndTime = s.EndTime,
+                    BreakStart = s.BreakStart,
+                    BreakEnd = s.BreakEnd,
+                    SlotDurationMinutes = s.SlotDurationMinutes,
+                    IsActive = s.IsActive
+                })
+                .ToListAsync();
+
+            return Ok(schedules);
+        }
+
+        // PUT api/doctor/schedule
+        [HttpPut("schedule")]
+        [Authorize(Roles = "Doctor")]
+        public async Task<IActionResult> UpdateSchedule([FromBody] UpdateScheduleDto dto)
+        {
+            var doctorId = CurrentProfileId;
+            
+            // Delete existing schedules and replace with new bulk data
+            var existingSchedules = await _context.DoctorSchedules
+                .Where(s => s.DoctorId == doctorId)
+                .ToListAsync();
+            
+            _context.DoctorSchedules.RemoveRange(existingSchedules);
+
+            foreach (var s in dto.Schedules)
+            {
+                _context.DoctorSchedules.Add(new DoctorSchedule
+                {
+                    DoctorId = doctorId,
+                    DayOfWeek = s.DayOfWeek,
+                    StartTime = s.StartTime,
+                    EndTime = s.EndTime,
+                    BreakStart = string.IsNullOrEmpty(s.BreakStart) ? null : s.BreakStart,
+                    BreakEnd = string.IsNullOrEmpty(s.BreakEnd) ? null : s.BreakEnd,
+                    SlotDurationMinutes = s.SlotDurationMinutes,
+                    IsActive = s.IsActive
+                });
+            }
+
+            await _context.SaveChangesAsync();
+            return Ok(new { message = "Schedule updated successfully" });
+        }
+
         // POST api/doctor/admin-register - Admin creates a doctor account and sends set-password link
         [HttpPost("admin-register")]
         [Authorize(Roles = "Admin")]

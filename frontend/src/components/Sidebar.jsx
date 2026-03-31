@@ -30,6 +30,7 @@ const menuConfig = {
   Doctor: [
     { to: "/",              label: "Dashboard",        icon: Home },
     { to: "/appointments",  label: "My Schedule",      icon: Calendar },
+    { to: "/doctor-availability", label: "Availability Setup", icon: Settings },
     { to: "/notifications", label: "Notifications",    icon: Bell },
     { to: "/doctor-profile",       label: "My Profile",       icon: User },
   ],
