@@ -10,6 +10,7 @@ import AppointmentRow from "../components/AppointmentRow";
 import ReviewModal from "../components/ReviewModal";
 import DoctorAppointments from "./DoctorAppointments";
 import DatePicker from "../components/DatePicker";
+import CancelConfirmationModal from "../components/CancelConfirmationModal";
 import api from "../services/api";
 
 const FILTERS = ["All", "Pending", "Confirmed", "Completed", "Cancelled"];
@@ -34,6 +35,10 @@ export default function Appointments() {
     const [viewingDoctorReport, setViewingDoctorReport] = useState(null);
     const [loadingReport, setLoadingReport] = useState(false);
 
+    // Cancel Modal
+    const [cancellingId, setCancellingId] = useState(null);
+    const [isCancelling, setIsCancelling] = useState(false);
+
     useEffect(() => {
         fetchAppointments();
     }, []);
@@ -51,22 +56,15 @@ export default function Appointments() {
             .finally(() => setLoading(false));
     };
 
-    const handleCancel = async (id) => {
-        if (!window.confirm("Are you sure you want to cancel this appointment?")) {
-            return;
-        }
-
-        const cancelReason = window.prompt("Please enter a reason for cancelling this appointment (minimum 5 characters):");
-
-        if (!cancelReason || cancelReason.trim().length < 5) {
-            alert("A valid reason (at least 5 characters) is required to cancel.");
-            return;
-        }
+    const handleCancel = async (id, cancelReason) => {
+        setIsCancelling(true);
 
         if (isDev && isDevToken()) {
             setAppointments((prev) =>
                 prev.map((a) => (a.id === id ? { ...a, status: "Cancelled" } : a))
             );
+            setCancellingId(null);
+            setIsCancelling(false);
             return;
         }
 
@@ -80,8 +78,11 @@ export default function Appointments() {
             setAppointments((prev) =>
                 prev.map((a) => (a.id === id ? { ...a, status: "Cancelled" } : a))
             );
+            setCancellingId(null);
         } catch (err) {
             alert(err.response?.data?.message || "Failed to cancel.");
+        } finally {
+            setIsCancelling(false);
         }
     };
 
@@ -184,7 +185,7 @@ export default function Appointments() {
                         <AppointmentRow
                             key={appt.id}
                             appointment={appt}
-                            onCancel={handleCancel}
+                            onCancel={() => setCancellingId(appt.id)}
                             onConfirm={handleConfirm}
                             onComplete={handleComplete}
                             onReview={setReviewTarget}
@@ -364,6 +365,14 @@ export default function Appointments() {
                     </div>
                 </div>
             )}
+
+            {/* Cancel Confirmation Modal */}
+            <CancelConfirmationModal
+                isOpen={!!cancellingId}
+                onClose={() => setCancellingId(null)}
+                loading={isCancelling}
+                onConfirm={(reason) => handleCancel(cancellingId, reason)}
+            />
         </div>
     );
 }

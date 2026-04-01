@@ -13,6 +13,7 @@ import {
 import api from "../services/api";
 import PageHeader from "../components/PageHeader";
 import DatePicker from "../components/DatePicker";
+import CancelConfirmationModal from "../components/CancelConfirmationModal";
 
 // React Big Calendar
 import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
@@ -49,6 +50,10 @@ export default function DoctorAppointments() {
     const [patients, setPatients] = useState([]);
     const [lbForm, setLbForm] = useState({ patientId: "", date: "", time: "", notes: "" });
     const [lbSubmitting, setLbSubmitting] = useState(false);
+
+    // Cancel State
+    const [cancellingId, setCancellingId] = useState(null);
+    const [isCancelling, setIsCancelling] = useState(false);
 
     // Navigation State
     const [selectedDate, setSelectedDate] = useState(new Date());
@@ -123,19 +128,17 @@ export default function DoctorAppointments() {
         }
     };
 
-    const handleCancel = async (id) => {
-        if (!window.confirm("Are you sure you want to cancel this appointment?")) return;
-        const cancelReason = window.prompt("Please enter a reason for cancelling (minimum 5 characters):");
-        if (!cancelReason || cancelReason.trim().length < 5) {
-            alert("A valid reason is required to cancel.");
-            return;
-        }
+    const handleCancel = async (id, cancelReason) => {
+        setIsCancelling(true);
         try {
             await doctorCancelAppointment(id, cancelReason);
             updateLocalEventStatus(id, "Cancelled");
             setSelectedEvent(null);
+            setCancellingId(null);
         } catch (err) {
             alert(err.response?.data?.message || "Failed to cancel.");
+        } finally {
+            setIsCancelling(false);
         }
     };
 
@@ -476,7 +479,7 @@ export default function DoctorAppointments() {
                                     <button onClick={() => handleConfirm(selectedEvent.id)} className="btn-primary flex-1 flex items-center justify-center gap-2">
                                         <Check size={16} /> Confirm
                                     </button>
-                                    <button onClick={() => handleCancel(selectedEvent.id)} className="btn-outline flex-1 flex items-center justify-center gap-2 !border-red-200 !text-red-500 hover:!bg-red-50">
+                                    <button onClick={() => setCancellingId(selectedEvent.id)} className="btn-outline flex-1 flex items-center justify-center gap-2 !border-red-200 !text-red-500 hover:!bg-red-50">
                                         <Ban size={16} /> Cancel
                                     </button>
                                 </>
@@ -671,6 +674,14 @@ export default function DoctorAppointments() {
                     </div>
                 </div>
             )}
+
+            {/* Cancel Confirmation Modal */}
+            <CancelConfirmationModal
+                isOpen={!!cancellingId}
+                onClose={() => setCancellingId(null)}
+                loading={isCancelling}
+                onConfirm={(reason) => handleCancel(cancellingId, reason)}
+            />
         </div>
     );
 }

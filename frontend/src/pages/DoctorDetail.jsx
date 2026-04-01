@@ -108,6 +108,18 @@ export default function DoctorDetail() {
     };
 
     const isAvailableDay = (date) => {
+        // 1. Check if date is among doctor's specific leave dates
+        if (doctor?.leaveDates && doctor.leaveDates.length > 0) {
+            const isLeaveDay = doctor.leaveDates.some(ld => {
+                const leaveDate = new Date(ld);
+                return leaveDate.getFullYear() === date.getFullYear() &&
+                       leaveDate.getMonth() === date.getMonth() &&
+                       leaveDate.getDate() === date.getDate();
+            });
+            if (isLeaveDay) return false;
+        }
+
+        // 2. Check regular weekly schedule
         if (!schedule || schedule.length === 0) return true; // allow all if no schedule is set yet
         const dayOfWeek = date.getDay(); // 0 is Sunday
         const config = schedule.find(s => s.dayOfWeek === dayOfWeek);

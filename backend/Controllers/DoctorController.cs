@@ -102,6 +102,14 @@ namespace backend.Controllers
         public async Task<IActionResult> GetAvailableSlots(int id, [FromQuery] string date)
         {
             var parsedDate = DateTime.Parse(date);
+
+            // Check if doctor is on leave on this date
+            var doctor = await _context.Doctors.FirstOrDefaultAsync(d => d.Id == id);
+            if (doctor != null && doctor.LeaveDates != null && doctor.LeaveDates.Any(ld => ld.Date == parsedDate.Date))
+            {
+                return Ok(new List<string>());
+            }
+
             var dayOfWeek = (int)parsedDate.DayOfWeek;
 
             var schedule = await _context.DoctorSchedules

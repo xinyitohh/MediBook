@@ -88,6 +88,14 @@ namespace backend.Controllers
             if (doctor == null)
                 return NotFound(new { message = "Doctor not found" });
 
+            // Check if the selected date is one of the doctor's leave dates
+            if (doctor.LeaveDates != null && doctor.LeaveDates.Count > 0) 
+            {
+                var isLeaveDay = doctor.LeaveDates.Any(ld => ld.Date == dto.AppointmentDate.Date);
+                if (isLeaveDay)
+                    return BadRequest(new { message = "The doctor is on leave on the selected date." });
+            }
+
             var slotTaken = await _context.Appointments.AnyAsync(a =>
                 a.DoctorId == dto.DoctorId &&
                 a.AppointmentDate.Date == dto.AppointmentDate.Date &&
@@ -297,6 +305,12 @@ namespace backend.Controllers
 
             if (schedule == null || !schedule.IsActive)
                 return BadRequest(new { message = "The doctor is not working on the selected day." });
+
+            // 1.1 Check Leave Dates
+            if (appointment.Doctor.LeaveDates != null && appointment.Doctor.LeaveDates.Any(ld => ld.Date == newDateUtc.Date))
+            {
+                return BadRequest(new { message = "The doctor is on leave on the selected date." });
+            }
 
             if (!TimeSpan.TryParse(dto.TimeSlot, out TimeSpan requestedTime))
                 return BadRequest(new { message = "Invalid time format." });
