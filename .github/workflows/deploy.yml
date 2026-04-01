@@ -135,6 +135,7 @@ jobs:
           npm run build
         env:
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
+          VITE_CHAT_API_URL: ${{ secrets.VITE_CHAT_API_URL }}
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4

@@ -195,3 +195,19 @@
 .react-datepicker__day--disabled:hover {
   background-color: transparent !important;
 }
+
+/* ── Chatbot inline datepicker ────────────────────────── */
+.chatbot-datepicker .react-datepicker {
+  box-shadow: none !important;
+  border: none !important;
+  width: 100%;
+}
+.chatbot-datepicker .react-datepicker__month-container {
+  width: 100%;
+}
+.chatbot-datepicker .react-datepicker__day-name,
+.chatbot-datepicker .react-datepicker__day {
+  width: 2rem !important;
+  line-height: 2rem !important;
+  font-size: 0.75rem !important;
+}

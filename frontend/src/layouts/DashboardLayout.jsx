@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import NotificationBell from "../components/NotificationBell";
+import ChatBot from "../components/ChatBot";
 
 export default function DashboardLayout() {
   const [collapsed, setCollapsed] = useState(false);
@@ -18,6 +19,7 @@ export default function DashboardLayout() {
           <Outlet />
         </main>
       </div>
+      <ChatBot />
     </div>
   );
 }
