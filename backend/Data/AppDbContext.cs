@@ -156,7 +156,7 @@ namespace backend.Data
             builder.Entity<MedicalReport>(entity =>
             {
                 entity.HasOne(r => r.Patient)
-                    .WithMany()
+                    .WithMany(p => p.MedicalReports)
                     .HasForeignKey(r => r.PatientId)
                     .OnDelete(DeleteBehavior.Restrict);
 

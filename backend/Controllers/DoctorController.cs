@@ -76,6 +76,27 @@ namespace backend.Controllers
             return Ok(_mapper.Map<DoctorDto>(doctor));
         }
 
+        // GET api/doctor/5/schedule - public, get a doctor's weekly configuration
+        [HttpGet("{id}/schedule")]
+        public async Task<IActionResult> GetDoctorSchedule(int id)
+        {
+            var schedules = await _context.DoctorSchedules
+                .Where(s => s.DoctorId == id)
+                .Select(s => new DoctorScheduleDto
+                {
+                    DayOfWeek = s.DayOfWeek,
+                    StartTime = s.StartTime,
+                    EndTime = s.EndTime,
+                    BreakStart = s.BreakStart,
+                    BreakEnd = s.BreakEnd,
+                    SlotDurationMinutes = s.SlotDurationMinutes,
+                    IsActive = s.IsActive
+                })
+                .ToListAsync();
+
+            return Ok(schedules);
+        }
+
         // GET api/doctor/5/slots
         [HttpGet("{id}/slots")]
         public async Task<IActionResult> GetAvailableSlots(int id, [FromQuery] string date)

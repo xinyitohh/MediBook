@@ -17,3 +17,5 @@ export const doctorCancelAppointment = (id, reasonText) =>
   api.put(`/api/appointment/${id}/doctor-cancel`, {
       reason: reasonText 
  });
+export const rescheduleAppointment = (id, data) =>
+  api.put(`/api/appointment/${id}/reschedule`, data);

@@ -13,3 +13,4 @@ export const adminRegisterDoctor = (data) => api.post('/api/doctor/admin-registe
 export const resendDoctorSetupLink = (id) => api.post(`/api/doctor/${id}/resend-setup`);
 export const getDoctorSchedule = () => api.get('/api/doctor/schedule');
 export const updateDoctorSchedule = (schedules) => api.put('/api/doctor/schedule', { schedules });
+export const getPublicDoctorSchedule = (id) => api.get(`/api/doctor/${id}/schedule`);

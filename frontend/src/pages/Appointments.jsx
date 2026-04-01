@@ -8,17 +8,22 @@ import PageHeader from "../components/PageHeader";
 import FilterTabs from "../components/FilterTabs";
 import AppointmentRow from "../components/AppointmentRow";
 import ReviewModal from "../components/ReviewModal";
+import DoctorAppointments from "./DoctorAppointments";
 
 const FILTERS = ["All", "Pending", "Confirmed", "Completed", "Cancelled"];
 
 export default function Appointments() {
+    const { user } = useAuth();
+
+    if (user?.role === "Doctor") {
+        return <DoctorAppointments />;
+    }
     const [appointments, setAppointments] = useState([]);
     const [filter, setFilter] = useState("All");
     const [loading, setLoading] = useState(true);
     const [reviewTarget, setReviewTarget] = useState(null);
     const navigate = useNavigate();
-    const { user } = useAuth();
-    const[viewingReportUrl, setViewingReportUrl] = useState(null);
+    const [viewingReportUrl, setViewingReportUrl] = useState(null);
     const [viewingReportName, setViewingReportName] = useState("");
 
     useEffect(() => {
@@ -27,15 +32,16 @@ export default function Appointments() {
 
     const fetchAppointments = () => {
         setLoading(true);
-        if (isDev && isDevToken()) {
-            const role = user?.role || "Patient";
-            setAppointments(mockAppointments[role] || []);
-            setLoading(false);
-            return;
-        }
+        // Only use mock data if specifically requested or in non-browser env, 
+        // but always prioritize real API if we have a token.
         getMyAppointments()
             .then((res) => setAppointments(res.data))
-            .catch(() => { })
+            .catch(() => {
+                if (isDev && isDevToken()) {
+                    const role = user?.role || "Patient";
+                    setAppointments(mockAppointments[role] || []);
+                }
+            })
             .finally(() => setLoading(false));
     };
 

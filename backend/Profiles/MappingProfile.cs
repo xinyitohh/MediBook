@@ -1,4 +1,4 @@
-﻿using backend.Models;
+using backend.Models;
 using backend.DTOs;
 using System.Text.Json;
 using AutoMapper;
@@ -21,7 +21,8 @@ namespace backend.Profiles
                 .ForMember(dest => dest.Specialty, opt => opt.MapFrom(src => src.Doctor.Specialty != null ? src.Doctor.Specialty.Name : ""))
                 .ForMember(dest => dest.Patient, opt => opt.MapFrom(src => src.Patient.FullName))
                 .ForMember(dest => dest.Date, opt => opt.MapFrom(src => src.AppointmentDate.ToString("yyyy-MM-dd")))
-                .ForMember(dest => dest.Time, opt => opt.MapFrom(src => src.TimeSlot));
+                .ForMember(dest => dest.Time, opt => opt.MapFrom(src => src.TimeSlot))
+                .ForMember(dest => dest.PatientReportUrl, opt => opt.MapFrom(src => src.Patient.MedicalReports.OrderByDescending(r => r.UploadedAt).Select(r => r.FileUrl).FirstOrDefault()));
 
             CreateMap<CreateAppointmentDto, Appointment>();
             CreateMap<CompleteAppointmentDto, Appointment>();

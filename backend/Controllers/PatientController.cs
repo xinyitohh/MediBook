@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using backend.Data;
@@ -133,9 +133,9 @@ namespace backend.Controllers
             return Ok(new { message = "Profile updated" });
         }
 
-        // GET api/patient/all - Admin only view of all patients
+        // GET api/patient/all - Admin and Doctor view of all patients
         [HttpGet("all")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Admin,Doctor")]
         public async Task<IActionResult> GetAll()
         {
             // Project patients to DTO and include EmailConfirmed from linked Identity user

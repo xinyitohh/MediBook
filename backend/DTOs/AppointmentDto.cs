@@ -3,6 +3,7 @@ namespace backend.DTOs
     public class CreateAppointmentDto
     {
         public int DoctorId { get; set; }
+        public int? PatientId { get; set; } // Required if Doctor is booking
         public DateTime AppointmentDate { get; set; }
         public string TimeSlot { get; set; } = string.Empty;
         public string Notes { get; set; } = string.Empty;
@@ -23,11 +24,17 @@ namespace backend.DTOs
         public string AppointmentType { get; set; } = string.Empty;
         public string CancellationReason { get; set; } = string.Empty;
 
-        //public string? PatientReportUrl { get; set; }
+        public string PatientReportUrl { get; set; } = string.Empty;
     }
 
     public class CompleteAppointmentDto
     {
         public string DoctorNotes { get; set; } = string.Empty;
+    }
+
+    public class RescheduleAppointmentDto
+    {
+        public DateTime AppointmentDate { get; set; }
+        public string TimeSlot { get; set; } = string.Empty;
     }
 }

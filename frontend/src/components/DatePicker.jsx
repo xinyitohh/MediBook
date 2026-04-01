@@ -29,7 +29,7 @@ const CustomInput = forwardRef(({ value, onClick, placeholder, disabled }, ref) 
 CustomInput.displayName = "CustomInput";
 
 // ADDED minDate and maxDate to the props here
-export default function DatePicker({ value, onChange, minDate, maxDate, disabled }) {
+export default function DatePicker({ value, onChange, minDate, maxDate, disabled, filterDate }) {
   const selected = value
     ? (() => {
         // Handle full ISO strings or dates already containing 'T'
@@ -64,6 +64,7 @@ export default function DatePicker({ value, onChange, minDate, maxDate, disabled
       dropdownMode="select"
       minDate={minDate}
       maxDate={maxDate} 
+      filterDate={filterDate}
       disabled={disabled}
       placeholderText="Select date"
       isClearable={!disabled}

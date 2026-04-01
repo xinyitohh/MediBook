@@ -57,11 +57,15 @@ namespace backend.Controllers
                 query = query.Where(a => a.PatientId == CurrentProfileId);
             }
 
-            // ProjectTo: Only selects required columns from the DB (Doctor Name, Patient Name, etc.)
-            var response = await query
+            var appointments = await query
+                .Include(a => a.Doctor)
+                    .ThenInclude(d => d.Specialty)
+                .Include(a => a.Patient)
+                    .ThenInclude(p => p.MedicalReports)
                 .OrderByDescending(a => a.AppointmentDate)
-                .ProjectTo<AppointmentResponseDto>(_mapper.ConfigurationProvider)
                 .ToListAsync();
+
+            var response = _mapper.Map<List<AppointmentResponseDto>>(appointments);
 
             return Ok(response);
         }
@@ -70,8 +74,13 @@ namespace backend.Controllers
         [HttpPost]
         public async Task<IActionResult> BookAppointment([FromBody] CreateAppointmentDto dto)
         {
-            if (UserRole != "Patient")
-                return BadRequest(new { message = "Only patients can book appointments" });
+            if (UserRole != "Patient" && UserRole != "Doctor" && UserRole != "Admin")
+                return BadRequest(new { message = "Unauthorized to book appointments" });
+
+            if (UserRole == "Doctor") 
+            {
+                dto.DoctorId = CurrentProfileId;
+            }
 
             var doctor = await _context.Doctors.FirstOrDefaultAsync(d => d.Id == dto.DoctorId);
             if (doctor == null)
@@ -91,21 +100,44 @@ namespace backend.Controllers
 
             appointment.AppointmentDate = DateTime.SpecifyKind(dto.AppointmentDate, DateTimeKind.Utc);
 
-            appointment.PatientId = CurrentProfileId;
-            appointment.Status = "Pending";
-
+            if (UserRole == "Patient") {
+                appointment.PatientId = CurrentProfileId;
+            } else if (UserRole == "Doctor") {
+                if (!dto.PatientId.HasValue) return BadRequest(new { message = "PatientId is required when Doctor is booking." });
+                appointment.PatientId = dto.PatientId.Value;
+                appointment.DoctorId = CurrentProfileId; // Ensure they book for themselves
+            } else if (UserRole == "Admin") {
+                if (!dto.PatientId.HasValue) return BadRequest(new { message = "PatientId is required." });
+                appointment.PatientId = dto.PatientId.Value;
+            }
+            
+            // If the doctor books it manually, assume it's automatically confirmed. Otherwise Pending.
+            appointment.Status = (UserRole == "Doctor" || UserRole == "Admin") ? "Confirmed" : "Pending";
             appointment.CreatedAt = DateTime.UtcNow;
 
             _context.Appointments.Add(appointment);
             await _context.SaveChangesAsync();
 
-            // Notify Doctor: New booking
-            await _notificationService.SendAsync(   
-                doctor.UserId,
-                "New Appointment Request",
-                $"A patient has booked a slot for {dto.AppointmentDate:dd MMM yyyy} at {dto.TimeSlot}.",
-                "Appointment"
-            );
+            if (UserRole == "Patient") {
+                // Notify Doctor: New booking
+                await _notificationService.SendAsync(   
+                    doctor.UserId,
+                    "New Appointment Request",
+                    $"A patient has booked a slot for {dto.AppointmentDate:dd MMM yyyy} at {dto.TimeSlot}.",
+                    "Appointment"
+                );
+            } else {
+                // Notify Patient: Doctor booked an appointment for them
+                var patient = await _context.Patients.FindAsync(appointment.PatientId);
+                if (patient != null) {
+                    await _notificationService.SendAsync(
+                        patient.UserId,
+                        "New Appointment Scheduled",
+                        $"Dr. {doctor.FullName} has scheduled an appointment for you on {dto.AppointmentDate:dd MMM yyyy} at {dto.TimeSlot}.",
+                        "Appointment"
+                    );
+                }
+            }
 
             return Ok(new { message = "Appointment booked successfully", id = appointment.Id });
         }
@@ -223,16 +255,93 @@ namespace backend.Controllers
             return Ok(new { message = "Appointment completed" });
         }
 
+        // PUT api/appointment/{id}/reschedule
+        [HttpPut("{id}/reschedule")]
+        [Authorize(Roles = "Admin,Doctor")]
+        public async Task<IActionResult> RescheduleAppointment(int id, [FromBody] RescheduleAppointmentDto dto)
+        {
+            var appointment = await _context.Appointments
+                .Include(a => a.Patient)
+                .Include(a => a.Doctor)
+                .FirstOrDefaultAsync(a => a.Id == id);
+
+            if (appointment == null)
+                return NotFound(new { message = "Appointment not found." });
+
+            if (UserRole == "Doctor" && appointment.DoctorId != CurrentProfileId)
+                return Unauthorized(new { message = "You can only reschedule your own appointments." });
+
+            if (appointment.Status == "Cancelled" || appointment.Status == "Completed")
+                return BadRequest(new { message = "Cannot reschedule completed or cancelled appointments." });
+
+            var newDateUtc = DateTime.SpecifyKind(dto.AppointmentDate.Date, DateTimeKind.Utc);
+            var dayOfWeek = (int)newDateUtc.DayOfWeek;
+
+            // 1. Validate Doctor Schedule for this new day
+            var schedule = await _context.DoctorSchedules
+                .FirstOrDefaultAsync(s => s.DoctorId == appointment.DoctorId && s.DayOfWeek == dayOfWeek);
+
+            if (schedule == null || !schedule.IsActive)
+                return BadRequest(new { message = "The doctor is not working on the selected day." });
+
+            if (!TimeSpan.TryParse(dto.TimeSlot, out TimeSpan requestedTime))
+                return BadRequest(new { message = "Invalid time format." });
+
+            TimeSpan.TryParse(schedule.StartTime, out TimeSpan dayStart);
+            TimeSpan.TryParse(schedule.EndTime, out TimeSpan dayEnd);
+
+            if (requestedTime < dayStart || requestedTime >= dayEnd)
+                return BadRequest(new { message = "The selected time is outside the doctor's working hours." });
+
+            if (!string.IsNullOrEmpty(schedule.BreakStart) && !string.IsNullOrEmpty(schedule.BreakEnd))
+            {
+                TimeSpan.TryParse(schedule.BreakStart, out TimeSpan breakStart);
+                TimeSpan.TryParse(schedule.BreakEnd, out TimeSpan breakEnd);
+
+                if (requestedTime >= breakStart && requestedTime < breakEnd)
+                    return BadRequest(new { message = "The selected time falls during the doctor's break time." });
+            }
+
+            // 2. Validate Overlap with existing Confirmed/Pending appointments
+            var slotTaken = await _context.Appointments.AnyAsync(a =>
+                a.Id != id && // Exclude the current appointment
+                a.DoctorId == appointment.DoctorId &&
+                a.AppointmentDate.Date == newDateUtc.Date &&
+                a.TimeSlot == dto.TimeSlot &&
+                a.Status != "Cancelled"
+            );
+
+            if (slotTaken)
+                return BadRequest(new { message = "This time slot is already booked." });
+
+            // 3. Save updates
+            appointment.AppointmentDate = newDateUtc;
+            appointment.TimeSlot = dto.TimeSlot;
+            await _context.SaveChangesAsync();
+
+            // 4. Notify patient
+            await _notificationService.SendAsync(
+                appointment.Patient.UserId,
+                "Appointment Rescheduled",
+                $"Dr. {appointment.Doctor.FullName} has rescheduled your appointment to {appointment.AppointmentDate:dd MMM yyyy} at {appointment.TimeSlot}.",
+                "Appointment"
+            );
+
+            return Ok(new { message = "Appointment rescheduled successfully." });
+        }
+
         // GET api/appointment/all - admin sees all
         [HttpGet("all")]
         [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetAll()
         {
-            // Efficient projection for the admin list
-            var response = await _context.Appointments
+            var appointments = await _context.Appointments
+                .Include(a => a.Doctor).ThenInclude(d => d.Specialty)
+                .Include(a => a.Patient).ThenInclude(p => p.MedicalReports)
                 .OrderByDescending(a => a.AppointmentDate)
-                .ProjectTo<AppointmentResponseDto>(_mapper.ConfigurationProvider)
                 .ToListAsync();
+
+            var response = _mapper.Map<List<AppointmentResponseDto>>(appointments);
 
             return Ok(response);
         }
@@ -259,10 +368,13 @@ namespace backend.Controllers
                 query = query.Where(a => a.PatientId == patientId.Value);
             }
 
-            var response = await query
+            var appointments = await query
+                .Include(a => a.Doctor).ThenInclude(d => d.Specialty)
+                .Include(a => a.Patient).ThenInclude(p => p.MedicalReports)
                 .OrderByDescending(a => a.AppointmentDate)
-                .ProjectTo<AppointmentResponseDto>(_mapper.ConfigurationProvider)
                 .ToListAsync();
+
+            var response = _mapper.Map<List<AppointmentResponseDto>>(appointments);
 
             return Ok(response);
         }

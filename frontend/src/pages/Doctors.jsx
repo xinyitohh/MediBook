@@ -1,30 +1,29 @@
 import { useState, useEffect } from "react";
 import { Search } from "lucide-react";
-import { getAllDoctors } from "../services";
+import { getAllDoctors, getAllSpecialties } from "../services";
 import PageHeader from "../components/PageHeader";
 import DoctorCard from "../components/DoctorCard";
 
-const SPECIALTIES = [
-  "All",
-  "Cardiology",
-  "General Practice",
-  "Dermatology",
-  "Orthopedics",
-  "Pediatrics",
-  "Neurology",
-];
-
 export default function Doctors() {
   const [doctors, setDoctors] = useState([]);
+  const [specialtiesList, setSpecialtiesList] = useState(["All"]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [specialty, setSpecialty] = useState("All");
 
   useEffect(() => {
-    getAllDoctors()
-      .then((res) => setDoctors(res.data))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    Promise.all([
+      getAllDoctors(),
+      getAllSpecialties()
+    ])
+    .then(([docsRes, specRes]) => {
+      setDoctors(docsRes.data);
+      if (specRes.data && Array.isArray(specRes.data)) {
+        setSpecialtiesList(["All", ...specRes.data.map(s => s.name)]);
+      }
+    })
+    .catch(console.error)
+    .finally(() => setLoading(false));
   }, []);
 
   const filtered = doctors.filter((d) => {
@@ -58,9 +57,9 @@ export default function Doctors() {
         <select
           value={specialty}
           onChange={(e) => setSpecialty(e.target.value)}
-          className="px-4 py-3 bg-gray-50 rounded-xl border-none outline-none text-sm text-gray-600 font-medium cursor-pointer"
+          className="px-4 py-3 bg-gray-50 rounded-xl border-none outline-none text-sm text-gray-600 font-medium cursor-pointer max-w-[200px]"
         >
-          {SPECIALTIES.map((s) => (
+          {specialtiesList.map((s) => (
             <option key={s} value={s}>
               {s === "All" ? "All Specialties" : s}
             </option>

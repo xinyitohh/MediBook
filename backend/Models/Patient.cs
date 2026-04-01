@@ -1,4 +1,4 @@
-﻿namespace backend.Models
+namespace backend.Models
 {
     public class Patient
     {
@@ -22,5 +22,6 @@
 
         // Navigation property
         public ICollection<Appointment> Appointments { get; set; } = new List<Appointment>();
+        public ICollection<MedicalReport> MedicalReports { get; set; } = new List<MedicalReport>();
     }
 }

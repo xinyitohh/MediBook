@@ -8,3 +8,4 @@ export * from "./medicalService";
 export * from "./notificationService";
 export * from "./patientService";
 export * from "./reviewService";
+export * from "./specialtyService";
