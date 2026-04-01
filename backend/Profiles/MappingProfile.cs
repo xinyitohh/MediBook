@@ -22,7 +22,12 @@ namespace backend.Profiles
                 .ForMember(dest => dest.Patient, opt => opt.MapFrom(src => src.Patient.FullName))
                 .ForMember(dest => dest.Date, opt => opt.MapFrom(src => src.AppointmentDate.ToString("yyyy-MM-dd")))
                 .ForMember(dest => dest.Time, opt => opt.MapFrom(src => src.TimeSlot))
-                .ForMember(dest => dest.PatientReportUrl, opt => opt.MapFrom(src => src.Patient.MedicalReports.OrderByDescending(r => r.UploadedAt).Select(r => r.FileUrl).FirstOrDefault()));
+                .ForMember(dest => dest.CreatedAt, opt => opt.MapFrom(src => src.CreatedAt))
+                .ForMember(dest => dest.CancellationReason, opt => opt.MapFrom(src => src.CancellationReason ?? ""))
+                .ForMember(dest => dest.Duration, opt => opt.MapFrom(src => 
+                    src.Doctor.Schedules.Where(s => s.DayOfWeek == (int)src.AppointmentDate.DayOfWeek).Select(s => s.SlotDurationMinutes).FirstOrDefault() == 0 ? 30 : src.Doctor.Schedules.Where(s => s.DayOfWeek == (int)src.AppointmentDate.DayOfWeek).Select(s => s.SlotDurationMinutes).FirstOrDefault()))
+                .ForMember(dest => dest.HasDoctorReport, opt => opt.MapFrom(src => src.Patient.MedicalReports.Any(r => r.AppointmentId == src.Id && r.UploadedByRole == "Doctor")))
+                .ForMember(dest => dest.PatientReportUrl, opt => opt.MapFrom(src => src.Patient.MedicalReports.Where(r => r.AppointmentId == src.Id && r.UploadedByRole == "Patient").OrderByDescending(r => r.UploadedAt).Select(r => r.FileUrl).FirstOrDefault()));
 
             CreateMap<CreateAppointmentDto, Appointment>();
             CreateMap<CompleteAppointmentDto, Appointment>();

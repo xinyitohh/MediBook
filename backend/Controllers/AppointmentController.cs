@@ -60,6 +60,8 @@ namespace backend.Controllers
             var appointments = await query
                 .Include(a => a.Doctor)
                     .ThenInclude(d => d.Specialty)
+                .Include(a => a.Doctor)
+                    .ThenInclude(d => d.Schedules) // Needed for Duration mapping
                 .Include(a => a.Patient)
                     .ThenInclude(p => p.MedicalReports)
                 .OrderByDescending(a => a.AppointmentDate)
@@ -139,29 +141,41 @@ namespace backend.Controllers
                 }
             }
 
+            // Attach Medical Report if provided
+            if (dto.MedicalReportId.HasValue)
+            {
+                var report = await _context.MedicalReports.FirstOrDefaultAsync(r => r.Id == dto.MedicalReportId.Value && r.PatientId == appointment.PatientId);
+                if (report != null)
+                {
+                    report.AppointmentId = appointment.Id;
+                    await _context.SaveChangesAsync();
+                }
+            }
+
             return Ok(new { message = "Appointment booked successfully", id = appointment.Id });
         }
 
         // PUT api/appointment/{id}/cancel
         [HttpPut("{id}/cancel")]
-        public async Task<IActionResult> CancelAppointment(int id)
+        public async Task<IActionResult> CancelAppointment(int id, [FromBody] DoctorCancelDto dto = null)
         {
             var appointment = await _context.Appointments
                 .Include(a => a.Doctor)
                 .Include(a => a.Patient)
-                .FirstOrDefaultAsync(a => a.Id == id && (a.PatientId == CurrentProfileId || UserRole == "Admin"));
+                .FirstOrDefaultAsync(a => a.Id == id && (a.PatientId == CurrentProfileId || UserRole == "Admin" || UserRole == "Doctor"));
 
             if (appointment == null)
                 return NotFound(new { message = "Appointment not found or unauthorized" });
 
             appointment.Status = "Cancelled";
+            appointment.CancellationReason = dto?.Reason ?? "Cancelled by Patient";
             await _context.SaveChangesAsync();
 
             // Notify Doctor: Patient cancelled
             await _notificationService.SendAsync(
                 appointment.Doctor.UserId,
                 "Appointment Cancelled",
-                $"The appointment for {appointment.AppointmentDate:dd MMM yyyy} has been cancelled.",
+                $"The appointment for {appointment.AppointmentDate:dd MMM yyyy} has been cancelled. Reason: {appointment.CancellationReason}",
                 "Appointment"
             );
 
@@ -337,6 +351,7 @@ namespace backend.Controllers
         {
             var appointments = await _context.Appointments
                 .Include(a => a.Doctor).ThenInclude(d => d.Specialty)
+                .Include(a => a.Doctor).ThenInclude(d => d.Schedules)
                 .Include(a => a.Patient).ThenInclude(p => p.MedicalReports)
                 .OrderByDescending(a => a.AppointmentDate)
                 .ToListAsync();
@@ -370,6 +385,7 @@ namespace backend.Controllers
 
             var appointments = await query
                 .Include(a => a.Doctor).ThenInclude(d => d.Specialty)
+                .Include(a => a.Doctor).ThenInclude(d => d.Schedules)
                 .Include(a => a.Patient).ThenInclude(p => p.MedicalReports)
                 .OrderByDescending(a => a.AppointmentDate)
                 .ToListAsync();

@@ -53,6 +53,7 @@ export default function DoctorDetail() {
         setError("");
         
         try {
+            let reportId = null;
             // Optional file upload
             if (reportFile) {
                 setUploadingReport(true);
@@ -61,9 +62,10 @@ export default function DoctorDetail() {
                 formData.append("description", "Uploaded during appointment booking");
                 
                 try {
-                    await api.post("/api/upload/medical-report", formData, {
+                    const uploadRes = await api.post("/api/upload/medical-report", formData, {
                         headers: { "Content-Type": "multipart/form-data" }
                     });
+                    reportId = uploadRes.data.id;
                 } catch (uploadErr) {
                     setError(uploadErr.response?.data?.message || "Medical report upload failed.");
                     setUploadingReport(false);
@@ -78,6 +80,7 @@ export default function DoctorDetail() {
                 appointmentDate: selectedDate,
                 timeSlot: selectedSlot,
                 notes,
+                medicalReportId: reportId
             });
             setSuccess(true);
         } catch (err) {
@@ -333,7 +336,7 @@ export default function DoctorDetail() {
 
                         {/* Notes */}
                         <div className="mb-6">
-                            <label className="input-label">Notes (Optional)</label>
+                            <label className="input-label">Purpose of Visit (Optional)</label>
                             <textarea
                                 value={notes}
                                 onChange={(e) => setNotes(e.target.value)}

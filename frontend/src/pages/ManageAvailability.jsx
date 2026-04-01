@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import PageHeader from "../components/PageHeader";
-import { getDoctorSchedule, updateDoctorSchedule } from "../services/doctorService";
-import { Clock, CheckCircle2 } from "lucide-react";
+import { Clock, CheckCircle2, CalendarOff, Plus, Trash2 } from "lucide-react";
+import { getDoctorProfile, updateDoctorProfile, getDoctorSchedule, updateDoctorSchedule } from "../services/doctorService";
+import DatePicker from "../components/DatePicker";
 
 export default function ManageAvailability() {
     const [loading, setLoading] = useState(true);
@@ -21,17 +22,28 @@ export default function ManageAvailability() {
     ];
 
     const [schedules, setSchedules] = useState(defaultDays);
+    const [leaveDates, setLeaveDates] = useState([]);
+    const [newLeaveDate, setNewLeaveDate] = useState("");
 
     useEffect(() => {
-        fetchSchedule();
+        fetchData();
     }, []);
 
-    const fetchSchedule = async () => {
+    const fetchData = async () => {
         try {
-            const res = await getDoctorSchedule();
-            if (res.data && res.data.length > 0) {
+            // Fetch Doctor Profile to get LeaveDates
+            const profileRes = await getDoctorProfile();
+            if (profileRes.data) {
+                // Backend sends timestamps, convert to YYYY-MM-DD
+                const dates = (profileRes.data.leaveDates || []).map(d => d.split("T")[0]);
+                setLeaveDates(dates);
+            }
+
+            // Fetch Schedule
+            const schedRes = await getDoctorSchedule();
+            if (schedRes.data && schedRes.data.length > 0) {
                 const fetchedMap = new Map();
-                res.data.forEach(s => fetchedMap.set(s.dayOfWeek, s));
+                schedRes.data.forEach(s => fetchedMap.set(s.dayOfWeek, s));
 
                 const mergedSchedules = defaultDays.map(day => {
                     const serverDay = fetchedMap.get(day.dayOfWeek);
@@ -51,12 +63,12 @@ export default function ManageAvailability() {
 
                 setSchedules(mergedSchedules);
 
-                if (res.data[0]?.slotDurationMinutes) {
-                    setGlobalDuration(res.data[0].slotDurationMinutes);
+                if (schedRes.data[0]?.slotDurationMinutes) {
+                    setGlobalDuration(schedRes.data[0].slotDurationMinutes);
                 }
             }
         } catch (error) {
-            console.error("Failed to load schedule", error);
+            console.error("Failed to load availability data", error);
         } finally {
             setLoading(false);
         }
@@ -71,19 +83,54 @@ export default function ManageAvailability() {
         }));
     };
 
+    const handleAddLeaveDate = () => {
+        if (!newLeaveDate) return;
+        if (leaveDates.includes(newLeaveDate)) {
+            alert("This date is already marked as a leave day.");
+            return;
+        }
+        setLeaveDates(prev => [...prev, newLeaveDate].sort());
+        setNewLeaveDate("");
+    };
+
+    const handleRemoveLeaveDate = (dateToRemove) => {
+        setLeaveDates(prev => prev.filter(d => d !== dateToRemove));
+    };
+
     const handleSave = async () => {
         setSaving(true);
         setSuccess(false);
         try {
+            // Save Schedule
             const dataToSave = schedules.map(s => ({
                 ...s,
                 slotDurationMinutes: globalDuration
             }));
             await updateDoctorSchedule(dataToSave);
+
+            // Fetch current profile to prevent overwriting other fields with empty data
+            const profileRes = await getDoctorProfile();
+            const currentProfile = profileRes.data;
+
+            // Save Leave Dates
+            await updateDoctorProfile({
+                fullName: currentProfile.fullName || "",
+                specialtyId: currentProfile.specialtyId || null,
+                phone: currentProfile.phone || "",
+                description: currentProfile.description || "",
+                consultationFee: currentProfile.consultationFee || 0,
+                dateOfBirth: currentProfile.dateOfBirth || "",
+                gender: currentProfile.gender || "",
+                experience: currentProfile.experience || "",
+                qualifications: currentProfile.qualifications || "",
+                languages: currentProfile.languages || "",
+                leaveDates: leaveDates.map(d => new Date(d).toISOString()) // send as ISO strings
+            });
+
             setSuccess(true);
             setTimeout(() => setSuccess(false), 3000);
         } catch (error) {
-            alert("Failed to save schedule: " + (error.response?.data?.message || error.message));
+            alert("Failed to save changes: " + (error.response?.data?.message || error.message));
         } finally {
             setSaving(false);
         }
@@ -111,9 +158,7 @@ export default function ManageAvailability() {
                             onChange={(e) => setGlobalDuration(parseInt(e.target.value))}
                             className="input-field py-1.5 w-auto"
                         >
-                            <option value={15}>15 mins</option>
                             <option value={30}>30 mins</option>
-                            <option value={45}>45 mins</option>
                             <option value={60}>60 mins</option>
                         </select>
                     </div>
@@ -213,6 +258,61 @@ export default function ManageAvailability() {
                         </div>
                     ))}
                 </div>
+            </div>
+
+            {/* --- Specific Leave Dates Section --- */}
+            <div className="mt-10 bg-white rounded-2xl border border-gray-100 shadow-sm p-6 max-w-2xl">
+                <div className="flex items-center gap-3 mb-6">
+                    <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center text-red-500">
+                        <CalendarOff size={20} />
+                    </div>
+                    <div>
+                        <h2 className="text-xl font-bold text-gray-900">Specific Leave Dates</h2>
+                        <p className="text-sm text-gray-500">Block off specific calendar dates (e.g., holidays) from booking.</p>
+                    </div>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-4 mb-6">
+                    <div className="w-[200px]">
+                        <DatePicker
+                            value={newLeaveDate}
+                            onChange={(val) => setNewLeaveDate(val)}
+                            minDate={new Date()}
+                        />
+                    </div>
+                    <button 
+                        onClick={handleAddLeaveDate}
+                        disabled={!newLeaveDate}
+                        className="btn-outline flex items-center justify-center gap-2 border-brand-200 text-brand-600 hover:bg-brand-50"
+                    >
+                        <Plus size={18} /> Add Leave Date
+                    </button>
+                </div>
+
+                {leaveDates.length > 0 ? (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                        {leaveDates.map((date, idx) => {
+                            const dateObj = new Date(date);
+                            const formatted = dateObj.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+                            return (
+                                <div key={idx} className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+                                    <span className="text-sm font-semibold text-gray-700">{formatted}</span>
+                                    <button 
+                                        onClick={() => handleRemoveLeaveDate(date)}
+                                        className="text-gray-400 hover:text-red-500 p-1"
+                                        title="Remove Leave Date"
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
+                                </div>
+                            );
+                        })}
+                    </div>
+                ) : (
+                    <div className="text-center py-6 border-2 border-dashed border-gray-100 rounded-xl">
+                        <p className="text-sm text-gray-400">No specific leave dates added yet.</p>
+                    </div>
+                )}
             </div>
             
         </div>

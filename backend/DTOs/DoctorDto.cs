@@ -22,6 +22,7 @@ namespace backend.DTOs
         public string Experience { get; set; } = string.Empty;
         public string Qualifications { get; set; } = string.Empty;
         public string Languages { get; set; } = string.Empty;
+        public List<DateTime> LeaveDates { get; set; } = new List<DateTime>();
     }
 
     // Used by Admin to Register a new Doctor (POST)
@@ -69,6 +70,7 @@ namespace backend.DTOs
         public string Experience { get; set; } = string.Empty;
         public string Qualifications { get; set; } = string.Empty;
         public string Languages { get; set; } = string.Empty;
+        public List<DateTime> LeaveDates { get; set; } = new List<DateTime>();
     }
 
     public class UpdateAvailabilityDto

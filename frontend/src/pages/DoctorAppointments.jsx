@@ -12,6 +12,7 @@ import {
 } from "../services";
 import api from "../services/api";
 import PageHeader from "../components/PageHeader";
+import DatePicker from "../components/DatePicker";
 
 // React Big Calendar
 import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
@@ -40,6 +41,8 @@ export default function DoctorAppointments() {
     const [reschedulingId, setReschedulingId] = useState(null);
     const [selectedEvent, setSelectedEvent] = useState(null);
     const [viewingReportUrl, setViewingReportUrl] = useState(null);
+    const [viewingDoctorReport, setViewingDoctorReport] = useState(null);
+    const [loadingReport, setLoadingReport] = useState(false);
 
     // Lightbox State
     const [isLightboxOpen, setIsLightboxOpen] = useState(false);
@@ -84,10 +87,11 @@ export default function DoctorAppointments() {
                         console.error("Invalid date for appointment:", appt);
                     }
                     
-                    const end = new Date(start.getTime() + 30 * 60000); 
+                    const durationMins = appt.duration || 30;
+                    const end = new Date(start.getTime() + durationMins * 60000); 
                     return {
                         id: appt.id,
-                        title: `${appt.patient} - ${appt.notes || 'No notes'}`,
+                        title: `${appt.patient} - ${appt.notes || 'No purpose stated'}`,
                         start,
                         end,
                         resource: appt
@@ -338,12 +342,10 @@ export default function DoctorAppointments() {
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="input-label">Date</label>
-                                    <input 
-                                        type="date" 
-                                        required 
-                                        className="input-field" 
+                                    <DatePicker
                                         value={lbForm.date}
-                                        onChange={(e) => setLbForm({...lbForm, date: e.target.value})}
+                                        onChange={(val) => setLbForm({...lbForm, date: val})}
+                                        minDate={new Date()}
                                     />
                                 </div>
                                 <div>
@@ -359,7 +361,7 @@ export default function DoctorAppointments() {
                                 </div>
                             </div>
                             <div>
-                                <label className="input-label">Notes (Optional)</label>
+                                <label className="input-label">Purpose of Visit (Optional)</label>
                                 <textarea 
                                     className="input-field min-h-[80px]" 
                                     placeholder="Add any internal notes..."
@@ -409,25 +411,44 @@ export default function DoctorAppointments() {
                                 </div>
                                 <div>
                                     <h4 className="font-bold text-gray-900">{selectedEvent.patient}</h4>
-                                    <p className="text-sm text-gray-500">{selectedEvent.date} at {selectedEvent.time}</p>
+                                    <p className="text-sm text-gray-500">
+                                        {selectedEvent.date} • {format(new Date(`${selectedEvent.date}T${selectedEvent.time}:00`), "hh:mm a")} - {format(new Date(new Date(`${selectedEvent.date}T${selectedEvent.time}:00`).getTime() + (selectedEvent.duration || 30) * 60000), "hh:mm a")}
+                                    </p>
                                 </div>
                             </div>
 
-                            <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
-                                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Status</span>
-                                <span className={`inline-flex px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${
-                                    selectedEvent.status === 'Pending' ? 'bg-amber-100 text-amber-700' :
-                                    selectedEvent.status === 'Confirmed' ? 'bg-brand-100 text-brand-700' :
-                                    selectedEvent.status === 'Completed' ? 'bg-mint-100 text-mint-700' :
-                                    'bg-red-100 text-red-700'
-                                }`}>
-                                    {selectedEvent.status}
-                                </span>
+                            <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-xl border border-gray-100">
+                                <div>
+                                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Status</span>
+                                    <span className={`inline-flex px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${
+                                        selectedEvent.status === 'Pending' ? 'bg-amber-100 text-amber-700' :
+                                        selectedEvent.status === 'Confirmed' ? 'bg-brand-100 text-brand-700' :
+                                        selectedEvent.status === 'Completed' ? 'bg-mint-100 text-mint-700' :
+                                        'bg-red-100 text-red-700'
+                                    }`}>
+                                        {selectedEvent.status}
+                                    </span>
+                                </div>
+                                <div>
+                                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Created Date & Time</span>
+                                    <p className="text-sm font-semibold text-gray-700">
+                                        {selectedEvent.createdAt ? new Date(selectedEvent.createdAt).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" }) : 'N/A'}
+                                    </p>
+                                </div>
                             </div>
+
+                            {selectedEvent.status === 'Cancelled' && selectedEvent.cancellationReason && (
+                                <div>
+                                    <span className="text-xs font-bold text-red-400 uppercase tracking-wider block mb-1">Cancellation Reason</span>
+                                    <p className="text-sm text-red-700 bg-red-50 p-3 rounded-xl border border-red-100">
+                                        "{selectedEvent.cancellationReason}"
+                                    </p>
+                                </div>
+                            )}
 
                             {selectedEvent.notes && (
                                 <div>
-                                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Patient Notes</span>
+                                    <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Purpose of Visit</span>
                                     <p className="text-sm text-gray-700 bg-gray-50 p-3 rounded-xl border border-gray-100">
                                         "{selectedEvent.notes}"
                                     </p>
@@ -468,12 +489,34 @@ export default function DoctorAppointments() {
                             )}
 
                             {selectedEvent.status === "Completed" && (
-                                <button 
-                                    onClick={() => navigate(`/appointments/${selectedEvent.id}/report`)} 
-                                    className="btn-primary flex-1 bg-purple-600 hover:bg-purple-700 shadow-purple-600/20"
-                                >
-                                    <FileText size={16} className="mr-2 inline" /> Write Medical Report
-                                </button>
+                                selectedEvent.hasDoctorReport ? (
+                                    <button 
+                                        disabled={loadingReport}
+                                        onClick={async () => {
+                                            setLoadingReport(true);
+                                            try {
+                                                const res = await api.get(`/api/medical-report/by-appointment/${selectedEvent.id}`);
+                                                setViewingDoctorReport(res.data);
+                                            } catch (err) {
+                                                alert(err.response?.data?.message || "Failed to load report.");
+                                            } finally {
+                                                setLoadingReport(false);
+                                            }
+                                        }} 
+                                        className="btn-primary flex-1 bg-brand-500 hover:bg-brand-600 shadow-brand-500/20 disabled:opacity-60"
+                                    >
+                                        <FileText size={16} className="mr-2 inline" /> {loadingReport ? 'Loading...' : 'View Generated Report'}
+                                    </button>
+                                ) : (
+                                    <button 
+                                        onClick={() => navigate(`/appointments/${selectedEvent.id}/report`, {
+                                            state: { patient: selectedEvent.patient, doctor: selectedEvent.doctor, date: selectedEvent.date, time: selectedEvent.time, specialty: selectedEvent.specialty }
+                                        })} 
+                                        className="btn-primary flex-1 bg-purple-600 hover:bg-purple-700 shadow-purple-600/20"
+                                    >
+                                        <FileText size={16} className="mr-2 inline" /> Write Medical Report
+                                    </button>
+                                )
                             )}
                         </div>
                     </div>
@@ -507,6 +550,123 @@ export default function DoctorAppointments() {
                                     className="w-full h-full object-contain rounded-lg"
                                 />
                             )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ── Doctor Report View Modal ── */}
+            {viewingDoctorReport && (
+                <div className="fixed inset-0 bg-black/60 z-[60] flex items-center justify-center p-4 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+                        <div className="flex justify-between items-center p-5 border-b border-gray-100 bg-gray-50/50">
+                            <div>
+                                <h3 className="font-bold text-lg text-gray-900">Medical Report</h3>
+                                <p className="text-sm text-gray-500">Generated by Doctor</p>
+                            </div>
+                            <button
+                                onClick={() => setViewingDoctorReport(null)}
+                                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-200 text-gray-500"
+                            >
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div className="flex-1 overflow-y-auto p-6">
+                            {/* Report Header */}
+                            <div className="flex items-center gap-4 mb-6">
+                                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-brand-500 to-brand-600 flex items-center justify-center">
+                                    <span className="text-white font-bold text-sm">M</span>
+                                </div>
+                                <div>
+                                    <h4 className="font-bold text-gray-900">MediBook</h4>
+                                    <p className="text-xs text-gray-500">Medical Report</p>
+                                </div>
+                                <div className="ml-auto text-right">
+                                    <p className="text-sm font-bold text-brand-600">Medical Report</p>
+                                    <p className="text-xs text-gray-400">Generated: {viewingDoctorReport.uploadedAt ? new Date(viewingDoctorReport.uploadedAt).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' }) : 'N/A'}</p>
+                                </div>
+                            </div>
+                            <hr className="border-brand-200 mb-6" />
+
+                            {viewingDoctorReport.diagnosis && (
+                                <div className="mb-5">
+                                    <span className="text-xs font-bold text-brand-600 uppercase tracking-wider block mb-2">Diagnosis</span>
+                                    <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                                        <p className="text-sm text-gray-800">{viewingDoctorReport.diagnosis}</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {viewingDoctorReport.symptoms && (
+                                <div className="mb-5">
+                                    <span className="text-xs font-bold text-brand-600 uppercase tracking-wider block mb-2">Symptoms</span>
+                                    <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                                        <p className="text-sm text-gray-800">{viewingDoctorReport.symptoms}</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {viewingDoctorReport.treatment && (
+                                <div className="mb-5">
+                                    <span className="text-xs font-bold text-brand-600 uppercase tracking-wider block mb-2">Treatment Plan</span>
+                                    <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                                        <p className="text-sm text-gray-800">{viewingDoctorReport.treatment}</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {viewingDoctorReport.medications && (() => {
+                                let meds = [];
+                                try { meds = JSON.parse(viewingDoctorReport.medications); } catch(e) {}
+                                if (!Array.isArray(meds) || meds.length === 0) return null;
+                                return (
+                                    <div className="mb-5">
+                                        <span className="text-xs font-bold text-brand-600 uppercase tracking-wider block mb-2">Prescribed Medications</span>
+                                        <div className="overflow-hidden rounded-xl border border-gray-100">
+                                            <table className="w-full text-sm">
+                                                <thead>
+                                                    <tr className="bg-brand-500 text-white">
+                                                        <th className="text-left px-4 py-2 font-semibold">Medicine</th>
+                                                        <th className="text-left px-4 py-2 font-semibold">Dosage</th>
+                                                        <th className="text-left px-4 py-2 font-semibold">Frequency</th>
+                                                        <th className="text-left px-4 py-2 font-semibold">Duration</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {meds.map((med, idx) => (
+                                                        <tr key={idx} className="border-t border-gray-100">
+                                                            <td className="px-4 py-2.5 text-gray-800">{med.name || med.Name || '—'}</td>
+                                                            <td className="px-4 py-2.5 text-gray-600">{med.dosage || med.Dosage || '—'}</td>
+                                                            <td className="px-4 py-2.5 text-gray-600">{med.frequency || med.Frequency || '—'}</td>
+                                                            <td className="px-4 py-2.5 text-gray-600">{med.duration || med.Duration || '—'}</td>
+                                                        </tr>
+                                                    ))}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                );
+                            })()}
+
+                            {viewingDoctorReport.notes && (
+                                <div className="mb-5">
+                                    <span className="text-xs font-bold text-brand-600 uppercase tracking-wider block mb-2">Doctor Notes</span>
+                                    <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                                        <p className="text-sm text-gray-800">{viewingDoctorReport.notes}</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            {viewingDoctorReport.followUpDate && (
+                                <div className="mb-5">
+                                    <span className="text-xs font-bold text-brand-600 uppercase tracking-wider block mb-2">Follow-Up Date</span>
+                                    <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                                        <p className="text-sm text-gray-800">{viewingDoctorReport.followUpDate}</p>
+                                    </div>
+                                </div>
+                            )}
+
+                            <p className="text-center text-xs text-gray-400 mt-6">This document is confidential and intended for the patient only</p>
                         </div>
                     </div>
                 </div>

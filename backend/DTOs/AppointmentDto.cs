@@ -8,6 +8,7 @@ namespace backend.DTOs
         public string TimeSlot { get; set; } = string.Empty;
         public string Notes { get; set; } = string.Empty;
         public string AppointmentType { get; set; } = "In-person";
+        public int? MedicalReportId { get; set; } // Optional report to attach
     }
 
     public class AppointmentResponseDto
@@ -23,6 +24,9 @@ namespace backend.DTOs
         public string DoctorNotes { get; set; } = string.Empty;
         public string AppointmentType { get; set; } = string.Empty;
         public string CancellationReason { get; set; } = string.Empty;
+        public DateTime CreatedAt { get; set; }
+        public int Duration { get; set; }
+        public bool HasDoctorReport { get; set; }
 
         public string PatientReportUrl { get; set; } = string.Empty;
     }
