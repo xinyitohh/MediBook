@@ -11,6 +11,7 @@ import {
   confirmAppointment,
   completeAppointment,
 } from "../services";
+import CancelConfirmationModal from "../components/CancelConfirmationModal";
 
 const STATUS_FILTERS = ["All", "Pending", "Confirmed", "Completed", "Cancelled"];
 
@@ -34,6 +35,10 @@ export default function ManageAppointments() {
   const [filter, setFilter]             = useState("All");
   const [search, setSearch]             = useState("");
   const [sort, setSort]                 = useState("date-desc");
+
+  // Cancellation Modal
+  const [cancellingId, setCancellingId] = useState(null);
+  const [isCancelling, setIsCancelling] = useState(false);
 
   useEffect(() => { fetchAll(); }, []);
 
@@ -64,14 +69,16 @@ export default function ManageAppointments() {
     } catch (err) { alert(err.response?.data?.message || "Failed to complete."); }
   }
 
-  async function handleCancel(id) {
-    if (!window.confirm("Cancel this appointment?")) return;
+  async function handleCancel(id, reason) {
+    setIsCancelling(true);
     try {
-      await cancelAppointment(id);
+      await cancelAppointment(id, reason);
       setAppointments((prev) =>
         prev.map((a) => (a.id === id ? { ...a, status: "Cancelled" } : a))
       );
+      setCancellingId(null);
     } catch (err) { alert(err.response?.data?.message || "Failed to cancel."); }
+    finally { setIsCancelling(false); }
   }
 
   /* ── Derived stats ── */
@@ -188,13 +195,21 @@ export default function ManageAppointments() {
                   appt={appt}
                   onConfirm={handleConfirm}
                   onComplete={handleComplete}
-                  onCancel={handleCancel}
+                  onCancel={(id) => setCancellingId(id)}
                 />
               ))}
             </tbody>
           </table>
         </div>
       )}
+
+      {/* Cancellation Modal */}
+      <CancelConfirmationModal
+        isOpen={!!cancellingId}
+        onClose={() => setCancellingId(null)}
+        loading={isCancelling}
+        onConfirm={(reason) => handleCancel(cancellingId, reason)}
+      />
     </div>
   );
 }
