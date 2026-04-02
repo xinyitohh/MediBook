@@ -51,15 +51,6 @@ namespace backend.Controllers
                 return BadRequest(new { message = "Invalid file type. Only PDF, JPG, and PNG files are allowed." });
             }
 
-            // Check if the patient has ALREADY uploaded a file
-            var existingReport = await _context.MedicalReports.FirstOrDefaultAsync(mr => mr.PatientId == CurrentProfileId && mr.UploadedByRole == "Patient");
-
-            if (existingReport != null)
-            {
-                // Block the upload and tell the frontend exactly why
-                return BadRequest(new { message = "You have already uploaded a medical report. Please delete your existing file before uploading a new one." });
-            }
-
             // patient Verification
             var patientExists = await _context.Patients.AnyAsync(p => p.Id == CurrentProfileId);
             if (!patientExists)

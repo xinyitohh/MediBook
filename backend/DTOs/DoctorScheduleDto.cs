@@ -1,4 +1,4 @@
-﻿namespace backend.DTOs
+namespace backend.DTOs
 {
     // Response — what the frontend receives
     public class DoctorScheduleDto
@@ -9,6 +9,8 @@
         public string DayName { get; set; } = string.Empty;  // "Monday", "Tuesday", etc.
         public string StartTime { get; set; } = string.Empty;
         public string EndTime { get; set; } = string.Empty;
+        public string? BreakStart { get; set; }
+        public string? BreakEnd { get; set; }
         public int SlotDurationMinutes { get; set; }
         public bool IsActive { get; set; }
     }
@@ -19,6 +21,8 @@
         public int DayOfWeek { get; set; }
         public string StartTime { get; set; } = "09:00";
         public string EndTime { get; set; } = "17:00";
+        public string? BreakStart { get; set; }
+        public string? BreakEnd { get; set; }
         public int SlotDurationMinutes { get; set; } = 30;
         public bool IsActive { get; set; } = true;
     }
@@ -41,5 +45,10 @@
         public string DayName { get; set; } = string.Empty;
         public List<string> AvailableSlots { get; set; } = new();
         public List<string> BookedSlots { get; set; } = new();
+    }
+
+    public class UpdateScheduleDto
+    {
+        public List<CreateDoctorScheduleDto> Schedules { get; set; } = new();
     }
 }

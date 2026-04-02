@@ -55,6 +55,22 @@ namespace backend.Controllers
             return Ok(new { message = "Report deleted" });
         }
 
+        // GET api/medical-report/by-appointment/{appointmentId}
+        [HttpGet("by-appointment/{appointmentId}")]
+        public async Task<IActionResult> GetByAppointment(int appointmentId)
+        {
+            var report = await _context.MedicalReports
+                .Where(r => r.AppointmentId == appointmentId && r.UploadedByRole == "Doctor")
+                .OrderByDescending(r => r.UploadedAt)
+                .ProjectTo<MedicalReportResponseDto>(_mapper.ConfigurationProvider)
+                .FirstOrDefaultAsync();
+
+            if (report == null)
+                return NotFound(new { message = "No doctor report found for this appointment" });
+
+            return Ok(report);
+        }
+
         // POST api/medical-report/generate/{appointmentId}
         [HttpPost("generate/{appointmentId}")]
         [Authorize(Roles = "Doctor,Admin")]

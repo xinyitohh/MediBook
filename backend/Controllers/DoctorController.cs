@@ -76,11 +76,40 @@ namespace backend.Controllers
             return Ok(_mapper.Map<DoctorDto>(doctor));
         }
 
+        // GET api/doctor/5/schedule - public, get a doctor's weekly configuration
+        [HttpGet("{id}/schedule")]
+        public async Task<IActionResult> GetDoctorSchedule(int id)
+        {
+            var schedules = await _context.DoctorSchedules
+                .Where(s => s.DoctorId == id)
+                .Select(s => new DoctorScheduleDto
+                {
+                    DayOfWeek = s.DayOfWeek,
+                    StartTime = s.StartTime,
+                    EndTime = s.EndTime,
+                    BreakStart = s.BreakStart,
+                    BreakEnd = s.BreakEnd,
+                    SlotDurationMinutes = s.SlotDurationMinutes,
+                    IsActive = s.IsActive
+                })
+                .ToListAsync();
+
+            return Ok(schedules);
+        }
+
         // GET api/doctor/5/slots
         [HttpGet("{id}/slots")]
         public async Task<IActionResult> GetAvailableSlots(int id, [FromQuery] string date)
         {
             var parsedDate = DateTime.Parse(date);
+
+            // Check if doctor is on leave on this date
+            var doctor = await _context.Doctors.FirstOrDefaultAsync(d => d.Id == id);
+            if (doctor != null && doctor.LeaveDates != null && doctor.LeaveDates.Any(ld => ld.Date == parsedDate.Date))
+            {
+                return Ok(new List<string>());
+            }
+
             var dayOfWeek = (int)parsedDate.DayOfWeek;
 
             var schedule = await _context.DoctorSchedules
@@ -129,6 +158,21 @@ namespace backend.Controllers
             return Ok(available);
         }
 
+        // GET api/doctor/profile - doctor views their own profile
+        [HttpGet("profile")]
+        [Authorize(Roles = "Doctor")]
+        public async Task<IActionResult> GetProfile()
+        {
+            var doctor = await _context.Doctors
+                .Include(d => d.Specialty)
+                .FirstOrDefaultAsync(d => d.Id == CurrentProfileId);
+
+            if (doctor == null)
+                return NotFound(new { message = "Doctor profile not found" });
+
+            return Ok(_mapper.Map<DoctorDto>(doctor));
+        }
+
         // PUT api/doctor/profile - doctor updates own profile
         [HttpPut("profile")]
         [Authorize(Roles = "Doctor")]
@@ -161,6 +205,61 @@ namespace backend.Controllers
             await _context.SaveChangesAsync();
 
             return Ok(new { message = "Availability updated" });
+        }
+
+        // GET api/doctor/schedule
+        [HttpGet("schedule")]
+        [Authorize(Roles = "Doctor")]
+        public async Task<IActionResult> GetSchedule()
+        {
+            var schedules = await _context.DoctorSchedules
+                .Where(s => s.DoctorId == CurrentProfileId)
+                .Select(s => new DoctorScheduleDto
+                {
+                    DayOfWeek = s.DayOfWeek,
+                    StartTime = s.StartTime,
+                    EndTime = s.EndTime,
+                    BreakStart = s.BreakStart,
+                    BreakEnd = s.BreakEnd,
+                    SlotDurationMinutes = s.SlotDurationMinutes,
+                    IsActive = s.IsActive
+                })
+                .ToListAsync();
+
+            return Ok(schedules);
+        }
+
+        // PUT api/doctor/schedule
+        [HttpPut("schedule")]
+        [Authorize(Roles = "Doctor")]
+        public async Task<IActionResult> UpdateSchedule([FromBody] UpdateScheduleDto dto)
+        {
+            var doctorId = CurrentProfileId;
+            
+            // Delete existing schedules and replace with new bulk data
+            var existingSchedules = await _context.DoctorSchedules
+                .Where(s => s.DoctorId == doctorId)
+                .ToListAsync();
+            
+            _context.DoctorSchedules.RemoveRange(existingSchedules);
+
+            foreach (var s in dto.Schedules)
+            {
+                _context.DoctorSchedules.Add(new DoctorSchedule
+                {
+                    DoctorId = doctorId,
+                    DayOfWeek = s.DayOfWeek,
+                    StartTime = s.StartTime,
+                    EndTime = s.EndTime,
+                    BreakStart = string.IsNullOrEmpty(s.BreakStart) ? null : s.BreakStart,
+                    BreakEnd = string.IsNullOrEmpty(s.BreakEnd) ? null : s.BreakEnd,
+                    SlotDurationMinutes = s.SlotDurationMinutes,
+                    IsActive = s.IsActive
+                });
+            }
+
+            await _context.SaveChangesAsync();
+            return Ok(new { message = "Schedule updated successfully" });
         }
 
         // POST api/doctor/admin-register - Admin creates a doctor account and sends set-password link

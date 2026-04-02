@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Star, ArrowLeft, CheckCircle, MessageSquare } from "lucide-react";
+import { Star, ArrowLeft, CheckCircle, MessageSquare, UploadCloud, File, X } from "lucide-react";
 import { getDoctorById, getAvailableSlots, getDoctorReviews } from "../services";
+import { getPublicDoctorSchedule } from "../services/doctorService";
 import { bookAppointment } from "../services/appointmentService";
+import api from "../services/api";
 import DatePicker from "../components/DatePicker";
 
 export default function DoctorDetail() {
@@ -18,6 +20,12 @@ export default function DoctorDetail() {
     const [success, setSuccess] = useState(false);
     const [error, setError] = useState("");
     const [reviews, setReviews] = useState([]);
+    const [schedule, setSchedule] = useState([]);
+
+    // Drag and Drop State
+    const [reportFile, setReportFile] = useState(null);
+    const [isDragging, setIsDragging] = useState(false);
+    const [uploadingReport, setUploadingReport] = useState(false);
 
     useEffect(() => {
         getDoctorById(id)
@@ -26,6 +34,9 @@ export default function DoctorDetail() {
             .finally(() => setLoading(false));
         getDoctorReviews(id)
             .then((res) => setReviews(res.data ?? []))
+            .catch(() => { });
+        getPublicDoctorSchedule(id)
+            .then((res) => setSchedule(res.data || []))
             .catch(() => { });
     }, [id]);
 
@@ -40,12 +51,36 @@ export default function DoctorDetail() {
         if (!selectedDate || !selectedSlot) return;
         setBooking(true);
         setError("");
+        
         try {
+            let reportId = null;
+            // Optional file upload
+            if (reportFile) {
+                setUploadingReport(true);
+                const formData = new FormData();
+                formData.append("file", reportFile);
+                formData.append("description", "Uploaded during appointment booking");
+                
+                try {
+                    const uploadRes = await api.post("/api/upload/medical-report", formData, {
+                        headers: { "Content-Type": "multipart/form-data" }
+                    });
+                    reportId = uploadRes.data.id;
+                } catch (uploadErr) {
+                    setError(uploadErr.response?.data?.message || "Medical report upload failed.");
+                    setUploadingReport(false);
+                    setBooking(false);
+                    return; // Stop booking if upload strictly fails
+                }
+                setUploadingReport(false);
+            }
+
             await bookAppointment({
                 doctorId: parseInt(id),
                 appointmentDate: selectedDate,
                 timeSlot: selectedSlot,
                 notes,
+                medicalReportId: reportId
             });
             setSuccess(true);
         } catch (err) {
@@ -53,6 +88,42 @@ export default function DoctorDetail() {
         } finally {
             setBooking(false);
         }
+    };
+
+    const handleDragOver = (e) => {
+        e.preventDefault();
+        setIsDragging(true);
+    };
+
+    const handleDragLeave = () => {
+        setIsDragging(false);
+    };
+
+    const handleDrop = (e) => {
+        e.preventDefault();
+        setIsDragging(false);
+        if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            setReportFile(e.dataTransfer.files[0]);
+        }
+    };
+
+    const isAvailableDay = (date) => {
+        // 1. Check if date is among doctor's specific leave dates
+        if (doctor?.leaveDates && doctor.leaveDates.length > 0) {
+            const isLeaveDay = doctor.leaveDates.some(ld => {
+                const leaveDate = new Date(ld);
+                return leaveDate.getFullYear() === date.getFullYear() &&
+                       leaveDate.getMonth() === date.getMonth() &&
+                       leaveDate.getDate() === date.getDate();
+            });
+            if (isLeaveDay) return false;
+        }
+
+        // 2. Check regular weekly schedule
+        if (!schedule || schedule.length === 0) return true; // allow all if no schedule is set yet
+        const dayOfWeek = date.getDay(); // 0 is Sunday
+        const config = schedule.find(s => s.dayOfWeek === dayOfWeek);
+        return config ? config.isActive : false;
     };
 
     // 🔹 Format time (SAFE VERSION)
@@ -194,6 +265,7 @@ export default function DoctorDetail() {
                                     setSelectedDate(val);
                                     setSelectedSlot("");
                                 }}
+                                filterDate={isAvailableDay}
                             />
                         </div>
 
@@ -224,9 +296,59 @@ export default function DoctorDetail() {
                             </div>
                         )}
 
+                        {/* Medical Report Upload */}
+                        <div className="mb-5">
+                            <label className="input-label">Upload Medical Report (Optional)</label>
+                            
+                            {!reportFile ? (
+                                <div 
+                                    onDragOver={handleDragOver}
+                                    onDragLeave={handleDragLeave}
+                                    onDrop={handleDrop}
+                                    className={`border-2 border-dashed rounded-xl p-6 text-center transition-all ${isDragging ? "border-brand-500 bg-brand-50" : "border-gray-200 bg-gray-50/50 hover:bg-gray-50 hover:border-gray-300"}`}
+                                >
+                                    <UploadCloud size={32} className={`mx-auto mb-3 ${isDragging ? "text-brand-500" : "text-gray-400"}`} />
+                                    <p className="text-sm font-semibold text-gray-700 mb-1">Drag and drop your report here</p>
+                                    <p className="text-xs text-gray-500 mb-4">Support PDF, JPG, PNG (Max 10MB)</p>
+                                    
+                                    <label className="btn-outline cursor-pointer bg-white mx-auto inline-flex text-xs py-2 px-4">
+                                        Browse Files
+                                        <input 
+                                            type="file" 
+                                            className="hidden" 
+                                            accept=".pdf,.jpg,.jpeg,.png"
+                                            onChange={(e) => {
+                                                if (e.target.files && e.target.files.length > 0) {
+                                                    setReportFile(e.target.files[0]);
+                                                }
+                                            }}
+                                        />
+                                    </label>
+                                </div>
+                            ) : (
+                                <div className="flex items-center justify-between p-4 rounded-xl border border-brand-100 bg-brand-50/50">
+                                    <div className="flex items-center gap-3 overflow-hidden">
+                                        <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center shrink-0 shadow-sm">
+                                            <File size={20} className="text-brand-500" />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-semibold text-gray-800 truncate">{reportFile.name}</p>
+                                            <p className="text-xs text-gray-500">{(reportFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                                        </div>
+                                    </div>
+                                    <button 
+                                        onClick={() => setReportFile(null)}
+                                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                    >
+                                        <X size={16} />
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+
                         {/* Notes */}
                         <div className="mb-6">
-                            <label className="input-label">Notes (optional)</label>
+                            <label className="input-label">Purpose of Visit (Optional)</label>
                             <textarea
                                 value={notes}
                                 onChange={(e) => setNotes(e.target.value)}
@@ -239,10 +361,10 @@ export default function DoctorDetail() {
                         {/* Confirm button */}
                         <button
                             onClick={handleBook}
-                            disabled={!selectedDate || !selectedSlot || booking}
+                            disabled={!selectedDate || !selectedSlot || booking || uploadingReport}
                             className="btn-primary w-full py-3 text-[15px] disabled:opacity-40 disabled:cursor-not-allowed"
                         >
-                            {booking ? "Booking..." : "Confirm Appointment"}
+                            {uploadingReport ? "Uploading Report..." : booking ? "Booking..." : "Confirm Appointment"}
                         </button>
                     </div>
                 </div>

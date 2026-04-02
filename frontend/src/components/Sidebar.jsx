@@ -23,15 +23,15 @@ const menuConfig = {
     { to: "/",              label: "Home",             icon: Home },
     { to: "/doctors",       label: "Find Doctors",     icon: Stethoscope },
     { to: "/appointments",  label: "My Appointments",  icon: Calendar },
-    { to: "/medical-reports", label: "Medical Reports", icon: FileText },
     { to: "/notifications", label: "Notifications",    icon: Bell },
     { to: "/profile",       label: "My Profile",       icon: User },
   ],
   Doctor: [
     { to: "/",              label: "Dashboard",        icon: Home },
     { to: "/appointments",  label: "My Schedule",      icon: Calendar },
+    { to: "/doctor-availability", label: "Availability Setup", icon: Settings },
     { to: "/notifications", label: "Notifications",    icon: Bell },
-    { to: "/profile",       label: "My Profile",       icon: User },
+    { to: "/doctor-profile",       label: "My Profile",       icon: User },
   ],
   Admin: [
     { to: "/admin",         label: "Dashboard",        icon: Activity },
