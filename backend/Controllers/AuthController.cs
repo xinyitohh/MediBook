@@ -1,16 +1,18 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using Amazon.SimpleNotificationService;
+using Amazon.SimpleNotificationService.Model;
+using AutoMapper;
+using backend.Data;
+using backend.DTOs;
+using backend.Models;
+using backend.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using backend.DTOs;
-using backend.Models;
-using backend.Data;
-using backend.Services;
-using AutoMapper;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.EntityFrameworkCore;
 
 namespace backend.Controllers
 {
@@ -18,6 +20,9 @@ namespace backend.Controllers
     [ApiController]
     public class AuthController : ControllerBase
     {
+        // For Notification service
+        private readonly IAmazonSimpleNotificationService _snsClient;
+
         private readonly UserManager<User> _userManager;
         private readonly IConfiguration _configuration;
         private readonly AppDbContext _context;
@@ -29,13 +34,17 @@ namespace backend.Controllers
             IConfiguration configuration,
             AppDbContext context,
             IMapper mapper,
-            OtpService otpService)
+            OtpService otpService,
+            IAmazonSimpleNotificationService snsClient)
         {
             _userManager = userManager;
             _configuration = configuration;
             _context = context;
             _mapper = mapper;
             _otpService = otpService;
+
+            // For notification service
+            _snsClient = snsClient;
         }
 
         public class SetNewPasswordDto
@@ -44,9 +53,8 @@ namespace backend.Controllers
             public string Token { get; set; } = string.Empty; // Base64Url encoded
             public string NewPassword { get; set; } = string.Empty;
         }
-
         // ════════════════════════════════════════════════════
-        //  REGISTER — Creates account + Patient Profile + OTP
+        //  REGISTER — Creates account + Patient Profile + OTP + SNS
         // ════════════════════════════════════════════════════
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterDto dto)
@@ -82,10 +90,44 @@ namespace backend.Controllers
                 // Generate and send OTP via Email
                 await _otpService.GenerateAndSendOtp(dto.Email, "EmailVerification");
 
+                // Commit the database changes
                 await transaction.CommitAsync();
+
+                // ==========================================
+                // NEW: AWS SNS Auto-Subscribe WITH FILTER POLICY
+                // ==========================================
+                try
+                {
+                    var topicArn = _configuration["AWS:SnsTopicArn"];
+
+                    // Create the filter policy (JSON format required by AWS)
+                    string filterPolicyJson = $"{{\"email\": [\"{dto.Email.ToLower()}\"]}}";
+
+                    var subscribeRequest = new SubscribeRequest
+                    {
+                        TopicArn = topicArn,
+                        Protocol = "email",
+                        Endpoint = dto.Email,
+                        // THE FIX: We have to actually create the dictionary before adding to it!
+                        Attributes = new Dictionary<string, string>
+                        {
+                            { "FilterPolicy", filterPolicyJson }
+                        }
+                    };
+
+                    await _snsClient.SubscribeAsync(subscribeRequest);
+                    Console.WriteLine($"Successfully sent filtered SNS subscription to {dto.Email}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"AWS SNS Error: {ex.Message}");
+                }
+                // ==========================================
+
+                // Finally, return ONE success response to the frontend
                 return Ok(new
                 {
-                    message = "Registration successful. Please verify your email with the OTP sent.",
+                    message = "Registration successful. Please verify your email with the OTP sent, and confirm the AWS subscription.",
                     email = dto.Email,
                     requiresVerification = true
                 });
