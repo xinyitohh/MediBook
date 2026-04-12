@@ -91,14 +91,16 @@ export default function AppointmentRow({ appointment, onCancel, onConfirm, onCom
                 {isPatient && patientReportUrl && (
                     <div className="flex items-center gap-3 text-sm mt-2 pt-3 border-t border-gray-200/50">
                         <Paperclip size={16} className="text-gray-400 shrink-0" />
-                        <a 
-                            href={`http://localhost:5082${patientReportUrl}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
+                        <button
+                            onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                if (onViewReport) onViewReport(); 
+                            }}
                             className="text-brand-600 font-semibold hover:underline flex items-center gap-1.5"
                         >
-                            View Attachment <ExternalLink size={13} />
-                        </a>
+                            View Attachment <Eye size={13} />
+                        </button>
                     </div>
                 )}
 

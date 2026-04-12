@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Plus, X, Search, Calendar as CalIcon, FileText, Eye } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { getMyAppointments, cancelAppointment, confirmAppointment, completeAppointment, doctorCancelAppointment } from "../services";
+import { getMyAppointments, cancelAppointment, confirmAppointment, completeAppointment, doctorCancelAppointment, getSecurePatientReportUrl } from "../services";
 import { mockAppointments, isDev, isDevToken } from "../dev/mockData";
 import PageHeader from "../components/PageHeader";
 import FilterTabs from "../components/FilterTabs";
@@ -190,10 +190,17 @@ export default function Appointments() {
                             onComplete={handleComplete}
                             onReview={setReviewTarget}
                             onViewDoctorReport={handleViewDoctorReport}
-                            onViewReport={() => {
+                            onViewReport={async () => {
                                 if (appt.patientReportUrl) {
-                                    setViewingReportUrl(appt.patientReportUrl);
-                                    setViewingReportName("Patient's Report"); 
+                                    try {
+                                        const res = await getSecurePatientReportUrl(appt.id);
+
+                                        setViewingReportUrl(res.data.secureUrl);
+                                        setViewingReportName("Patient's Report");
+                                    } catch (err) {
+                                        console.error(err);
+                                        alert("Could not load the secure file from AWS.");
+                                    }
                                 } else {
                                     alert("No report has been uploaded for this appointment yet.");
                                 }
@@ -233,13 +240,13 @@ export default function Appointments() {
                         <div className="flex-1 bg-gray-100 p-4 relative">
                             {viewingReportUrl.includes(".pdf") ? (
                                 <iframe
-                                    src={`http://localhost:5082${viewingReportUrl}`}
+                                    src={viewingReportUrl}
                                     className="w-full h-full rounded-lg border-0 bg-white shadow-sm"
                                     title="PDF Viewer"
                                 />
                             ) : (
                                 <img
-                                    src={`http://localhost:5082${viewingReportUrl}`}
+                                    src={viewingReportUrl}
                                     alt="Medical Report"
                                     className="w-full h-full object-contain rounded-lg"
                                 />

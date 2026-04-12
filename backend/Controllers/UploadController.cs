@@ -5,6 +5,9 @@ using backend.Data;
 using backend.DTOs;
 using backend.Models;
 using AutoMapper;
+using Amazon.S3;
+using Amazon.S3.Model;
+using Microsoft.Extensions.Configuration;
 
 namespace backend.Controllers
 {
@@ -16,12 +19,23 @@ namespace backend.Controllers
         private readonly AppDbContext _context;
         private readonly IWebHostEnvironment _env;
         private readonly IMapper _mapper;
+        private readonly IConfiguration _config;
+        private readonly IAmazonS3 _s3Client;
 
-        public UploadController(AppDbContext context, IWebHostEnvironment env, IMapper mapper)
+        public UploadController(AppDbContext context, IWebHostEnvironment env, IMapper mapper, IConfiguration config)
         {
             _context = context;
             _env = env;
             _mapper = mapper;
+            _config = config;
+
+            var awsOptions = _config.GetSection("AWS");
+            _s3Client = new AmazonS3Client(
+                awsOptions["AccessKey"],
+                awsOptions["SecretKey"],
+                awsOptions["SessionToken"],
+                Amazon.RegionEndpoint.USEast1
+            );
         }
 
         // POST api/upload/medical-report - upload a medical report file
@@ -57,16 +71,29 @@ namespace backend.Controllers
                 return BadRequest(new { message = "Patient profile not found" });
 
             // Save to local uploads folder
-            var uploadsDir = Path.Combine(_env.ContentRootPath, "Uploads", "reports");
-            Directory.CreateDirectory(uploadsDir);
+            //var uploadsDir = Path.Combine(_env.ContentRootPath, "Uploads", "reports");
+            //Directory.CreateDirectory(uploadsDir);
 
-            var uniqueName = $"{Guid.NewGuid()}_{file.FileName}";
-            var filePath = Path.Combine(uploadsDir, uniqueName);
+            //var uniqueName = $"{Guid.NewGuid()}_{file.FileName}";
+            //var filePath = Path.Combine(uploadsDir, uniqueName);
 
-            using (var stream = new FileStream(filePath, FileMode.Create))
+            //using (var stream = new FileStream(filePath, FileMode.Create))
+            //{
+            //    await file.CopyToAsync(stream);
+            //}
+
+            var bucketName = _config["AWS:BucketName"];
+            var uniqueName = $"reports/{Guid.NewGuid()}_{file.FileName}";
+
+            var putRequest = new PutObjectRequest
             {
-                await file.CopyToAsync(stream);
-            }
+                BucketName = bucketName,
+                Key = uniqueName, // This acts as the file path inside your S3 bucket
+                InputStream = file.OpenReadStream(),
+                ContentType = file.ContentType
+            };
+
+            await _s3Client.PutObjectAsync(putRequest);
 
             var report = new MedicalReport
             {
@@ -74,7 +101,7 @@ namespace backend.Controllers
                 FileName = file.FileName,
                 FileType = file.ContentType,
                 FileSize = file.Length,
-                FileUrl = $"/uploads/reports/{uniqueName}",
+                FileUrl = uniqueName,
                 Description = description,
                 UploadedByRole = "Patient"
             };
@@ -86,6 +113,29 @@ namespace backend.Controllers
             var response = _mapper.Map<MedicalReportResponseDto>(report);
 
             return Ok(response);
+        }
+
+        // GET api/upload/view-patient-report/{appointmentId}
+        [HttpGet("view-patient-report/{appointmentId}")]
+        public async Task<IActionResult> GetSecurePatientReportUrl(int appointmentId)
+        {
+            // Find the specific report uploaded by the patient for this appointment
+            var report = await _context.MedicalReports
+                .FirstOrDefaultAsync(r => r.AppointmentId == appointmentId && r.UploadedByRole == "Patient");
+
+            if (report == null)
+                return NotFound(new { message = "No patient report found for this appointment." });
+
+            var request = new GetPreSignedUrlRequest
+            {
+                BucketName = _config["AWS:BucketName"],
+                Key = report.FileUrl, // This is the uniqueName we saved during upload
+                Expires = DateTime.UtcNow.AddMinutes(5)
+            };
+
+            string temporaryUrl = _s3Client.GetPreSignedURL(request);
+          
+            return Ok(new { secureUrl = temporaryUrl, fileType = report.FileType });
         }
 
         // POST api/upload/profile-image - upload doctor profile image

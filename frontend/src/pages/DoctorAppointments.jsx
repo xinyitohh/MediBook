@@ -8,7 +8,8 @@ import {
     completeAppointment,
     doctorCancelAppointment,
     rescheduleAppointment,
-    bookAppointment
+    bookAppointment,
+    getSecurePatientReportUrl
 } from "../services";
 import api from "../services/api";
 import PageHeader from "../components/PageHeader";
@@ -274,7 +275,7 @@ export default function DoctorAppointments() {
         <div className="h-[calc(100vh-120px)] flex flex-col relative">
             <div className="flex justify-between items-center mb-6">
                 <PageHeader
-                    title="Calendar Dashboard"
+                    title="My Schedule"
                     subtitle="Drag and drop upcoming appointments to reschedule"
                 />
                 <button 
@@ -461,8 +462,16 @@ export default function DoctorAppointments() {
                             {selectedEvent.patientReportUrl && (
                                 <div>
                                     <span className="text-xs font-bold text-gray-400 uppercase tracking-wider block mb-1">Medical Report</span>
-                                    <button 
-                                        onClick={() => setViewingReportUrl(selectedEvent.patientReportUrl)}
+                                    <button
+                                        onClick={async () => {
+                                            try {
+                                                // Fetch the 5-minute VIP pass from AWS S3
+                                                const res = await getSecurePatientReportUrl(selectedEvent.id);
+                                                setViewingReportUrl(res.data.secureUrl);
+                                            } catch (err) {
+                                                console.error(err);
+                                            }
+                                        }}
                                         className="text-sm text-brand-600 font-semibold flex items-center gap-2 hover:underline"
                                     >
                                         <FileText size={16} />
@@ -542,13 +551,13 @@ export default function DoctorAppointments() {
                         <div className="flex-1 bg-gray-100 p-4 relative">
                             {viewingReportUrl.includes(".pdf") ? (
                                 <iframe
-                                    src={`http://localhost:5082${viewingReportUrl}`}
+                                    src={viewingReportUrl}
                                     className="w-full h-full rounded-lg border-0 bg-white shadow-sm"
                                     title="PDF Viewer"
                                 />
                             ) : (
                                 <img
-                                    src={`http://localhost:5082${viewingReportUrl}`}
+                                    src={viewingReportUrl}
                                     alt="Medical Report"
                                     className="w-full h-full object-contain rounded-lg"
                                 />

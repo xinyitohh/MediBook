@@ -5,6 +5,7 @@ export const getMyReports = () => api.get("/api/medical-report/my");
 export const deleteReport = (id) => api.delete(`/api/medical-report/${id}`);
 export const generateReport = (appointmentId, data) =>
   api.post(`/api/medical-report/generate/${appointmentId}`, data);
+export const getSecurePatientReportUrl = (appointmentId) => api.get(`/api/upload/view-patient-report/${appointmentId}`);
 
 // --- FILE UPLOADS (FORMDATA) ---
 export const uploadMedicalReport = (file, description = "", onProgressCallback) => {

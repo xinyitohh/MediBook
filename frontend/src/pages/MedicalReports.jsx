@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { FileText, Eye, Trash2, Download } from "lucide-react";
-import { getMyReports, deleteReport, uploadMedicalReport, getMyAppointments } from "../services";
+import { getMyReports, deleteReport, uploadMedicalReport, getMyAppointments} from "../services";
 import { mockReports, isDev, isDevToken } from "../dev/mockData";
 import { generateStyledPDF } from "../utils/generateStyledPDF";
 import PageHeader from "../components/PageHeader";
