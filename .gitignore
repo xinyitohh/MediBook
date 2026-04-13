@@ -463,3 +463,11 @@ appsettings.Production.json
 # Ignore environment secret files
 .env.production
 *.env.production
+
+# Terraform
+infra/terraform/.terraform/
+infra/terraform/*.tfstate
+infra/terraform/*.tfstate.backup
+infra/terraform/*.tfvars
+
+frontend/.claude/
