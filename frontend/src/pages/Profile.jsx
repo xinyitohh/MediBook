@@ -5,7 +5,9 @@ import PageHeader from "../components/PageHeader";
 import {
     getPatientProfile,
     updatePatientProfile,
-} from "../services/patientService";
+    uploadProfileImage,
+    getImageUrl
+} from "../services";
 
 /* ─── tiny helpers ──────────────────────────────────────────────── */
 function Field({ label, value, fieldKey, editMode, onChange, type = "text", colSpan }) {
@@ -54,6 +56,8 @@ export default function Profile() {
     const [success, setSuccess] = useState(false);
     const [editMode, setEditMode] = useState(false);
     const [activeTab, setActiveTab] = useState("general");
+    const [avatarUrl, setAvatarUrl] = useState(null);
+    const [isUploading, setIsUploading] = useState(false);
 
     const [form, setForm] = useState({
         fullName: user?.fullName || "",
@@ -83,6 +87,7 @@ export default function Profile() {
                         dateOfBirth: response.data.dateOfBirth || "",
                         gender: response.data.gender || "",
                         address: response.data.address || "",
+                        profileImageUrl: response.data.profileImageUrl || "",
                         bloodType: response.data.bloodType || "",
                         allergies: response.data.allergies || "",
                         chronicConditions: response.data.chronicConditions || "",
@@ -91,6 +96,12 @@ export default function Profile() {
                     };
                     setForm(loaded);
                     setSavedForm(loaded);
+
+                    if (loaded.profileImageUrl) {
+                        getImageUrl(loaded.profileImageUrl)
+                            .then(res => setAvatarUrl(res.data.imageUrl))
+                            .catch(err => console.error("Failed to load avatar", err));
+                    }
                 }
             } catch {
                 console.log("No profile found.");
@@ -130,6 +141,27 @@ export default function Profile() {
     const handleCancel = () => {
         setForm(savedForm);
         setEditMode(false);
+    };
+
+    const handleImageUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) {
+            return;
+        } 
+
+        setIsUploading(true);
+        try {
+            const res = await uploadProfileImage(file);
+
+            const urlRes = await getImageUrl(res.data.fileKey);
+            setAvatarUrl(urlRes.data.imageUrl);
+
+            alert("Profile picture updated!");
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setIsUploading(false);
+        }
     };
 
     const hasChanges = savedForm
@@ -198,10 +230,17 @@ export default function Profile() {
 
                 {/* ── LEFT: Avatar / contact sidebar ── */}
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex flex-col items-center text-center h-fit">
-                    {/* Avatar */}
-                    <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold text-3xl mb-4 shadow">
-                        {initials}
-                    </div>
+                    {avatarUrl ? (
+                            <img
+                                src={avatarUrl}
+                                alt="Profile"
+                                className="w-24 h-24 rounded-full object-cover mb-4 shadow border-2 border-white"
+                            />
+                        ) : (
+                            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold text-3xl mb-4 shadow">
+                                {initials}
+                            </div>
+                        )}
 
                     <h2 className="text-base font-bold text-gray-900 leading-tight">{form.fullName}</h2>
 
@@ -241,12 +280,16 @@ export default function Profile() {
                         </div>
                     </div>
 
-                    <button
-                        onClick={() => alert("Photo upload coming soon via AWS S3!")}
-                        className="mt-5 w-full text-xs py-2 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 transition"
-                    >
-                        Change Photo
-                    </button>
+                    <label className="mt-5 w-full text-center block cursor-pointer text-xs py-2 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 transition">
+                            {isUploading ? "Uploading..." : "Change Photo"}
+                            <input
+                                type="file"
+                                className="hidden"
+                                accept=".jpg,.jpeg,.png"
+                                disabled={isUploading}
+                                onChange={handleImageUpload}
+                            />
+                    </label>
                 </div>
 
                 {/* ── CENTER: Tabbed info ── */}

@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Calendar, Clock, FileText, Star, CheckCircle, CircleCheck, Eye, X, ExternalLink, Paperclip } from "lucide-react";
-import { getMyReports } from "../services";
+import { getMyReports, getImageUrl } from "../services";
 import { mockReports, isDev, isDevToken } from "../dev/mockData";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -14,7 +14,7 @@ const badgeClasses = {
 };
 
 export default function AppointmentRow({ appointment, onCancel, onConfirm, onComplete, onReview, onViewReport, onViewDoctorReport }) {
-    const { doctor, patient, specialty, date, time, status, notes, id, hasReview, hasDoctorReport, patientReportUrl } = appointment;
+    const { doctor, patient, specialty, date, time, status, notes, id, hasReview, hasDoctorReport, patientReportUrl, doctorProfileImageUrl, patientProfileImageUrl } = appointment;
     const navigate = useNavigate();
     const { user } = useAuth();
     const isDoctor = user?.role === "Doctor";
@@ -22,6 +22,22 @@ export default function AppointmentRow({ appointment, onCancel, onConfirm, onCom
 
     // Generate initials from doctor or patient name
     const displayName = isDoctor ? patient : doctor;
+    const targetImageUrl = isDoctor ? patientProfileImageUrl : doctorProfileImageUrl;
+
+    const [avatarUrl, setAvatarUrl] = useState(null);
+
+    useEffect(() => {
+        if (targetImageUrl) {
+            if (targetImageUrl.startsWith("http")) {
+                setAvatarUrl(targetImageUrl);
+            } else {
+                getImageUrl(targetImageUrl)
+                    .then((res) => setAvatarUrl(res.data.imageUrl))
+                    .catch((err) => console.error("Could not load avatar", err));
+            }
+        }
+    }, [targetImageUrl]);
+
     const initials = (displayName || "")
         .replace("Dr. ", "")
         .split(" ")
@@ -61,9 +77,17 @@ export default function AppointmentRow({ appointment, onCancel, onConfirm, onCom
 
             {/* Profile Info */}
             <div className="flex items-center gap-4 mb-5">
-                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-extrabold text-lg shrink-0 ${avatarStyle}`}>
-                    {initials}
-                </div>
+                {avatarUrl ? (
+                    <img
+                        src={avatarUrl}
+                        alt={displayName}
+                        className="w-14 h-14 rounded-2xl object-cover shrink-0 shadow-sm"
+                    />
+                ) : (
+                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center font-extrabold text-lg shrink-0 ${avatarStyle}`}>
+                        {initials}
+                    </div>
+                )}
                 <div className="flex-1 min-w-0">
                     <h4 className="text-base font-bold text-gray-900 truncate">{displayName}</h4>
                     <p className="text-sm text-gray-500 font-medium truncate">{specialty || "General"}</p>

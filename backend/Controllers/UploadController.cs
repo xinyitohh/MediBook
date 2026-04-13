@@ -129,7 +129,7 @@ namespace backend.Controllers
             var request = new GetPreSignedUrlRequest
             {
                 BucketName = _config["AWS:BucketName"],
-                Key = report.FileUrl, // This is the uniqueName we saved during upload
+                Key = report.FileUrl, 
                 Expires = DateTime.UtcNow.AddMinutes(5)
             };
 
@@ -140,34 +140,103 @@ namespace backend.Controllers
 
         // POST api/upload/profile-image - upload doctor profile image
         [HttpPost("profile-image")]
-        [Authorize(Roles = "Doctor,Admin")]
+        [Authorize]
         public async Task<IActionResult> UploadProfileImage(IFormFile file)
         {
             if (file == null || file.Length == 0)
                 return BadRequest(new { message = "No file provided" });
 
-            // Use CurrentProfileId directly for the Doctor profile update
-            var doctor = await _context.Doctors.FindAsync(CurrentProfileId);
+            var bucketName = _config["AWS:BucketName"];
+            string? oldImageUrl = null;
 
-            if (doctor == null)
-                return NotFound(new { message = "Doctor profile not found" });
-
-            // Save to local uploads folder
-            var uploadsDir = Path.Combine(_env.ContentRootPath, "Uploads", "profiles");
-            Directory.CreateDirectory(uploadsDir);
-
-            var uniqueName = $"{Guid.NewGuid()}_{file.FileName}";
-            var filePath = Path.Combine(uploadsDir, uniqueName);
-
-            using (var stream = new FileStream(filePath, FileMode.Create))
+            if (UserRole == "Doctor")
             {
-                await file.CopyToAsync(stream);
+                var doctor = await _context.Doctors.FindAsync(CurrentProfileId);
+
+                if (doctor == null) {
+                    return NotFound(new { message = "Profile not found" });
+                }
+
+                oldImageUrl = doctor.ProfileImageUrl;
+            }
+            else if (UserRole == "Patient")
+            {
+                var patient = await _context.Patients.FindAsync(CurrentProfileId);
+
+                if (patient == null)
+                {
+                    return NotFound(new { message = "Profile not found" });
+                }
+
+                oldImageUrl = patient.ProfileImageUrl;
             }
 
-            doctor.ProfileImageUrl = $"/uploads/profiles/{uniqueName}";
+            // check whether have an old image
+            if (!string.IsNullOrEmpty(oldImageUrl))
+            {
+                try
+                {
+                    var deleteRequest = new DeleteObjectRequest
+                    {
+                        BucketName = bucketName,
+                        Key = oldImageUrl // The exact path/key of the old file
+                    };
+                    await _s3Client.DeleteObjectAsync(deleteRequest);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"S3 Deletion Error: {ex.Message}");
+                }
+            }
+
+            // upload new image to S3
+            var uniqueName = $"profiles/{Guid.NewGuid()}_{file.FileName}";
+            var putRequest = new PutObjectRequest
+            {
+                BucketName = bucketName,
+                Key = uniqueName,
+                InputStream = file.OpenReadStream(),
+                ContentType = file.ContentType
+            };
+
+            await _s3Client.PutObjectAsync(putRequest);
+
+            // Save new key to db
+            if (UserRole == "Doctor")
+            {
+                var doctor = await _context.Doctors.FindAsync(CurrentProfileId);
+                if (doctor != null) {
+                    doctor.ProfileImageUrl = uniqueName;
+                }
+                
+            }
+            else if (UserRole == "Patient")
+            {
+                var patient = await _context.Patients.FindAsync(CurrentProfileId);
+                if (patient != null) {
+                    patient.ProfileImageUrl = uniqueName;
+                }
+                
+            }
+
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = "Profile image uploaded", imageUrl = doctor.ProfileImageUrl });
+            return Ok(new { message = "Profile image uploaded", fileKey = uniqueName });
+        }
+
+        [HttpGet("image")]
+        public IActionResult GetImage([FromQuery] string key)
+        {
+            if (string.IsNullOrEmpty(key)) return BadRequest();
+
+            var request = new GetPreSignedUrlRequest
+            {
+                BucketName = _config["AWS:BucketName"],
+                Key = key,
+                Expires = DateTime.UtcNow.AddMinutes(60)
+            };
+
+            return Ok(new { imageUrl = _s3Client.GetPreSignedURL(request) });
         }
     }
 }

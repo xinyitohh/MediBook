@@ -16,6 +16,7 @@
         public string? EmergencyContactPhone { get; set; }
         public DateTime CreatedAt { get; set; }
         public bool EmailConfirmed { get; set; }
+        public string? ProfileImageUrl { get; set; } = string.Empty;
     }
 
     public class UpdatePatientProfileDto

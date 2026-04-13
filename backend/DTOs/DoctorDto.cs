@@ -9,7 +9,7 @@ namespace backend.DTOs
         public string? Specialty { get; set; } // Specialty name for display
         public string Email { get; set; } = string.Empty;
         public string Phone { get; set; } = string.Empty;
-        public string ProfileImageUrl { get; set; } = string.Empty;
+        public string? ProfileImageUrl { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public bool IsAvailable { get; set; }
         public double Rating { get; set; }

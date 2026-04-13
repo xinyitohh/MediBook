@@ -5,7 +5,9 @@ import PageHeader from "../components/PageHeader";
 import {
     getDoctorProfile,
     updateDoctorProfile,
-} from "../services/doctorService";
+    uploadProfileImage,
+    getImageUrl
+} from "../services";
 import { getAllSpecialties } from "../services/specialtyService";
 
 function Section({ title, children }) {
@@ -27,6 +29,8 @@ export default function DoctorProfile() {
     const [success, setSuccess] = useState(false);
     const [editMode, setEditMode] = useState(false);
     const [specialties, setSpecialties] = useState([]);
+    const [avatarUrl, setAvatarUrl] = useState(null);
+    const [isUploading, setIsUploading] = useState(false);
 
     const [form, setForm] = useState({
         fullName: user?.fullName || "",
@@ -60,6 +64,7 @@ export default function DoctorProfile() {
                         fullName: response.data.fullName || user?.fullName || "",
                         email: response.data.email || user?.email || "",
                         phone: response.data.phone || "",
+                        profileImageUrl: response.data.profileImageUrl || "",
                         specialtyId: response.data.specialtyId || null,
                         description: response.data.description || "",
                         consultationFee: response.data.consultationFee || 0,
@@ -72,6 +77,12 @@ export default function DoctorProfile() {
 
                     setForm(loaded);
                     setSavedForm(loaded);
+
+                    if (loaded.profileImageUrl) {
+                        getImageUrl(loaded.profileImageUrl)
+                            .then(res => setAvatarUrl(res.data.imageUrl))
+                            .catch(err => console.error("Failed to load avatar", err));
+                    }
                 }
             } catch (error) {
                 console.log("Error fetching profile:", error.message);
@@ -108,6 +119,27 @@ export default function DoctorProfile() {
         }
     };
 
+    const handleImageUpload = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        setIsUploading(true);
+        try {
+            // 1. Upload to backend/AWS
+            const res = await uploadProfileImage(file);
+
+            // 2. Fetch the new secure URL to display it immediately
+            const urlRes = await getImageUrl(res.data.fileKey);
+            setAvatarUrl(urlRes.data.imageUrl);
+
+            alert("Profile picture updated!");
+        } catch (err) {
+            console.error(err);
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
     const hasChanges = savedForm
         ? Object.keys(form).some((k) => form[k] !== savedForm[k])
         : true;
@@ -129,20 +161,33 @@ export default function DoctorProfile() {
                     <div className="absolute inset-0 bg-gradient-to-br from-brand-100 to-purple-100 opacity-40"></div>
 
                     <div className="relative z-10">
-                        <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-brand-500 to-purple-600 flex items-center justify-center text-white font-extrabold text-4xl mx-auto mb-4 shadow-lg">
-                            {initials}
-                        </div>
+                        {/* Avatar Display */}
+                        {avatarUrl ? (
+                            <img
+                                src={avatarUrl}
+                                alt="Profile"
+                                className="w-24 h-24 rounded-2xl object-cover mx-auto mb-4 shadow-lg border-2 border-white"
+                            />
+                        ) : (
+                            <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-brand-500 to-purple-600 flex items-center justify-center text-white font-extrabold text-4xl mx-auto mb-4 shadow-lg">
+                                {initials}
+                            </div>
+                        )}
 
                         <h3 className="text-xl font-bold text-gray-900">{user?.fullName}</h3>
                         <p className="text-sm text-gray-500 mb-4">{user?.role} • Member since 2026</p>
 
-                        {/* Placeholder button for future AWS integration */}
-                        <button
-                            className="btn-outline w-full text-sm hover:shadow-md transition bg-white"
-                            onClick={() => alert("Photo upload coming soon via AWS S3!")}
-                        >
-                            Change Photo
-                        </button>
+                        {/* Hidden File Input replacing the old Button */}
+                        <label className="btn-outline w-full text-sm hover:shadow-md transition bg-white cursor-pointer inline-block">
+                            {isUploading ? "Uploading..." : "Change Photo"}
+                            <input
+                                type="file"
+                                className="hidden"
+                                accept=".jpg,.jpeg,.png"
+                                disabled={isUploading}
+                                onChange={handleImageUpload}
+                            />
+                        </label>
                     </div>
                 </div>
 

@@ -28,7 +28,6 @@ export const uploadMedicalReport = (file, description = "", onProgressCallback) 
     });
 };
 
-// --- DOCTOR SPECIFIC UPLOADS ---
 export const uploadProfileImage = (file) => {
   const formData = new FormData();
   formData.append("file", file);
@@ -36,3 +35,5 @@ export const uploadProfileImage = (file) => {
     headers: { "Content-Type": "multipart/form-data" },
   });
 };
+
+export const getImageUrl = (key) => api.get(`/api/upload/image?key=${encodeURIComponent(key)}`);

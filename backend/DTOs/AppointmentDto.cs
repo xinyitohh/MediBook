@@ -29,6 +29,8 @@ namespace backend.DTOs
         public bool HasDoctorReport { get; set; }
 
         public string PatientReportUrl { get; set; } = string.Empty;
+        public string? DoctorProfileImageUrl { get; set; }
+        public string? PatientProfileImageUrl { get; set; }
     }
 
     public class CompleteAppointmentDto

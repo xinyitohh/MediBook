@@ -10,7 +10,7 @@ namespace backend.Models
         public string DateOfBirth { get; set; } = string.Empty;
         public string Gender { get; set; } = string.Empty;
         public string Address { get; set; } = string.Empty;
-        public string MedicalReportUrl { get; set; } = string.Empty; // S3 URL
+        public string ProfileImageUrl { get; set; } = string.Empty; // S3 URL
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         // NEW

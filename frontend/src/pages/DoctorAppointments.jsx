@@ -9,7 +9,8 @@ import {
     doctorCancelAppointment,
     rescheduleAppointment,
     bookAppointment,
-    getSecurePatientReportUrl
+    getSecurePatientReportUrl,
+    getImageUrl
 } from "../services";
 import api from "../services/api";
 import PageHeader from "../components/PageHeader";
@@ -63,6 +64,9 @@ export default function DoctorAppointments() {
     const navigate = useNavigate();
     const { user } = useAuth(); // Assume Doctor role
 
+    // Profile Pic State
+    const [patientAvatarUrl, setPatientAvatarUrl] = useState(null);
+
     useEffect(() => {
         fetchAppointments();
     }, []);
@@ -75,6 +79,20 @@ export default function DoctorAppointments() {
                 .catch(err => console.error("Could not fetch patients.", err));
         }
     }, [isLightboxOpen]);
+
+    useEffect(() => {
+        if (selectedEvent?.patientProfileImageUrl) {
+            if (selectedEvent.patientProfileImageUrl.startsWith("http")) {
+                setPatientAvatarUrl(selectedEvent.patientProfileImageUrl);
+            } else {
+                getImageUrl(selectedEvent.patientProfileImageUrl)
+                    .then((res) => setPatientAvatarUrl(res.data.imageUrl))
+                    .catch((err) => console.error("Could not load patient image", err));
+            }
+        } else {
+            setPatientAvatarUrl(null);
+        }
+    }, [selectedEvent?.patientProfileImageUrl]);
 
     const fetchAppointments = () => {
         setLoading(true);
@@ -410,9 +428,17 @@ export default function DoctorAppointments() {
                         {/* Body */}
                         <div className="p-6 space-y-5">
                             <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center font-bold text-lg shrink-0">
-                                    {selectedEvent.patient?.[0]?.toUpperCase() || "P"}
-                                </div>
+                                {patientAvatarUrl ? (
+                                    <img
+                                        src={patientAvatarUrl}
+                                        alt={selectedEvent.patient}
+                                        className="w-12 h-12 rounded-xl object-cover shrink-0 shadow-sm"
+                                    />
+                                ) : (
+                                    <div className="w-12 h-12 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center font-bold text-lg shrink-0">
+                                        {selectedEvent.patient?.[0]?.toUpperCase() || "P"}
+                                    </div>
+                                )}
                                 <div>
                                     <h4 className="font-bold text-gray-900">{selectedEvent.patient}</h4>
                                     <p className="text-sm text-gray-500">

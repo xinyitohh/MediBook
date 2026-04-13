@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Star, ArrowLeft, CheckCircle, MessageSquare, UploadCloud, File, X } from "lucide-react";
-import { getDoctorById, getAvailableSlots, getDoctorReviews } from "../services";
+import { getDoctorById, getAvailableSlots, getDoctorReviews, getImageUrl } from "../services";
 import { getPublicDoctorSchedule } from "../services/doctorService";
 import { bookAppointment } from "../services/appointmentService";
 import api from "../services/api";
@@ -21,6 +21,7 @@ export default function DoctorDetail() {
     const [error, setError] = useState("");
     const [reviews, setReviews] = useState([]);
     const [schedule, setSchedule] = useState([]);
+    const [avatarUrl, setAvatarUrl] = useState(null);
 
     // Drag and Drop State
     const [reportFile, setReportFile] = useState(null);
@@ -46,6 +47,18 @@ export default function DoctorDetail() {
             .then((res) => setSlots(res.data))
             .catch(() => setSlots([]));
     }, [selectedDate, id]);
+
+    useEffect(() => {
+        if (doctor?.profileImageUrl) {
+            if (doctor.profileImageUrl.startsWith("http")) {
+                setAvatarUrl(doctor.profileImageUrl);
+            } else {
+                getImageUrl(doctor.profileImageUrl)
+                    .then((res) => setAvatarUrl(res.data.imageUrl))
+                    .catch((err) => console.error("Could not load doctor image", err));
+            }
+        }
+    }, [doctor?.profileImageUrl]);
 
     const handleBook = async () => {
         if (!selectedDate || !selectedSlot) return;
@@ -202,11 +215,11 @@ export default function DoctorDetail() {
                 {/* Left — Doctor profile */}
                 <div className="lg:col-span-1">
                     <div className="card-padded text-center">
-                        {doctor.profileImageUrl ? (
+                        {avatarUrl ? (
                             <img
-                                src={doctor.profileImageUrl}
+                                src={avatarUrl} 
                                 alt={doctor.fullName}
-                                className="w-24 h-24 rounded-2xl object-cover mx-auto mb-4"
+                                className="w-24 h-24 rounded-2xl object-cover mx-auto mb-4 shadow-sm"
                             />
                         ) : (
                             <div className="w-24 h-24 rounded-2xl bg-gradient-to-br from-brand-500 to-mint-500 flex items-center justify-center text-white font-extrabold text-2xl mx-auto mb-4">
