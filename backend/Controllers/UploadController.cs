@@ -32,8 +32,7 @@ namespace backend.Controllers
             var awsOptions = _config.GetSection("AWS");
             _s3Client = new AmazonS3Client(
                 awsOptions["AccessKey"],
-                awsOptions["SecretKey"],
-                awsOptions["SessionToken"],
+                awsOptions["SecretKey"],              
                 Amazon.RegionEndpoint.USEast1
             );
         }
