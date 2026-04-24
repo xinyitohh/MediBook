@@ -1,6 +1,4 @@
-﻿using Amazon.SimpleNotificationService;
-using Amazon.SimpleNotificationService.Model;
-using AutoMapper;
+﻿using AutoMapper;
 using backend.Data;
 using backend.DTOs;
 using backend.Models;
@@ -13,6 +11,9 @@ using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using Amazon.SQS;
+using Amazon.SQS.Model;
+using System.Text.Json;
 
 namespace backend.Controllers
 {
@@ -20,8 +21,7 @@ namespace backend.Controllers
     [ApiController]
     public class AuthController : ControllerBase
     {
-        // For Notification service
-        private readonly IAmazonSimpleNotificationService _snsClient;
+        private readonly IAmazonSQS _sqsClient;
 
         private readonly UserManager<User> _userManager;
         private readonly IConfiguration _configuration;
@@ -35,16 +35,14 @@ namespace backend.Controllers
             AppDbContext context,
             IMapper mapper,
             OtpService otpService,
-            IAmazonSimpleNotificationService snsClient)
+            IAmazonSQS sqsClient) 
         {
             _userManager = userManager;
             _configuration = configuration;
             _context = context;
             _mapper = mapper;
             _otpService = otpService;
-
-            // For notification service
-            _snsClient = snsClient;
+            _sqsClient = sqsClient;
         }
 
         public class SetNewPasswordDto
@@ -53,8 +51,9 @@ namespace backend.Controllers
             public string Token { get; set; } = string.Empty; // Base64Url encoded
             public string NewPassword { get; set; } = string.Empty;
         }
+
         // ════════════════════════════════════════════════════
-        //  REGISTER — Creates account + Patient Profile + OTP + SNS
+        //  REGISTER — Creates account + Patient Profile + OTP + SES Welcome
         // ════════════════════════════════════════════════════
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] RegisterDto dto)
@@ -94,40 +93,39 @@ namespace backend.Controllers
                 await transaction.CommitAsync();
 
                 // ==========================================
-                // NEW: AWS SNS Auto-Subscribe WITH FILTER POLICY
+                // NEW: Drop Welcome Email into SQS Queue
                 // ==========================================
                 try
                 {
-                    var topicArn = _configuration["AWS:SnsTopicArn"];
+                    var queueUrl = _configuration["AWS:SqsQueueUrl"];
 
-                    // Create the filter policy (JSON format required by AWS)
-                    string filterPolicyJson = $"{{\"email\": [\"{dto.Email.ToLower()}\"]}}";
-
-                    var subscribeRequest = new SubscribeRequest
+                    // Create a JSON payload that the Python Worker will understand
+                    var messagePayload = new
                     {
-                        TopicArn = topicArn,
-                        Protocol = "email",
-                        Endpoint = dto.Email,
-                        // THE FIX: We have to actually create the dictionary before adding to it!
-                        Attributes = new Dictionary<string, string>
-                        {
-                            { "FilterPolicy", filterPolicyJson }
-                        }
+                        type = "Welcome",
+                        patient_name = user.FullName,
+                        patient_email = dto.Email
                     };
 
-                    await _snsClient.SubscribeAsync(subscribeRequest);
-                    Console.WriteLine($"Successfully sent filtered SNS subscription to {dto.Email}");
+                    var sendMessageRequest = new SendMessageRequest
+                    {
+                        QueueUrl = queueUrl,
+                        MessageBody = JsonSerializer.Serialize(messagePayload)
+                    };
+
+                    await _sqsClient.SendMessageAsync(sendMessageRequest);
+                    Console.WriteLine($"Successfully dropped Welcome Email for {dto.Email} into SQS!");
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"AWS SNS Error: {ex.Message}");
+                    Console.WriteLine($"AWS SQS Error: {ex.Message}");
                 }
                 // ==========================================
 
                 // Finally, return ONE success response to the frontend
                 return Ok(new
                 {
-                    message = "Registration successful. Please verify your email with the OTP sent, and confirm the AWS subscription.",
+                    message = "Registration successful. Please verify your email with the OTP sent.",
                     email = dto.Email,
                     requiresVerification = true
                 });

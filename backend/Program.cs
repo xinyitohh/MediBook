@@ -6,13 +6,12 @@ using System.Text;
 using backend.Data;
 using backend.Models;
 using Amazon.S3;
-using Amazon.SimpleNotificationService;
 using Amazon.SQS;
 using backend.Profiles;
 using backend.Services;
 
 
-var builder = WebApplication.CreateBuilder(args);
+var builder = WebApplication.CreateBuilder(args);   
 AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 
 // ── Database ──────────────────────────────────────────────
@@ -22,7 +21,6 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     )
 );
 
-builder.Services.AddAWSService<Amazon.SimpleNotificationService.IAmazonSimpleNotificationService>();
 
 // ── AutoMapper ────────────────────────────────────────────
 builder.Services.AddAutoMapper(typeof(MappingProfile));
@@ -71,7 +69,6 @@ builder.Services.AddAuthentication(options =>
 
 // ── AWS Services ──────────────────────────────────────────
 builder.Services.AddAWSService<IAmazonS3>();
-builder.Services.AddAWSService<IAmazonSimpleNotificationService>();
 builder.Services.AddAWSService<IAmazonSQS>();
 
 // ── CORS ──────────────────────────────────────────────────
