@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using backend.Data;
 using backend.DTOs;
 using backend.Models;
@@ -189,19 +189,23 @@ namespace backend.Controllers
             if (user == null)
                 return BadRequest(new { message = "Invalid request" });
 
-            // Just check if code is valid WITHOUT marking it as used
-            // (It will be used in the reset-password step)
             var isValid = await _otpService.VerifyOtp(dto.Email, dto.Code, "PasswordReset");
             if (!isValid)
                 return BadRequest(new { message = "Invalid or expired reset code" });
 
-            // Generate a temporary single-use token for the password reset
-            var resetToken = await _userManager.GeneratePasswordResetTokenAsync(user);
+            // Generate a reset token and Base64Url-encode it
+            // (set-new-password expects this encoding format)
+            var rawToken = await _userManager.GeneratePasswordResetTokenAsync(user);
+            var tokenBytes = System.Text.Encoding.UTF8.GetBytes(rawToken);
+            var encodedToken = System.Convert.ToBase64String(tokenBytes)
+                .TrimEnd('=')
+                .Replace('+', '-')
+                .Replace('/', '_');
 
             return Ok(new
             {
                 message = "Code verified. You can now set a new password.",
-                resetToken   // Frontend sends this back in reset-password
+                resetToken = encodedToken
             });
         }
 

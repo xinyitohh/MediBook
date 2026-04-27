@@ -1,4 +1,4 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 
 namespace backend.Controllers
@@ -50,6 +50,15 @@ namespace backend.Controllers
             <a href="{link}" style="background-color: #0ea5e9; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; display: inline-block; transition: background-color 0.3s;">
                 Set Your Password
             </a>
+        </div>
+
+        <div style="background-color: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px 16px; border-radius: 6px; margin-bottom: 24px;">
+            <p style="color: #92400e; font-size: 14px; margin: 0; font-weight: 600;">
+                ⏰ This link will expire in 24 hours.
+            </p>
+            <p style="color: #92400e; font-size: 13px; margin: 4px 0 0 0;">
+                If the link has expired, please contact your clinic administrator to resend the setup email.
+            </p>
         </div>
 
         <p style="color: #6b7280; font-size: 14px; line-height: 1.5; margin-bottom: 10px;">

@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using backend.Data;
 using backend.Models;
 
@@ -8,17 +8,18 @@ namespace backend.Services
     {
         private readonly AppDbContext _context;
         private readonly ILogger<OtpService> _logger;
+        private readonly IEmailService _emailService;
 
-        public OtpService(AppDbContext context, ILogger<OtpService> logger)
+        public OtpService(AppDbContext context, ILogger<OtpService> logger, IEmailService emailService)
         {
             _context = context;
             _logger = logger;
+            _emailService = emailService;
         }
 
         /// <summary>
-        /// Generate a 6-digit OTP, save to DB, and "send" it.
-        /// For local dev: prints to console.
-        /// For AWS: replace SendOtp() with SES email.
+        /// Generate a 6-digit OTP, save to DB, and send it via the
+        /// serverless email pipeline (API Gateway → Lambda → SES).
         /// </summary>
         public async Task<string> GenerateAndSendOtp(string email, string purpose, int expiryMinutes = 10)
         {
@@ -50,11 +51,10 @@ namespace backend.Services
             await _context.SaveChangesAsync();
 
             // ══════════════════════════════════════════════
-            //  "SEND" THE OTP
-            //  LOCAL DEV  → Console log (big visible banner)
-            //  AWS LATER  → Replace with SES email send
+            //  SEND THE OTP via Serverless Email Pipeline
+            //  API Gateway → Lambda → Amazon SES
             // ══════════════════════════════════════════════
-            SendOtp(email, code, purpose);
+            await SendOtpEmailAsync(email, code, purpose);
 
             return code;
         }
@@ -84,53 +84,49 @@ namespace backend.Services
         }
 
         /// <summary>
-        /// Send OTP to user. 
-        /// LOCAL: Console log.
-        /// TODO: Replace with AWS SES when deployed.
+        /// Send OTP to user via the serverless email pipeline.
+        /// Builds a professional HTML email and delegates to IEmailService.
         /// </summary>
-        private void SendOtp(string email, string code, string purpose)
+        private async Task SendOtpEmailAsync(string email, string code, string purpose)
         {
             var purposeText = purpose == "EmailVerification"
                 ? "Email Verification"
                 : "Password Reset";
 
-            // ╔══════════════════════════════════════════════════════════╗
-            // ║  LOCAL DEV — OTP printed to console                     ║
-            // ║  Replace this method body with SES call for production  ║
-            // ╚══════════════════════════════════════════════════════════╝
+            var subject = $"MediBook — Your {purposeText} Code";
 
-            _logger.LogWarning(
-                "\n" +
-                "╔══════════════════════════════════════════════════╗\n" +
-                "║           MediBook OTP — {Purpose}              \n" +
-                "║                                                  \n" +
-                "║   Email:  {Email}                                \n" +
-                "║   Code:   {Code}                                 \n" +
-                "║   Expires: 10 minutes                            \n" +
-                "║                                                  \n" +
-                "║   (In production, this sends via AWS SES)        \n" +
-                "╚══════════════════════════════════════════════════╝\n",
-                purposeText, email, code
-            );
+            var htmlBody = $@"
+            <div style='font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px; border: 1px solid #e0e0e0; border-radius: 12px;'>
+                <h2 style='color: #1a73e8; text-align: center;'>MediBook</h2>
+                <p style='font-size: 16px; color: #333;'>Hello,</p>
+                <p style='font-size: 16px; color: #333;'>
+                    Your <strong>{purposeText}</strong> code is:
+                </p>
+                <div style='text-align: center; margin: 24px 0;'>
+                    <span style='font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #1a73e8;
+                                 background: #f0f4ff; padding: 12px 24px; border-radius: 8px; display: inline-block;'>
+                        {code}
+                    </span>
+                </div>
+                <p style='font-size: 14px; color: #666;'>
+                    This code expires in <strong>10 minutes</strong>. Do not share it with anyone.
+                </p>
+                <hr style='border: none; border-top: 1px solid #eee; margin: 24px 0;'/>
+                <p style='font-size: 12px; color: #999; text-align: center;'>
+                    If you did not request this code, please ignore this email.
+                </p>
+            </div>";
 
-            // ── AWS SES version (uncomment when deployed) ──────────
-            // var client = new AmazonSimpleEmailServiceClient();
-            // await client.SendEmailAsync(new SendEmailRequest
-            // {
-            //     Source = "noreply@medibook.com",
-            //     Destination = new Destination { ToAddresses = { email } },
-            //     Message = new Message
-            //     {
-            //         Subject = new Content($"MediBook — Your {purposeText} Code"),
-            //         Body = new Body
-            //         {
-            //             Html = new Content(
-            //                 $"<h2>Your verification code is: <b>{code}</b></h2>" +
-            //                 $"<p>This code expires in 10 minutes.</p>"
-            //             )
-            //         }
-            //     }
-            // });
+            try
+            {
+                await _emailService.SendEmailAsync(email, subject, htmlBody);
+                _logger.LogInformation("OTP email sent to {Email} for {Purpose}", email, purposeText);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send OTP email to {Email} for {Purpose}", email, purposeText);
+                // Don't throw — the OTP is still saved in the DB; the user can request a resend
+            }
         }
     }
 }

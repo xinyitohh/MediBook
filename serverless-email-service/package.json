@@ -1,0 +1,13 @@
+{
+  "name": "serverless-email-service",
+  "version": "1.0.0",
+  "description": "MediBook serverless email service — AWS Lambda + SES",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "node -e \"import('./index.js').then(m => console.log('Module loads OK'))\""
+  },
+  "dependencies": {
+    "@aws-sdk/client-ses": "^3.0.0"
+  }
+}

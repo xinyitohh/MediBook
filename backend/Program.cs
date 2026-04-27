@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -28,8 +28,8 @@ builder.Services.AddAutoMapper(typeof(MappingProfile));
 // ── Notification ───────────────────────────────────────────
 builder.Services.AddScoped<INotificationService, NotificationService>();
 
-// ── Email Service (SMTP) ───────────────────────────────────
-builder.Services.AddScoped<backend.Services.IEmailService, backend.Services.SmtpEmailService>();
+// ── Email Service (API Gateway → Lambda → SES) ────────────
+builder.Services.AddHttpClient<IEmailService, ApiGatewayEmailService>();
 
 // ── Otp ───────────────────────────────────────────-────────-
 builder.Services.AddScoped<OtpService>();
@@ -45,6 +45,12 @@ builder.Services.AddIdentity<User, IdentityRole>(options =>
 })
 .AddEntityFrameworkStores<AppDbContext>()
 .AddDefaultTokenProviders();
+
+// ── Password-reset / set-password token lifespan ──────────
+builder.Services.Configure<DataProtectionTokenProviderOptions>(options =>
+{
+    options.TokenLifespan = TimeSpan.FromHours(24);
+});
 
 // ── JWT Authentication ────────────────────────────────────
 var jwtKey = builder.Configuration["Jwt:Key"]!;

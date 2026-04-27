@@ -42,8 +42,11 @@ export default function ResetCode() {
     setLoading(true);
     setError("");
     try {
-      await verifyResetCode({ email, code });
-      navigate("/set-new-password", { state: { email, code } });
+      const res = await verifyResetCode({ email, code });
+      // The backend returns a resetToken after consuming the OTP.
+      // Pass the token (NOT the code) to the set-new-password page.
+      const resetToken = res.data.resetToken;
+      navigate("/set-new-password", { state: { email, resetToken } });
     } catch (err) {
       setError(err.response?.data?.message || "Invalid or expired code.");
     } finally {

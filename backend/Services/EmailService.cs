@@ -1,68 +1,86 @@
-using System.Net;
-using System.Net.Mail;
+using System.Net.Http.Json;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace backend.Services
 {
+    /// <summary>
+    /// Contract for sending emails. All controllers depend on this interface.
+    /// </summary>
     public interface IEmailService
     {
         Task SendEmailAsync(string toEmail, string subject, string htmlBody);
     }
 
-    public class SmtpEmailService : IEmailService
+    /// <summary>
+    /// Sends emails through the serverless pipeline:
+    ///   ASP.NET  →  HTTP POST  →  API Gateway  →  Lambda  →  SES
+    ///
+    /// Reads the API Gateway endpoint URL from configuration:
+    ///   AWS:EmailApiUrl
+    /// </summary>
+    public class ApiGatewayEmailService : IEmailService
     {
-        private readonly IConfiguration _configuration;
+        private readonly HttpClient _httpClient;
+        private readonly string _emailApiUrl;
+        private readonly ILogger<ApiGatewayEmailService> _logger;
 
-        public SmtpEmailService(IConfiguration configuration)
+        public ApiGatewayEmailService(
+            HttpClient httpClient,
+            IConfiguration configuration,
+            ILogger<ApiGatewayEmailService> logger)
         {
-            _configuration = configuration;
+            _httpClient = httpClient;
+            _logger = logger;
+
+            _emailApiUrl = configuration["AWS:EmailApiUrl"]
+                ?? throw new InvalidOperationException(
+                    "AWS:EmailApiUrl is not configured. " +
+                    "Please add it to appsettings.Development.json under the AWS section.");
         }
 
         public async Task SendEmailAsync(string toEmail, string subject, string htmlBody)
         {
-            // Support two possible config shapes: Smtp:... (older) or EmailSettings:{SmtpHost,SmtpPort,...}
-            var host = _configuration["Smtp:Host"] ?? _configuration["EmailSettings:SmtpHost"];
-            var portStr = _configuration["Smtp:Port"] ?? _configuration["EmailSettings:SmtpPort"]?.ToString();
-            var username = _configuration["Smtp:Username"] ?? _configuration["EmailSettings:SmtpUsername"];
-            var password = _configuration["Smtp:Password"] ?? _configuration["EmailSettings:SmtpPassword"];
-            var from = _configuration["Smtp:From"] ?? _configuration["EmailSettings:From"] ?? username;
-            var senderName = _configuration["EmailSettings:SenderName"] ?? string.Empty;
-
-            if (string.IsNullOrWhiteSpace(host))
+            var payload = new
             {
-                throw new InvalidOperationException("SMTP host is not configured. Please set 'Smtp:Host' or 'EmailSettings:SmtpHost' in configuration.");
-            }
-
-            var port = 25;
-            if (!string.IsNullOrWhiteSpace(portStr) && int.TryParse(portStr, out var p))
-            {
-                port = p;
-            }
-
-            var enableSslStr = _configuration["Smtp:EnableSsl"] ?? _configuration["EmailSettings:EnableSsl"]?.ToString();
-            var enableSsl = true;
-            if (!string.IsNullOrWhiteSpace(enableSslStr) && bool.TryParse(enableSslStr, out var ssl))
-            {
-                enableSsl = ssl;
-            }
-
-            using var client = new SmtpClient(host, port)
-            {
-                EnableSsl = enableSsl,
-                Credentials = new NetworkCredential(username, password)
+                toEmail,
+                subject,
+                body = htmlBody
             };
 
-            var mail = new MailMessage()
+            _logger.LogInformation(
+                "Sending email via API Gateway → Lambda → SES | To: {Email} | Subject: {Subject}",
+                toEmail, subject);
+
+            try
             {
-                From = new MailAddress(from ?? string.Empty, senderName),
-                Subject = subject,
-                Body = htmlBody,
-                IsBodyHtml = true
-            };
+                var response = await _httpClient.PostAsJsonAsync(_emailApiUrl, payload);
 
-            mail.To.Add(new MailAddress(toEmail));
+                if (response.IsSuccessStatusCode)
+                {
+                    var result = await response.Content.ReadAsStringAsync();
+                    _logger.LogInformation(
+                        "Email sent successfully to {Email}. Response: {Response}",
+                        toEmail, result);
+                }
+                else
+                {
+                    var errorBody = await response.Content.ReadAsStringAsync();
+                    _logger.LogError(
+                        "API Gateway returned {StatusCode} for email to {Email}. Body: {Body}",
+                        (int)response.StatusCode, toEmail, errorBody);
 
-            await client.SendMailAsync(mail);
+                    throw new HttpRequestException(
+                        $"Email API returned {(int)response.StatusCode}: {errorBody}");
+                }
+            }
+            catch (HttpRequestException ex)
+            {
+                _logger.LogError(ex,
+                    "Failed to send email to {Email} via API Gateway at {Url}",
+                    toEmail, _emailApiUrl);
+                throw;
+            }
         }
     }
 }
