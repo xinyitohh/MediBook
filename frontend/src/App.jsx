@@ -13,7 +13,6 @@ import ResetCode from "./pages/ResetCode";
 import SetNewPassword from "./pages/SetNewPassword";
 
 // Patient pages
-import Home from "./pages/Home";
 import Doctors from "./pages/Doctors";
 import DoctorDetail from "./pages/DoctorDetail";
 import Appointments from "./pages/Appointments";
@@ -38,6 +37,7 @@ import Notifications from "./pages/Notifications";
 
 // Components
 import ProtectedRoute from "./components/ProtectedRoute";
+import RoleHomeRedirect from "./components/RoleHomeRedirect";
 
 function App() {
   return (
@@ -62,7 +62,7 @@ function App() {
               </ProtectedRoute>
             }
           >
-            <Route path="/" element={<Home />} />
+            <Route path="/" element={<RoleHomeRedirect />} />
             <Route path="/doctors" element={<Doctors />} />
             <Route path="/doctors/:id" element={<DoctorDetail />} />
             <Route path="/appointments" element={<Appointments />} />

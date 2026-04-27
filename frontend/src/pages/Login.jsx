@@ -13,6 +13,25 @@ import {
 import { login } from "../services";
 import { useAuth } from "../context/AuthContext";
 
+function getDefaultRouteForUser(userData) {
+  const roleCandidates = [
+    userData?.role,
+    userData?.Role,
+    userData?.userRole,
+    userData?.roleName,
+    Array.isArray(userData?.roles) ? userData.roles[0] : userData?.roles,
+  ]
+    .flat()
+    .filter(Boolean)
+    .map((value) => String(value).toLowerCase());
+
+  if (roleCandidates.some((role) => role.includes("admin"))) {
+    return "/admin";
+  }
+
+  return "/";
+}
+
 export default function Login() {
   const [form, setForm] = useState({ email: "", password: "" });
   const [showPw, setShowPw] = useState(false);
@@ -39,7 +58,7 @@ export default function Login() {
       const res = await login(form);
       const { token, ...userData } = res.data;
       loginUser(userData, token);
-      navigate("/");
+      navigate(getDefaultRouteForUser(userData));
     } catch (err) {
       if (err.response?.status === 403) {
         setUnverified(true);

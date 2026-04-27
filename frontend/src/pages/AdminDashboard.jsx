@@ -1,11 +1,24 @@
-import { useState, useEffect } from "react";
-import { Users, Stethoscope, Calendar, Clock, Loader2 } from "lucide-react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import {
+  BarChart3,
+  Calendar,
+  Clock,
+  Loader2,
+  Stethoscope,
+  Users,
+} from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import PageHeader from "../components/PageHeader";
 import StatCard from "../components/StatCard";
-import { getAdminStats } from "../services"; // Import the real API service
+import { getAdminDashboardAnalytics } from "../services";
+
+const AdminDashboardCharts = lazy(() =>
+  import("../components/AdminDashboardCharts")
+);
 
 export default function AdminDashboard() {
-  const [stats, setStats] = useState(null);
+  const navigate = useNavigate();
+  const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -13,15 +26,12 @@ export default function AdminDashboard() {
     const fetchDashboardData = async () => {
       try {
         setLoading(true);
-        // 1. Call the real C# API
-        const response = await getAdminStats();
-
-        // 2. Set the data into state
-        setStats(response.data);
+        const data = await getAdminDashboardAnalytics();
+        setDashboardData(data);
         setError(null);
       } catch (err) {
         console.error("Dashboard Load Error:", err);
-        setError("Failed to load real-time system data.");
+        setError("Failed to load dashboard data.");
       } finally {
         setLoading(false);
       }
@@ -30,22 +40,25 @@ export default function AdminDashboard() {
     fetchDashboardData();
   }, []);
 
-  // Show a spinner while fetching data from your local/RDS database
-  if (loading) {
-    return (
-      <div className="flex h-96 items-center justify-center">
-        <Loader2 className="h-10 w-10 animate-spin text-brand-500" />
-      </div>
-    );
-  }
+  const stats = useMemo(() => dashboardData?.stats || {}, [dashboardData]);
+  const charts = useMemo(() => dashboardData?.charts || {}, [dashboardData]);
 
-  if (error) {
-    return (
-      <div className="p-6 text-center text-red-500 bg-red-50 rounded-lg">
-        {error}
-      </div>
-    );
-  }
+  const handleChartNavigate = (target, query = {}) => {
+    const search = new URLSearchParams(
+      Object.entries(query).filter(([, value]) =>
+        value !== null && value !== undefined && String(value).trim() !== ""
+      )
+    ).toString();
+
+    const basePath =
+      target === "doctors"
+        ? "/admin/doctors"
+        : target === "patients"
+          ? "/admin/patients"
+          : "/admin/appointments";
+
+    navigate(search ? `${basePath}?${search}` : basePath);
+  };
 
   const statCards = [
     {
@@ -78,6 +91,22 @@ export default function AdminDashboard() {
     },
   ];
 
+  if (loading) {
+    return (
+      <div className="flex h-96 items-center justify-center">
+        <Loader2 className="h-10 w-10 animate-spin text-brand-500" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 text-center text-red-500 bg-red-50 rounded-lg">
+        {error}
+      </div>
+    );
+  }
+
   return (
     <div>
       <PageHeader
@@ -92,10 +121,27 @@ export default function AdminDashboard() {
         ))}
       </div>
 
-      {/* Recent Activity - Now fetching from backend RecentActivityDto */}
+      <Suspense
+        fallback={
+          <div className="card p-6 mb-6">
+            <div className="h-80 flex items-center justify-center">
+              <Loader2 className="h-7 w-7 animate-spin text-brand-500" />
+            </div>
+          </div>
+        }
+      >
+        <AdminDashboardCharts
+          charts={charts}
+          onNavigate={handleChartNavigate}
+        />
+      </Suspense>
+
       <div className="card">
         <div className="px-6 py-4 border-b border-gray-100">
-          <h3 className="text-base font-bold text-heading">Recent Activity</h3>
+          <h3 className="text-base font-bold text-heading flex items-center gap-2">
+            <BarChart3 size={16} className="text-brand-500" />
+            Recent Activity
+          </h3>
         </div>
 
         {stats?.recentActivity?.length > 0 ? (

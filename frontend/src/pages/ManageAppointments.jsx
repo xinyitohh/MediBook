@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import FilterTabs from "../components/FilterTabs";
+import { useLocation } from "react-router-dom";
 import {
   getAllAppointments,
   cancelAppointment,
@@ -30,10 +31,21 @@ const badgeClasses = {
 };
 
 export default function ManageAppointments() {
+  const location = useLocation();
+  const query = useMemo(() => new URLSearchParams(location.search), [location.search]);
+  const initialStatus = query.get("status");
+  const initialSpecialty = query.get("specialty");
+  const initialDate = query.get("date");
+
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading]           = useState(true);
-  const [filter, setFilter]             = useState("All");
-  const [search, setSearch]             = useState("");
+  const [filter, setFilter]             = useState(
+    initialStatus && STATUS_FILTERS.includes(initialStatus)
+      ? initialStatus
+      : "All"
+  );
+  const [search, setSearch]             = useState(initialSpecialty || "");
+  const [dateFilter, setDateFilter]     = useState(initialDate || "");
   const [sort, setSort]                 = useState("date-desc");
 
   // Cancellation Modal
@@ -93,12 +105,13 @@ export default function ManageAppointments() {
   const displayed = useMemo(() => {
     let list = appointments.filter((a) => {
       const matchStatus = filter === "All" || a.status === filter;
+      const matchDate = !dateFilter || a.date === dateFilter;
       const q = search.toLowerCase();
       const matchSearch = !q ||
         a.patient?.toLowerCase().includes(q) ||
         a.doctor?.toLowerCase().includes(q) ||
         a.specialty?.toLowerCase().includes(q);
-      return matchStatus && matchSearch;
+      return matchStatus && matchSearch && matchDate;
     });
 
     const [field, dir] = sort.split("-");
@@ -115,7 +128,7 @@ export default function ManageAppointments() {
       }
       return 0;
     });
-  }, [appointments, filter, search, sort]);
+  }, [appointments, dateFilter, filter, search, sort]);
 
   return (
     <div>
@@ -136,6 +149,23 @@ export default function ManageAppointments() {
 
       {/* ── Filter tabs ── */}
       <FilterTabs tabs={STATUS_FILTERS} active={filter} onChange={setFilter} />
+
+      {(dateFilter || initialSpecialty || initialStatus) && (
+        <div className="mt-3 mb-2 flex items-center gap-2 text-xs text-gray-500">
+          <span className="font-semibold">Deep-link filters applied.</span>
+          <button
+            type="button"
+            onClick={() => {
+              setFilter("All");
+              setSearch("");
+              setDateFilter("");
+            }}
+            className="text-brand-600 hover:text-brand-700 font-semibold cursor-pointer"
+          >
+            Clear
+          </button>
+        </div>
+      )}
 
       {/* ── Toolbar ── */}
       <div className="flex flex-wrap items-center gap-3 mb-5 mt-4">
