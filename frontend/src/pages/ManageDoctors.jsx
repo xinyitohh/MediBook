@@ -214,7 +214,7 @@ export default function ManageDoctors() {
           Email: form.email.trim(),
           Phone: form.phone || "",
           SpecialtyId: specialtyId,
-          ConsultationFee: form.consultationFee ? parseFloat(form.consultationFee) : null,
+          ConsultationFee: form.consultationFee ? parseFloat(form.consultationFee) : 0,
           Description: form.description.trim() || "",
         });
   setShowModal(false);
