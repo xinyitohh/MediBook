@@ -22,6 +22,7 @@ namespace backend.Controllers
         /// </summary>
         protected static string GenerateWelcomeEmailHtml(string fullName, string link, string logoUrl)
         {
+            var safeLink = System.Net.WebUtility.HtmlEncode(link);
             return $"""
 <!DOCTYPE html>
 <html>
@@ -47,7 +48,7 @@ namespace backend.Controllers
         </p>
 
         <div style="text-align: center; margin-bottom: 30px;">
-            <a href="{link}" style="background-color: #0ea5e9; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; display: inline-block; transition: background-color 0.3s;">
+            <a href="{safeLink}" style="background-color: #0ea5e9; color: #ffffff; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; display: inline-block; transition: background-color 0.3s;">
                 Set Your Password
             </a>
         </div>

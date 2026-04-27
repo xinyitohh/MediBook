@@ -1,20 +1,23 @@
 // ═══════════════════════════════════════════════════════════════
-//  MediBook — Serverless Email Service (AWS Lambda + SES)
+//  MediBook — Serverless Email Service (AWS Lambda + Resend)
 //  Triggered via Amazon API Gateway (HTTP POST)
 //
 //  Payload:  { "toEmail": "...", "subject": "...", "body": "..." }
 //  Returns:  200 on success, 500 on error
 // ═══════════════════════════════════════════════════════════════
 
-import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
+import { Resend } from "resend";
 
-// SES client — uses the Lambda execution role credentials automatically
-const sesClient = new SESClient({ region: process.env.AWS_REGION || "us-east-1" });
-
-// ── Verified sender address (must be verified in SES) ──────────
-const SENDER_EMAIL = process.env.SENDER_EMAIL || "oscarlow2002@gmail.com";
+// ── Verified sender address ────────────────────────────────────
+// In Resend, this needs to be a verified domain (e.g. onboarding@resend.dev or your domain)
+const SENDER_EMAIL = process.env.SENDER_EMAIL || "MediBook <noreply@medibook.xinyitoh.com>";
 
 export const handler = async (event) => {
+  // Initialize Resend inside handler to ensure we always get the latest env var
+  // .trim() prevents issues if an invisible space was accidentally copied
+  const apiKey = (process.env.RESEND_API_KEY || "").trim();
+  const resend = new Resend(apiKey);
+
   console.log("Received event:", JSON.stringify(event, null, 2));
 
   // ── Parse the incoming payload ───────────────────────────────
@@ -49,32 +52,29 @@ export const handler = async (event) => {
     };
   }
 
-  // ── Build SES SendEmail command ──────────────────────────────
-  const params = {
-    Source: SENDER_EMAIL,
-    Destination: {
-      ToAddresses: [toEmail],
-    },
-    Message: {
-      Subject: {
-        Data: subject,
-        Charset: "UTF-8",
-      },
-      Body: {
-        Html: {
-          Data: body,
-          Charset: "UTF-8",
-        },
-      },
-    },
-  };
-
-  // ── Send the email via SES ───────────────────────────────────
+  // ── Send the email via Resend ────────────────────────────────
   try {
-    const command = new SendEmailCommand(params);
-    const result = await sesClient.send(command);
+    const { data, error } = await resend.emails.send({
+      from: SENDER_EMAIL,
+      to: [toEmail],
+      subject: subject,
+      html: body,
+    });
 
-    console.log("SES SendEmail success. MessageId:", result.MessageId);
+    if (error) {
+      console.error("Resend API returned an error:", error);
+      return {
+        statusCode: 500,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          success: false,
+          message: "Failed to send email via Resend",
+          error: error.message,
+        }),
+      };
+    }
+
+    console.log("Resend email success. ID:", data.id);
 
     return {
       statusCode: 200,
@@ -82,19 +82,19 @@ export const handler = async (event) => {
       body: JSON.stringify({
         success: true,
         message: "Email sent successfully",
-        messageId: result.MessageId,
+        messageId: data.id,
       }),
     };
-  } catch (sesError) {
-    console.error("SES SendEmail failed:", sesError.message);
+  } catch (err) {
+    console.error("Resend SendEmail failed:", err.message);
 
     return {
       statusCode: 500,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         success: false,
-        message: "Failed to send email via SES",
-        error: sesError.message,
+        message: "Failed to send email via Resend",
+        error: err.message,
       }),
     };
   }

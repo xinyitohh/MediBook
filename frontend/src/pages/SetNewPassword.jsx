@@ -11,8 +11,23 @@ export default function SetNewPassword() {
   // Support two flows:
   // - Admin enrollment: link contains ?email=...&token=... (token is Base64Url encoded)
   // - Forgot-password OTP flow: location.state contains { email, resetToken }
-  const email = searchParams.get("email") || location.state?.email || "";
-  const token = searchParams.get("token") || location.state?.resetToken || null;
+  //
+  // Some email clients mangle '&' into '&amp;' — if the URL contains '&amp;',
+  // react-router's useSearchParams won't parse the second param correctly.
+  // Fall back to manual parsing of window.location.href in that case.
+  let email = searchParams.get("email") || location.state?.email || "";
+  let token = searchParams.get("token") || location.state?.resetToken || null;
+
+  if (!token && typeof window !== "undefined") {
+    const raw = window.location.href;
+    // Handle &amp; that leaked from HTML emails
+    const cleaned = raw.replace(/&amp;/gi, "&");
+    try {
+      const url = new URL(cleaned);
+      if (!email) email = url.searchParams.get("email") || "";
+      token = url.searchParams.get("token") || null;
+    } catch { /* ignore parse errors */ }
+  }
 
   const [form, setForm] = useState({ password: "", confirm: "" });
   const [showPw, setShowPw] = useState(false);

@@ -8,6 +8,6 @@
     "test": "node -e \"import('./index.js').then(m => console.log('Module loads OK'))\""
   },
   "dependencies": {
-    "@aws-sdk/client-ses": "^3.0.0"
+    "resend": "^6.12.2"
   }
 }
