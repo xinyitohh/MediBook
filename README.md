@@ -40,7 +40,7 @@ Create `backend/appsettings.Development.json`. Use the same AWS region as your e
     "Audience": "MediBook"
   },
   "AWS": {
-    "Region": "<your-region>",
+    "Region": "us-east-1",
     "BucketName": "medibook-uploads",
     "SnsTopicArn": "",
     "SqsQueueUrl": "",
@@ -53,6 +53,8 @@ Create `backend/appsettings.Development.json`. Use the same AWS region as your e
   }
 }
 ```
+> Replace `us-east-1` with your actual AWS region (for example `ap-southeast-1`).  
+> `EmailApiUrl` should be the API Gateway **Invoke URL** (from the AWS Console or Terraform outputs) pointing to the `/send-email` route.
 > Do **not** commit credentials. Prefer IAM roles or AWS credential profiles; `AccessKey`/`SecretKey` are only for local development when needed.
 
 ## 🚀 Local Development
@@ -141,8 +143,120 @@ npm test
 - Terraform
 - Resend (serverless email)
 
+## ☁️ AWS Deployment (Current)
+Production is already deployed on AWS:
+- Frontend: https://medibook.xinyitoh.com (CloudFront + S3)
+- API: https://api.medibook.xinyitoh.com (CloudFront → Elastic Beanstalk)
+
+Architecture diagram source:
+```text
+Users [icon: users] {
+  Patient [icon: user]
+  Doctor [icon: user]
+  Admin [icon: shield]
+}
+
+CI/CD Pipeline [icon: git-branch, color: gray] {
+  GitHub Actions [icon: github, label: "GitHub Actions (CI/CD)"]
+  ECR [icon: aws-ecr, label: "ECR (Docker Images)"]
+}
+
+Frontend [icon: react, color: blue] {
+  Route53 [icon: aws-route-53, label: "Route 53 (DNS)"]
+  CloudFront CDN [icon: aws-cloudfront, label: "CloudFront (medibook.xinyitoh.com)"]
+  CloudFront API [icon: aws-cloudfront, label: "CloudFront (api.medibook.xinyitoh.com)"]
+  S3 Frontend [icon: aws-s3, label: "S3 (React App)"]
+  ACM [icon: aws-certificate-manager, label: "ACM (SSL Certificate)"]
+}
+
+Backend [icon: aws-elastic-beanstalk, color: green] {
+  Elastic Beanstalk [icon: aws-elastic-beanstalk, label: "Elastic Beanstalk (ASP.NET Docker)"]
+}
+
+Data Storage [icon: database] {
+  RDS PostgreSQL [icon: aws-rds]
+  S3 Uploads [icon: aws-s3, label: "S3 (Uploads)"]
+}
+
+AI Chat Service [icon: message-circle, color: purple] {
+  Chat API Gateway [icon: aws-api-gateway, label: "API Gateway"]
+  Amazon Lex [icon: aws-lex, label: "Lex (Patient Chatbot)"]
+  Booking Lambda [icon: aws-lambda, label: "Lambda (Book Appt)"]
+  Chat Lambda [icon: aws-lambda, label: "Lambda (Fallback Chat)"]
+  Bedrock Claude [icon: aws-bedrock, label: "Bedrock (Claude)"]
+}
+
+Reminder Service [icon: clock, color: orange] {
+  EventBridge [icon: aws-eventbridge, label: "EventBridge (Cron)"]
+  Reminder Lambda [icon: aws-lambda, label: "Lambda (Reminders)"]
+  SQS Queue [icon: aws-sqs, label: "SQS"]
+  Send Lambda [icon: aws-lambda, label: "Lambda (Send)"]
+}
+
+Notifications [icon: mail] {
+  Resend [icon: external-link, label: "Resend.com (Email API)"]
+}
+
+Terraform State [icon: aws-s3, color: brown] {
+  TF State Bucket [icon: aws-s3, label: "S3 (Terraform State)"]
+  TF Lock Table [icon: aws-dynamodb, label: "DynamoDB (State Lock)"]
+}
+
+Monitoring [icon: activity] {
+  CloudWatch [icon: aws-cloudwatch]
+}
+
+// CI/CD flow
+GitHub Actions > ECR: push Docker image
+GitHub Actions > S3 Frontend: deploy React build
+GitHub Actions > Elastic Beanstalk: deploy new version
+GitHub Actions > CloudFront CDN: invalidate cache
+GitHub Actions > CloudFront API: invalidate cache
+
+// ECR to EB
+ECR > Elastic Beanstalk: pull Docker image
+
+// DNS and SSL
+Route53 > CloudFront CDN
+Route53 > CloudFront API
+ACM > CloudFront CDN: SSL cert
+ACM > CloudFront API: SSL cert
+
+// User flow
+Users > Route53
+CloudFront CDN > S3 Frontend
+CloudFront API > Elastic Beanstalk
+
+// Backend connections
+Elastic Beanstalk <> RDS PostgreSQL
+Elastic Beanstalk > S3 Uploads
+Elastic Beanstalk > Resend: email OTP & notifications
+Elastic Beanstalk > Chat API Gateway
+
+// AI Chat flow
+Chat API Gateway > Amazon Lex
+Amazon Lex > Bedrock Claude: Health Q&A Intent
+Amazon Lex > Booking Lambda: Book Appt Intent
+Amazon Lex > Chat Lambda: Fallback / Complex Chat
+Booking Lambda > Elastic Beanstalk: POST /api/booking
+Chat Lambda <> Bedrock Claude: generate response
+
+// Reminder flow
+EventBridge --> Reminder Lambda: daily 8am trigger
+Reminder Lambda > SQS Queue
+SQS Queue --> Send Lambda
+Send Lambda > Resend: send reminders
+
+// Terraform state flow
+GitHub Actions <> TF State Bucket: read/write state
+GitHub Actions <> TF Lock Table: acquire/release lock
+
+// Logging and monitoring
+Elastic Beanstalk --> CloudWatch: audit logs & metrics
+```
+
 ## ❓ Common Issues
-- **API calls failing in the frontend** → ensure the backend is running on the port configured in `backend/Properties/launchSettings.json` (default `http://localhost:5082`) and the Vite proxy target matches.
+- **API calls failing in the frontend** → ensure the backend is running on the port configured in `backend/Properties/launchSettings.json` (default `http://localhost:5082`) and the Vite proxy target matches. `appsettings.Development.json` does not control the dev server port.
 - **`password authentication failed for user "postgres"`** → verify your connection string in `appsettings.Development.json`.
 - **File uploads failing** → confirm AWS credentials and `AWS:BucketName` are configured.
 - **`npm install` fails** → confirm Node.js 18+ is installed.
