@@ -53,7 +53,8 @@ Create `backend/appsettings.Development.json`:
   }
 }
 ```
-> `AccessKey` and `SecretKey` are required for local S3 uploads unless you supply credentials via another AWS credential provider.
+> Update `Region` to match where your AWS resources live (the current backend config defaults to `us-east-1`).  
+> Do **not** commit credentials. Prefer IAM roles or AWS credential profiles; `AccessKey`/`SecretKey` are only for local development when needed.
 
 ## 🚀 Local Development
 ### Backend
