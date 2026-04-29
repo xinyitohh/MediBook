@@ -28,7 +28,7 @@ MediBook/
 - Terraform (optional, for infra provisioning)
 
 ## 🔧 Configuration
-Create `backend/appsettings.Development.json`. Use the same AWS region as your existing resources (the repo's `backend/appsettings.json` defaults to `us-east-1`, but keep your current region such as `ap-southeast-1` if applicable):
+Create `backend/appsettings.Development.json`. Use the same AWS region as your existing resources (for example `us-east-1` or `ap-southeast-1`; the repo's `backend/appsettings.json` defaults to `us-east-1`):
 ```json
 {
   "ConnectionStrings": {
@@ -44,7 +44,7 @@ Create `backend/appsettings.Development.json`. Use the same AWS region as your e
     "BucketName": "medibook-uploads",
     "SnsTopicArn": "",
     "SqsQueueUrl": "",
-    "EmailApiUrl": "https://<api-gateway>/send-email",
+    "EmailApiUrl": "https://<api-gateway-id>.execute-api.<region>.amazonaws.com/send-email",
     "AccessKey": "",
     "SecretKey": ""
   },
