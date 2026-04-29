@@ -28,7 +28,7 @@ MediBook/
 - Terraform (optional, for infra provisioning)
 
 ## 🔧 Configuration
-Create `backend/appsettings.Development.json`:
+Create `backend/appsettings.Development.json`. Use the same AWS region as your existing resources (the repo's `backend/appsettings.json` defaults to `us-east-1`, but keep your current region such as `ap-southeast-1` if applicable):
 ```json
 {
   "ConnectionStrings": {
@@ -40,7 +40,7 @@ Create `backend/appsettings.Development.json`:
     "Audience": "MediBook"
   },
   "AWS": {
-    "Region": "us-east-1",
+    "Region": "<your-region>",
     "BucketName": "medibook-uploads",
     "SnsTopicArn": "",
     "SqsQueueUrl": "",
@@ -53,7 +53,6 @@ Create `backend/appsettings.Development.json`:
   }
 }
 ```
-> Update `Region` to match where your AWS resources live. The example uses `us-east-1` to match the repo's current `backend/appsettings.json`, but keep your existing region (for example `ap-southeast-1`) if that's where your infrastructure already resides—no migration is implied.  
 > Do **not** commit credentials. Prefer IAM roles or AWS credential profiles; `AccessKey`/`SecretKey` are only for local development when needed.
 
 ## 🚀 Local Development
@@ -143,7 +142,7 @@ npm test
 - Resend (serverless email)
 
 ## ❓ Common Issues
-- **API calls failing in the frontend** → ensure backend is running on `http://localhost:5082` and Vite proxy target matches.
+- **API calls failing in the frontend** → ensure the backend is running on the port configured in `backend/Properties/launchSettings.json` (default `http://localhost:5082`) and the Vite proxy target matches.
 - **`password authentication failed for user "postgres"`** → verify your connection string in `appsettings.Development.json`.
 - **File uploads failing** → confirm AWS credentials and `AWS:BucketName` are configured.
 - **`npm install` fails** → confirm Node.js 18+ is installed.
