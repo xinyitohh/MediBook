@@ -40,7 +40,7 @@ Create `backend/appsettings.Development.json`. Use the same AWS region as your e
     "Audience": "MediBook"
   },
   "AWS": {
-    "Region": "us-east-1",
+    "Region": "<your-region>",
     "BucketName": "medibook-uploads",
     "SnsTopicArn": "",
     "SqsQueueUrl": "",
@@ -53,8 +53,8 @@ Create `backend/appsettings.Development.json`. Use the same AWS region as your e
   }
 }
 ```
-> Replace `us-east-1` with your actual AWS region (for example `ap-southeast-1`).  
-> `EmailApiUrl` should be the API Gateway **Invoke URL** (from the AWS Console or Terraform outputs) pointing to the `/send-email` route.
+> Replace `<your-region>` with your actual AWS region (for example `us-east-1` or `ap-southeast-1`).  
+> `EmailApiUrl` should be the API Gateway **Invoke URL** (from the AWS Console or Terraform outputs); replace both `<api-gateway-id>` and `<region>` to match your deployment.
 > Do **not** commit credentials. Prefer IAM roles or AWS credential profiles; `AccessKey`/`SecretKey` are only for local development when needed.
 
 ## 🚀 Local Development
@@ -69,6 +69,7 @@ dotnet restore
 dotnet run
 ```
 Swagger: `http://localhost:5082/swagger`
+Port is defined in `backend/Properties/launchSettings.json` (not in `appsettings.Development.json`).
 
 ### Frontend
 ```bash
@@ -256,7 +257,7 @@ Elastic Beanstalk --> CloudWatch: audit logs & metrics
 ```
 
 ## ❓ Common Issues
-- **API calls failing in the frontend** → ensure the backend is running on the port configured in `backend/Properties/launchSettings.json` (default `http://localhost:5082`) and the Vite proxy target matches. `appsettings.Development.json` does not control the dev server port.
+- **API calls failing in the frontend** → ensure the backend is running on the port configured in `backend/Properties/launchSettings.json` (default `http://localhost:5082`) and the Vite proxy target matches.
 - **`password authentication failed for user "postgres"`** → verify your connection string in `appsettings.Development.json`.
 - **File uploads failing** → confirm AWS credentials and `AWS:BucketName` are configured.
 - **`npm install` fails** → confirm Node.js 18+ is installed.
