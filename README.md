@@ -69,7 +69,7 @@ dotnet restore
 dotnet run
 ```
 Swagger: `http://localhost:5082/swagger`
-Port is defined in `backend/Properties/launchSettings.json` (not in `appsettings.Development.json`).
+Port is defined in `backend/Properties/launchSettings.json` (the `http`/`https` profiles default to 5082; `appsettings.Development.json` does not control the dev server port).
 
 ### Frontend
 ```bash
@@ -80,7 +80,7 @@ npm run dev
 App: `http://localhost:5173`
 
 Vite proxies API calls to `http://localhost:5082` (see `frontend/vite.config.js`).
-If you change the backend port, update the proxy target or set `VITE_API_URL` in `frontend/.env`.
+For local dev, leave `VITE_API_URL` empty to use the proxy. Set `VITE_API_URL` in `frontend/.env` if you want to bypass the proxy or point to another backend host/port.
 
 ### Serverless Email Service (optional)
 ```bash
