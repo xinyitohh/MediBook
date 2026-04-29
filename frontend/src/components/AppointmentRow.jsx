@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Calendar, Clock, FileText, Star, CheckCircle, CircleCheck, Eye, X, ExternalLink, Paperclip } from "lucide-react";
-import { getMyReports, getImageUrl } from "../services";
+import { getImageUrl } from "../services";
 import { mockReports, isDev, isDevToken } from "../dev/mockData";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";

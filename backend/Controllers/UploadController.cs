@@ -41,7 +41,6 @@ namespace backend.Controllers
         [HttpPost("medical-report")]
         public async Task<IActionResult> UploadMedicalReport(IFormFile file, [FromForm] string description = "")
         {
-            // Security: We ensure the current user is a Patient
             if (UserRole != "Patient")
                 return BadRequest(new { message = "Only patients can upload reports" });
 
@@ -68,18 +67,6 @@ namespace backend.Controllers
             var patientExists = await _context.Patients.AnyAsync(p => p.Id == CurrentProfileId);
             if (!patientExists)
                 return BadRequest(new { message = "Patient profile not found" });
-
-            // Save to local uploads folder
-            //var uploadsDir = Path.Combine(_env.ContentRootPath, "Uploads", "reports");
-            //Directory.CreateDirectory(uploadsDir);
-
-            //var uniqueName = $"{Guid.NewGuid()}_{file.FileName}";
-            //var filePath = Path.Combine(uploadsDir, uniqueName);
-
-            //using (var stream = new FileStream(filePath, FileMode.Create))
-            //{
-            //    await file.CopyToAsync(stream);
-            //}
 
             var bucketName = _config["AWS:BucketName"];
             var uniqueName = $"reports/{Guid.NewGuid()}_{file.FileName}";
@@ -108,7 +95,7 @@ namespace backend.Controllers
             _context.MedicalReports.Add(report);
             await _context.SaveChangesAsync();
 
-            // AUTOMAPPER: Formats the response for the frontend
+            // Formats the response for the frontend
             var response = _mapper.Map<MedicalReportResponseDto>(report);
 
             return Ok(response);

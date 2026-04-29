@@ -9,7 +9,7 @@ export default function DoctorCard({ doctor }) {
 
     useEffect(() => {
         if (doctor.profileImageUrl) {
-            // Small safety check: if it already starts with http, just use it
+            // if it already starts with http, just use it
             if (doctor.profileImageUrl.startsWith("http")) {
                 setAvatarUrl(doctor.profileImageUrl);
             } else {

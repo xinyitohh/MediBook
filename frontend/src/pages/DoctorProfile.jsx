@@ -125,10 +125,9 @@ export default function DoctorProfile() {
 
         setIsUploading(true);
         try {
-            // 1. Upload to backend/AWS
             const res = await uploadProfileImage(file);
 
-            // 2. Fetch the new secure URL to display it immediately
+            // Fetch the profile Image URL
             const urlRes = await getImageUrl(res.data.fileKey);
             setAvatarUrl(urlRes.data.imageUrl);
 
