@@ -53,7 +53,7 @@ Create `backend/appsettings.Development.json`:
   }
 }
 ```
-> Update `Region` to match where your AWS resources live (the repo's `backend/appsettings.json` currently uses `us-east-1`; replace it if you previously deployed in another region such as `ap-southeast-1`).  
+> Update `Region` to match where your AWS resources live. The example uses `us-east-1` to match the repo's current `backend/appsettings.json`, but keep your existing region (for example `ap-southeast-1`) if that's where your infrastructure already resides—no migration is implied.  
 > Do **not** commit credentials. Prefer IAM roles or AWS credential profiles; `AccessKey`/`SecretKey` are only for local development when needed.
 
 ## 🚀 Local Development
