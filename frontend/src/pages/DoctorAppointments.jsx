@@ -356,7 +356,7 @@ export default function DoctorAppointments() {
                                     onChange={(e) => setLbForm({...lbForm, patientId: e.target.value})}
                                 >
                                     <option value="">Select a patient...</option>
-                                    {patients.map(p => (
+                                    {patients.filter(p => p.emailConfirmed).map(p => (
                                         <option key={p.id} value={p.id}>{p.fullName} ({p.email})</option>
                                     ))}
                                 </select>
