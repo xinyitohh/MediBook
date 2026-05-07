@@ -115,7 +115,7 @@ export default function DoctorAppointments() {
                     const end = new Date(start.getTime() + durationMins * 60000); 
                     return {
                         id: appt.id,
-                        title: `${appt.patient} - ${appt.notes || 'No purpose stated'}`,
+                        title: `${appt.patient} (${appt.status})`,
                         start,
                         end,
                         resource: appt
@@ -166,7 +166,7 @@ export default function DoctorAppointments() {
             if (ev.id === id) {
                 return {
                     ...ev,
-                    title: `${ev.resource.patient} - ${newStatus}`,
+                    title: `${ev.resource.patient} (${newStatus})`,
                     resource: { ...ev.resource, status: newStatus }
                 };
             }
@@ -289,6 +289,13 @@ export default function DoctorAppointments() {
         setCurrentView(newView);
     };
 
+    // hide the time in Week/Day
+    const calendarFormats = {
+        eventTimeRangeFormat: () => {
+            return "";
+        },
+    };
+
     return (
         <div className="h-[calc(100vh-120px)] flex flex-col relative">
             <div className="flex justify-between items-center mb-6">
@@ -321,6 +328,7 @@ export default function DoctorAppointments() {
                     onSelectEvent={(e) => setSelectedEvent(e.resource)}
                     onEventDrop={onEventDrop}
                     resizable={false} // Only allow dropping full blocks
+                    formats={calendarFormats}
                     eventPropGetter={eventStyleGetter}
                     style={{ height: "calc(100vh - 280px)" }}
                     className="font-sans text-gray-700"

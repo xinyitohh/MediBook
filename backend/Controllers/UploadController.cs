@@ -74,7 +74,7 @@ namespace backend.Controllers
             var putRequest = new PutObjectRequest
             {
                 BucketName = bucketName,
-                Key = uniqueName, // This acts as the file path inside your S3 bucket
+                Key = uniqueName, 
                 InputStream = file.OpenReadStream(),
                 ContentType = file.ContentType
             };
@@ -83,7 +83,7 @@ namespace backend.Controllers
 
             var report = new MedicalReport
             {
-                PatientId = CurrentProfileId, // Using the shortcut
+                PatientId = CurrentProfileId, 
                 FileName = file.FileName,
                 FileType = file.ContentType,
                 FileSize = file.Length,
