@@ -126,7 +126,7 @@ namespace backend.Services
         // STEP 3: Ask Bedrock (Claude) to summarize for the doctor
         public async Task<string> SummarizeAsync(string rawText, string entitiesJson)
         {
-            var prompt = $@"You are a medical AI assistant helping a doctor quickly understand a patient's uploaded medical report.
+            var prompt = $@"You are an expert medical AI assistant helping a doctor quickly grasp the critical information from a patient's uploaded medical report.
 
             Raw Report Text:
             {rawText}
@@ -134,12 +134,14 @@ namespace backend.Services
             Detected Medical Entities:
             {entitiesJson}
 
-            Please provide a concise structured summary with these exact sections:
-            1. Report Date: (extract the date the medical document was written/created from the raw text. If not found, say 'Not specified')
-            2. Key Findings: (important values, diagnoses, abnormal results)
-            3. Medications Detected:
-            4. Recommendations:
-            Keep it under 250 words. Be professional and factual.";
+            Please provide a highly concise, structured summary designed for a busy physician. Output these exact sections:
+            1. Report Date: (Extract the document date if present. If not, say 'Not specified')
+            2. Primary Diagnosis: (The main assessment, chief complaint, or most likely diagnosis)
+            3. Critical Findings: (Highlight ONLY significant abnormal vitals, physical exam findings, or test results)
+            4. Medications Detected:
+            5. Action Plan: (Key recommendations, follow-ups, or procedures to be done)
+            
+            Keep it under 250 words total. Be extremely concise, using brief bullet points. Prioritize life-threatening or actionable items.";
 
             var requestBody = JsonSerializer.Serialize(new
             {
