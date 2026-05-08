@@ -615,7 +615,7 @@ export default function GenerateReport() {
         </div>
       )}
 
-      <DoctorChatBot analysisData={analysisData} patientName={appt.patient} />
+      <DoctorChatBot medicalReportId={medicalReportId} analysisStatus={analysisData?.status} patientName={appt.patient} />
     </div>
   );
 }

@@ -15,7 +15,7 @@ const buildWelcome = (patientName) => ({
   ],
 });
 
-export default function DoctorChatBot({ analysisData, patientName }) {
+export default function DoctorChatBot({ medicalReportId, analysisStatus, patientName }) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState(() => [buildWelcome(patientName)]);
   const [input, setInput] = useState("");
@@ -40,8 +40,6 @@ export default function DoctorChatBot({ analysisData, patientName }) {
     el.style.height = `${Math.min(el.scrollHeight, 128)}px`;
   }, [input]);
 
-  const analysisContext = analysisData?.status === "Completed" ? analysisData.summary : null;
-
   const sendMessage = useCallback(async (text) => {
     const trimmed = text?.trim();
     if (!trimmed || isLoading) return;
@@ -54,7 +52,7 @@ export default function DoctorChatBot({ analysisData, patientName }) {
       const { data } = await api.post("/api/doctor-chat", {
         message: trimmed,
         history: history.slice(-10),
-        analysisContext,
+        medicalReportId: medicalReportId ?? null,
       });
       const reply = data.reply ?? "Sorry, I didn't get a response. Please try again.";
 
@@ -72,7 +70,7 @@ export default function DoctorChatBot({ analysisData, patientName }) {
     } finally {
       setIsLoading(false);
     }
-  }, [history, isLoading, analysisContext]);
+  }, [history, isLoading, medicalReportId]);
 
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -116,7 +114,7 @@ export default function DoctorChatBot({ analysisData, patientName }) {
             </div>
 
             {/* Context badge */}
-            {analysisData?.status === "Completed" && (
+            {analysisStatus === "Completed" && medicalReportId && (
               <div className="bg-indigo-50 border-b border-indigo-100 px-4 py-2 flex items-center gap-2">
                 <div className="w-2 h-2 rounded-full bg-indigo-400 flex-shrink-0" />
                 <p className="text-xs text-indigo-700 font-medium">Patient report analysis loaded as context</p>

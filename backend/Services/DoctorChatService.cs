@@ -34,15 +34,28 @@ namespace backend.Services
             _bedrock = new AmazonBedrockRuntimeClient(credentials, Amazon.RegionEndpoint.USEast1);
         }
 
-        public async Task<string> ChatAsync(string message, List<ChatMessage>? history, string? analysisContext)
+        public async Task<string> ChatAsync(string message, List<ChatMessage>? history, string? rawText, string? rawEntities, string? summary)
         {
             var messages = new List<object>();
 
-            // Inject analysis context as a synthetic exchange so Claude has full patient context
-            if (!string.IsNullOrWhiteSpace(analysisContext))
+            // Build rich context from raw extraction data
+            if (!string.IsNullOrWhiteSpace(rawText) || !string.IsNullOrWhiteSpace(rawEntities))
             {
-                messages.Add(new { role = "user", content = $"Patient Report Analysis (AWS Textract + Medical Comprehend):\n{analysisContext}" });
-                messages.Add(new { role = "assistant", content = "I have reviewed the patient's medical report analysis and am ready to assist with clinical insights, treatment recommendations, drug interactions, and guideline references." });
+                var context = new System.Text.StringBuilder();
+                context.AppendLine("=== PATIENT MEDICAL REPORT (Full text extracted via AWS Textract) ===");
+                context.AppendLine(rawText ?? "Not available");
+                context.AppendLine();
+                context.AppendLine("=== DETECTED MEDICAL ENTITIES (AWS Comprehend Medical) ===");
+                context.AppendLine(rawEntities ?? "Not available");
+                if (!string.IsNullOrWhiteSpace(summary))
+                {
+                    context.AppendLine();
+                    context.AppendLine("=== AI PRE-ANALYSIS SUMMARY ===");
+                    context.AppendLine(summary);
+                }
+
+                messages.Add(new { role = "user", content = context.ToString() });
+                messages.Add(new { role = "assistant", content = "I have reviewed the full patient medical report including all extracted text and detected medical entities. I'm ready to provide detailed clinical insights, check drug interactions, suggest treatments, and reference clinical guidelines based on the complete report data." });
             }
 
             // Append recent conversation history (last 10 turns)

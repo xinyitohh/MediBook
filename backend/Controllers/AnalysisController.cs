@@ -86,6 +86,10 @@ namespace backend.Controllers
                     entities.Select(e => new { e.Text, e.Category, e.Type })
                 );
 
+                // Save raw extraction data for doctor chatbot context
+                analysis.RawText = rawText;
+                analysis.RawEntities = entitiesJson;
+
                 // STEP 3: Bedrock — generate plain-English summary for doctor
                 var summary = await _analysisService.SummarizeAsync(rawText, entitiesJson);
 
