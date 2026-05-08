@@ -51,14 +51,14 @@ jobs:
       - name: Upload ZIP to S3
         run: |
           aws s3 cp medibook-backend.zip \
-            s3://${{ secrets.S3_BUCKET_NAME }}/deployments/medibook-backend-${{ github.sha }}.zip
+            s3://${{ secrets.S3_EB_BUCKET_NAME }}/deployments/medibook-backend-${{ github.sha }}.zip
 
       - name: Create EB application version
         run: |
           aws elasticbeanstalk create-application-version \
             --application-name ${{ secrets.EB_APPLICATION_NAME }} \
             --version-label "v-${{ github.sha }}" \
-            --source-bundle S3Bucket=${{ secrets.S3_BUCKET_NAME }},S3Key=deployments/medibook-backend-${{ github.sha }}.zip
+            --source-bundle S3Bucket=${{ secrets.S3_EB_BUCKET_NAME }},S3Key=deployments/medibook-backend-${{ github.sha }}.zip
 
       - name: Wait for EB to be Ready
         run: |
