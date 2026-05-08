@@ -1,4 +1,4 @@
-﻿using Amazon.Textract;
+using Amazon.Textract;
 using Amazon.Textract.Model;
 using Amazon.ComprehendMedical;
 using Amazon.ComprehendMedical.Model;
@@ -32,26 +32,83 @@ namespace backend.Services
         // STEP 1: Extract raw text from the S3 file
         public async Task<string> ExtractTextAsync(string s3Key)
         {
-            var request = new DetectDocumentTextRequest
+            if (s3Key.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
             {
-                Document = new Document
+                // PDF requires asynchronous Textract API
+                var startRequest = new StartDocumentTextDetectionRequest
                 {
-                    S3Object = new Amazon.Textract.Model.S3Object
+                    DocumentLocation = new DocumentLocation
                     {
-                        Bucket = _bucketName,
-                        Name = s3Key
+                        S3Object = new Amazon.Textract.Model.S3Object { Bucket = _bucketName, Name = s3Key }
                     }
+                };
+                var startResponse = await _textract.StartDocumentTextDetectionAsync(startRequest);
+                var jobId = startResponse.JobId;
+
+                GetDocumentTextDetectionResponse getResponse;
+                do
+                {
+                    await Task.Delay(3000); // Polling interval
+                    getResponse = await _textract.GetDocumentTextDetectionAsync(new GetDocumentTextDetectionRequest { JobId = jobId });
+                } while (getResponse.JobStatus == JobStatus.IN_PROGRESS);
+
+                if (getResponse.JobStatus != JobStatus.SUCCEEDED)
+                {
+                    return "";
                 }
-            };
 
-            var response = await _textract.DetectDocumentTextAsync(request);
+                var textBuilder = new System.Text.StringBuilder();
+                var blocks = getResponse.Blocks;
+                string? nextToken = getResponse.NextToken;
 
-            // Join all LINE blocks into one string
-            var text = string.Join(" ", response.Blocks
-                .Where(b => b.BlockType == "LINE")
-                .Select(b => b.Text));
+                // Process first page of results
+                foreach (var block in blocks.Where(b => b.BlockType == "LINE"))
+                {
+                    textBuilder.Append(block.Text).Append(" ");
+                }
 
-            return text;
+                // Process subsequent pages if PDF is long
+                while (!string.IsNullOrEmpty(nextToken))
+                {
+                    getResponse = await _textract.GetDocumentTextDetectionAsync(new GetDocumentTextDetectionRequest 
+                    { 
+                        JobId = jobId,
+                        NextToken = nextToken
+                    });
+                    
+                    foreach (var block in getResponse.Blocks.Where(b => b.BlockType == "LINE"))
+                    {
+                        textBuilder.Append(block.Text).Append(" ");
+                    }
+                    nextToken = getResponse.NextToken;
+                }
+
+                return textBuilder.ToString();
+            }
+            else
+            {
+                // Images can use synchronous API
+                var request = new DetectDocumentTextRequest
+                {
+                    Document = new Document
+                    {
+                        S3Object = new Amazon.Textract.Model.S3Object
+                        {
+                            Bucket = _bucketName,
+                            Name = s3Key
+                        }
+                    }
+                };
+
+                var response = await _textract.DetectDocumentTextAsync(request);
+
+                // Join all LINE blocks into one string
+                var text = string.Join(" ", response.Blocks
+                    .Where(b => b.BlockType == "LINE")
+                    .Select(b => b.Text));
+
+                return text;
+            }
         }
 
         // STEP 2: Detect medical entities from extracted text
