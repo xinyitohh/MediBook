@@ -50,9 +50,9 @@ namespace backend.Services
                 {
                     await Task.Delay(3000); // Polling interval
                     getResponse = await _textract.GetDocumentTextDetectionAsync(new GetDocumentTextDetectionRequest { JobId = jobId });
-                } while (getResponse.JobStatus == JobStatus.IN_PROGRESS);
+                } while (getResponse.JobStatus == Amazon.Textract.JobStatus.IN_PROGRESS);
 
-                if (getResponse.JobStatus != JobStatus.SUCCEEDED)
+                if (getResponse.JobStatus != Amazon.Textract.JobStatus.SUCCEEDED)
                 {
                     return "";
                 }
