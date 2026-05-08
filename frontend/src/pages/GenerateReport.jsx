@@ -389,119 +389,142 @@ export default function GenerateReport() {
                             ) : (
                             <div className="flex flex-col gap-4 mt-2">
                                 {(() => {
-                                    const text = analysisData.summary;
-                                    const primaryDiagnosis = [];
-                                    const criticalFindings = [];
-                                    const medications = [];
-                                    const actionPlan = [];
-                                    let currentSection = null;
-                                    let reportDate = null;
-
-                                    text.split('\n').forEach(line => {
-                                        const lowerLine = line.toLowerCase();
-                                        if (lowerLine.startsWith('report date:')) {
-                                            reportDate = line.substring(12).trim();
-                                        } else if (lowerLine.includes('primary diagnosis:')) {
-                                            currentSection = 'primaryDiagnosis';
-                                            const inlineVal = line.substring(lowerLine.indexOf('primary diagnosis:') + 18).trim();
-                                            if (inlineVal) primaryDiagnosis.push(inlineVal);
-                                        } else if (lowerLine.includes('critical findings')) {
-                                            currentSection = 'criticalFindings';
-                                        } else if (lowerLine.includes('medications detected') || lowerLine.includes('medications:')) {
-                                            currentSection = 'medications';
-                                        } else if (lowerLine.includes('action plan') || lowerLine.includes('recommendations')) {
-                                            currentSection = 'actionPlan';
-                                        } else if (line.trim().length > 0) {
-                                            const cleanLine = line.replace(/^-\s*/, '').replace(/^\d+\.\s*/, '').replace(/\*\*/g, '').trim();
-                                            if (cleanLine && cleanLine.toLowerCase() !== 'none') {
-                                                if (currentSection === 'primaryDiagnosis') primaryDiagnosis.push(cleanLine);
-                                                else if (currentSection === 'criticalFindings') criticalFindings.push(cleanLine);
-                                                else if (currentSection === 'medications') medications.push(cleanLine);
-                                                else if (currentSection === 'actionPlan') actionPlan.push(cleanLine);
-                                            }
-                                        }
-                                    });
-
-                                    // Fallback if parsing fails to find sections
-                                    if (primaryDiagnosis.length === 0 && criticalFindings.length === 0 && medications.length === 0 && actionPlan.length === 0 && !reportDate) {
-                                        return <div className="text-sm text-gray-700 whitespace-pre-wrap">{text}</div>;
+                                    let data = null;
+                                    try {
+                                        data = JSON.parse(analysisData.summary);
+                                    } catch {
+                                        // Fallback: show raw text if not JSON
+                                        return <div className="text-sm text-gray-700 whitespace-pre-wrap">{analysisData.summary}</div>;
                                     }
 
+                                    const { patientSnapshot, redFlags, keyFindings, diagnoses,
+                                            medications, allergies, vitals, plan } = data;
+
                                     return (
-                                        <>
-                                            {reportDate && reportDate.toLowerCase() !== 'not specified' && (
-                                                <div className="bg-blue-50/50 border border-blue-100 rounded-lg p-3 flex items-center justify-between">
-                                                    <h4 className="text-xs font-bold text-blue-800 uppercase tracking-wider flex items-center gap-1">
-                                                        <FileText size={14} /> Document Date
-                                                    </h4>
-                                                    <span className="text-sm font-semibold text-blue-900">{reportDate}</span>
+                                        <div className="space-y-4">
+                                            {/* Patient snapshot */}
+                                            <div className="flex items-center gap-3 p-4 border border-gray-200 bg-gray-50/50 rounded-xl">
+                                                <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center font-medium text-blue-700 text-sm flex-shrink-0">
+                                                    {patientSnapshot?.gender?.toLowerCase().startsWith("f") ? "F" : "M"}
                                                 </div>
-                                            )}
+                                                <div className="flex-1">
+                                                    <p className="font-medium text-sm text-gray-900">{patientSnapshot?.age || "Age unknown"} · {patientSnapshot?.gender || "Gender unknown"}</p>
+                                                    <p className="text-xs text-gray-500 mt-0.5">{patientSnapshot?.chiefComplaint}</p>
+                                                </div>
+                                            </div>
 
-                                            {primaryDiagnosis.length > 0 && (
-                                                <div className="bg-orange-50/80 border border-orange-200 rounded-lg p-3">
-                                                    <h4 className="text-xs font-bold text-orange-800 uppercase tracking-wider mb-2 flex items-center gap-1">
-                                                        <AlertCircle size={14} /> Primary Diagnosis
-                                                    </h4>
-                                                    <ul className="space-y-1.5">
-                                                        {primaryDiagnosis.map((item, i) => (
-                                                            <li key={i} className="text-sm font-medium text-orange-900/90 flex items-start gap-2">
-                                                                <span className="text-orange-400 mt-1">•</span>
-                                                                <span>{item}</span>
+                                            {/* Red flags */}
+                                            {redFlags?.length > 0 && (
+                                                <div className="p-4 border border-red-200 bg-red-50/30 rounded-xl">
+                                                    <p className="text-xs font-bold text-red-600 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                                                        <AlertCircle size={14} /> RED FLAGS
+                                                    </p>
+                                                    <ul className="space-y-2">
+                                                        {redFlags.map((flag, i) => (
+                                                            <li key={i} className="flex items-start gap-2 text-sm text-red-900/90 font-medium">
+                                                                <span className="w-1.5 h-1.5 rounded-full bg-red-400 flex-shrink-0 mt-1.5" />
+                                                                {flag}
                                                             </li>
                                                         ))}
                                                     </ul>
                                                 </div>
                                             )}
 
-                                            {criticalFindings.length > 0 && (
-                                                <div className="bg-red-50/50 border border-red-100 rounded-lg p-3">
-                                                    <h4 className="text-xs font-bold text-red-800 uppercase tracking-wider mb-2 flex items-center gap-1">
-                                                        <Activity size={14} /> Critical Findings
-                                                    </h4>
-                                                    <ul className="space-y-1.5">
-                                                        {criticalFindings.map((item, i) => (
-                                                            <li key={i} className="text-sm text-red-900/90 flex items-start gap-2">
-                                                                <span className="text-red-400 mt-1">•</span>
-                                                                <span>{item}</span>
-                                                            </li>
-                                                        ))}
-                                                    </ul>
+                                            {/* Vitals */}
+                                            {vitals && (
+                                                <div className="grid grid-cols-4 gap-2">
+                                                    {[
+                                                        { label: "Blood pressure", value: vitals.bp, danger: vitals.bp && (vitals.bp.includes("16") || vitals.bp.includes("17") || vitals.bp.includes("18")) },
+                                                        { label: "Pulse (bpm)", value: vitals.pulse },
+                                                        { label: "Respirations", value: vitals.respiration },
+                                                        { label: "Temperature", value: vitals.temp },
+                                                    ].map(({ label, value, danger }) => (
+                                                        <div key={label} className="bg-gray-50 border border-gray-100 rounded-lg p-3 text-center">
+                                                            <p className={`text-lg font-bold ${danger ? "text-red-500" : "text-gray-900"}`}>
+                                                                {value && value !== "null" ? value : "—"}
+                                                            </p>
+                                                            <p className="text-xs text-gray-400 mt-0.5">{label}</p>
+                                                        </div>
+                                                    ))}
                                                 </div>
                                             )}
 
-                                            {actionPlan.length > 0 && (
-                                                <div className="bg-emerald-50/50 border border-emerald-100 rounded-lg p-3">
-                                                    <h4 className="text-xs font-bold text-emerald-800 uppercase tracking-wider mb-2 flex items-center gap-1">
-                                                        <CheckCircle size={14} /> Action Plan
-                                                    </h4>
-                                                    <ul className="space-y-1.5">
-                                                        {actionPlan.map((item, i) => (
-                                                            <li key={i} className="text-sm text-emerald-900/90 flex items-start gap-2">
-                                                                <span className="text-emerald-400 mt-1">•</span>
-                                                                <span>{item}</span>
+                                            {/* Key findings + Diagnoses */}
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div className="p-4 border border-gray-200 bg-gray-50/50 rounded-xl">
+                                                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                                                        <Activity size={14} /> Key findings
+                                                    </p>
+                                                    <ul className="space-y-2">
+                                                        {keyFindings?.map((f, i) => (
+                                                            <li key={i} className="flex items-start gap-2 text-xs text-gray-700 font-medium">
+                                                                <span className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0 mt-1" />
+                                                                {f}
                                                             </li>
                                                         ))}
                                                     </ul>
                                                 </div>
-                                            )}
+                                                <div className="p-4 border border-gray-200 bg-gray-50/50 rounded-xl">
+                                                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                                                        <Brain size={14} /> Diagnoses
+                                                    </p>
+                                                    <ul className="space-y-2">
+                                                        {diagnoses?.map((d, i) => (
+                                                            <li key={i} className="text-xs text-gray-700 font-medium flex items-start gap-2">
+                                                                <span className="w-1.5 h-1.5 rounded-full bg-purple-400 flex-shrink-0 mt-1" />
+                                                                {d}
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                </div>
+                                            </div>
 
-                                            {medications.length > 0 && (
-                                                <div className="bg-indigo-50/50 border border-indigo-100 rounded-lg p-3">
-                                                    <h4 className="text-xs font-bold text-indigo-800 uppercase tracking-wider mb-2 flex items-center gap-1">
-                                                        <Plus size={14} /> Active Medications
-                                                    </h4>
-                                                    <ul className="space-y-1.5">
-                                                        {medications.map((item, i) => (
-                                                            <li key={i} className="text-sm text-indigo-900/90 flex items-start gap-2">
-                                                                <span className="text-indigo-400 mt-1">•</span>
-                                                                <span>{item}</span>
+                                            {/* Medications + Allergies */}
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div className="p-4 border border-gray-200 bg-gray-50/50 rounded-xl">
+                                                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                                                        <Plus size={14} /> Medications
+                                                    </p>
+                                                    <div className="flex flex-wrap gap-1.5">
+                                                        {medications?.map((m, i) => (
+                                                            <span key={i} className="px-2 py-1 bg-blue-50 border border-blue-100 text-blue-800 text-xs font-medium rounded-md">{m}</span>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                                <div className="p-4 border border-red-100 bg-red-50/30 rounded-xl">
+                                                    <p className="text-xs font-bold text-red-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                                                        <AlertCircle size={14} /> Allergy
+                                                    </p>
+                                                    <div className="flex flex-wrap gap-1.5">
+                                                        {allergies?.length > 0 && allergies[0] !== "null"
+                                                            ? allergies.map((a, i) => (
+                                                                <span key={i} className="px-2 py-1 bg-red-100 border border-red-200 text-red-800 text-xs font-medium rounded-md">{a}</span>
+                                                            ))
+                                                            : <span className="text-xs text-gray-400 font-medium">None recorded</span>
+                                                        }
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Treatment plan */}
+                                            {plan?.length > 0 && (
+                                                <div className="p-4 border border-gray-200 bg-gray-50/50 rounded-xl">
+                                                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-1.5">
+                                                        <CheckCircle size={14} /> Treatment plan
+                                                    </p>
+                                                    <ul className="space-y-2.5">
+                                                        {plan.map((item, i) => (
+                                                            <li key={i} className="flex items-start gap-3 text-xs text-gray-700 font-medium">
+                                                                <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">
+                                                                    {i + 1}
+                                                                </span>
+                                                                <span className="leading-relaxed">{item}</span>
                                                             </li>
                                                         ))}
                                                     </ul>
                                                 </div>
                                             )}
-                                        </>
+                                        </div>
                                     );
                                 })()}
                                 

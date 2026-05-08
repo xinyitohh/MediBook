@@ -126,22 +126,40 @@ namespace backend.Services
         // STEP 3: Ask Bedrock (Claude) to summarize for the doctor
         public async Task<string> SummarizeAsync(string rawText, string entitiesJson)
         {
-            var prompt = $@"You are an expert medical AI assistant helping a doctor quickly grasp the critical information from a patient's uploaded medical report.
+            var prompt = $@"You are a clinical AI assistant. A patient has uploaded their medical history report. 
+A doctor needs to quickly understand this patient before or during a consultation.
 
-            Raw Report Text:
-            {rawText}
+Analyze the report below and return a JSON object ONLY (no explanation, no markdown, no backticks).
 
-            Detected Medical Entities:
-            {entitiesJson}
+Return this exact JSON structure:
+{{
+  ""patientSnapshot"": {{
+    ""age"": ""extracted age or null"",
+    ""gender"": ""extracted gender or null"",
+    ""chiefComplaint"": ""one sentence summary of why patient came in""
+  }},
+  ""redFlags"": [""list of urgent/critical findings that need immediate attention""],
+  ""keyFindings"": [""important clinical findings from history and physical exam""],
+  ""diagnoses"": [""primary and differential diagnoses mentioned""],
+  ""medications"": [""all medications mentioned with dosage if available""],
+  ""allergies"": [""any allergies mentioned""],
+  ""vitals"": {{
+    ""bp"": ""blood pressure value or null"",
+    ""pulse"": ""pulse value or null"",
+    ""temp"": ""temperature value or null"",
+    ""respiration"": ""respiration value or null""
+  }},
+  ""plan"": [""treatment plan items listed""],
+  ""followUp"": ""follow up actions or null""
+}}
 
-            Please provide a highly concise, structured summary designed for a busy physician. Output these exact sections:
-            1. Report Date: (Extract the document date if present. If not, say 'Not specified')
-            2. Primary Diagnosis: (The main assessment, chief complaint, or most likely diagnosis)
-            3. Critical Findings: (Highlight ONLY significant abnormal vitals, physical exam findings, or test results)
-            4. Medications Detected:
-            5. Action Plan: (Key recommendations, follow-ups, or procedures to be done)
-            
-            Keep it under 250 words total. Be extremely concise, using brief bullet points. Prioritize life-threatening or actionable items.";
+Medical Report:
+{rawText}
+
+Detected Entities:
+{entitiesJson}
+
+Return ONLY the JSON object. No explanation.";
 
             var requestBody = JsonSerializer.Serialize(new
             {

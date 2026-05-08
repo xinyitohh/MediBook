@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using backend.Data;
 using backend.DTOs;
 using backend.Models;
@@ -89,24 +89,31 @@ namespace backend.Controllers
                 // STEP 3: Bedrock — generate plain-English summary for doctor
                 var summary = await _analysisService.SummarizeAsync(rawText, entitiesJson);
 
-                // Separate abnormal findings from medications for display
-                var abnormalFindings = entities
-                    .Where(e => e.Category == "MEDICAL_CONDITION" || e.Category == "TEST_TREATMENT_PROCEDURE")
-                    .Select(e => e.Text)
-                    .Distinct()
-                    .ToList();
-
-                var medicationsFound = entities
-                    .Where(e => e.Category == "MEDICATION")
-                    .Select(e => e.Text)
-                    .Distinct()
-                    .ToList();
+                // Parse the JSON summary from Bedrock
+                var analysisDataJson = JsonDocument.Parse(summary).RootElement;
 
                 // Save results
                 analysis.Summary = summary;
-                analysis.AbnormalFindings = JsonSerializer.Serialize(abnormalFindings);
-                analysis.NormalFindings = JsonSerializer.Serialize(medicationsFound);
-                analysis.Recommendations = "See AI summary above.";
+                try {
+                    analysis.AbnormalFindings = JsonSerializer.Serialize(
+                        analysisDataJson.GetProperty("redFlags").EnumerateArray()
+                            .Select(x => x.GetString()).ToList()
+                    );
+                    analysis.NormalFindings = JsonSerializer.Serialize(
+                        analysisDataJson.GetProperty("medications").EnumerateArray()
+                            .Select(x => x.GetString()).ToList()
+                    );
+                    analysis.Recommendations = JsonSerializer.Serialize(
+                        analysisDataJson.GetProperty("plan").EnumerateArray()
+                            .Select(x => x.GetString()).ToList()
+                    );
+                } catch {
+                    // Fallback if parsing specific arrays fails
+                    analysis.AbnormalFindings = "[]";
+                    analysis.NormalFindings = "[]";
+                    analysis.Recommendations = "[]";
+                }
+                
                 analysis.Status = "Completed";
                 analysis.AnalyzedAt = DateTime.UtcNow;
 
