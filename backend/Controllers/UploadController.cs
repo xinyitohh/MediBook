@@ -121,7 +121,7 @@ namespace backend.Controllers
 
             string temporaryUrl = _s3Client.GetPreSignedURL(request);
           
-            return Ok(new { secureUrl = temporaryUrl, fileType = report.FileType });
+            return Ok(new { secureUrl = temporaryUrl, fileType = report.FileType, medicalReportId = report.Id });
         }
 
         // POST api/upload/profile-image - upload doctor profile image

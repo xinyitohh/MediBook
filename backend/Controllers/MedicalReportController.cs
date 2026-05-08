@@ -71,6 +71,23 @@ namespace backend.Controllers
             return Ok(report);
         }
 
+        // GET api/medical-report/patient-uploaded/{appointmentId}
+        [HttpGet("patient-uploaded/{appointmentId}")]
+        [Authorize(Roles = "Doctor,Admin")]
+        public async Task<IActionResult> GetPatientUploadedReports(int appointmentId)
+        {
+            var appointment = await _context.Appointments.FindAsync(appointmentId);
+            if (appointment == null) return NotFound(new { message = "Appointment not found" });
+
+            var reports = await _context.MedicalReports
+                .Where(r => r.PatientId == appointment.PatientId && r.UploadedByRole == "Patient")
+                .OrderByDescending(r => r.UploadedAt)
+                .ProjectTo<MedicalReportResponseDto>(_mapper.ConfigurationProvider)
+                .ToListAsync();
+
+            return Ok(reports);
+        }
+
         // POST api/medical-report/generate/{appointmentId}
         [HttpPost("generate/{appointmentId}")]
         [Authorize(Roles = "Doctor,Admin")]

@@ -77,6 +77,9 @@ builder.Services.AddAuthentication(options =>
 builder.Services.AddAWSService<IAmazonS3>();
 builder.Services.AddAWSService<IAmazonSQS>();
 
+// ── Report Analysis ────────────────────────────────────────
+builder.Services.AddScoped<ReportAnalysisService>();
+
 // ── CORS ──────────────────────────────────────────────────
 builder.Services.AddCors(options =>
 {
