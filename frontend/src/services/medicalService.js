@@ -6,6 +6,11 @@ export const deleteReport = (id) => api.delete(`/api/medical-report/${id}`);
 export const generateReport = (appointmentId, data) =>
   api.post(`/api/medical-report/generate/${appointmentId}`, data);
 export const getSecurePatientReportUrl = (appointmentId) => api.get(`/api/upload/view-patient-report/${appointmentId}`);
+export const getPatientUploadedReports = (appointmentId) => api.get(`/api/medical-report/patient-uploaded/${appointmentId}`);
+
+// --- REPORT ANALYSIS ---
+export const analyzeReport = (medicalReportId) => api.post(`/api/analysis/analyze/${medicalReportId}`);
+export const getReportAnalysis = (medicalReportId) => api.get(`/api/analysis/${medicalReportId}`);
 
 // --- FILE UPLOADS (FORMDATA) ---
 export const uploadMedicalReport = (file, description = "", onProgressCallback) => {
