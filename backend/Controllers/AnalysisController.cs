@@ -32,7 +32,7 @@ namespace backend.Controllers
         // POST api/analysis/analyze/{medicalReportId}
         // Doctor calls this to trigger AI analysis of a patient's uploaded report
         [HttpPost("analyze/{medicalReportId}")]
-        public async Task<IActionResult> AnalyzeReport(int medicalReportId)
+        public async Task<IActionResult> AnalyzeReport(int medicalReportId, [FromQuery] bool force = false)
         {
             // Only doctors can analyze
             if (UserRole != "Doctor")
@@ -47,11 +47,11 @@ namespace backend.Controllers
             if (string.IsNullOrEmpty(report.FileUrl) || report.UploadedByRole != "Patient")
                 return BadRequest(new { message = "This report has no uploaded file to analyze" });
 
-            // If already analyzed, just return the cached result
+            // If already analyzed and we aren't forcing a regenerate, just return the cached result
             var existing = await _context.ReportAnalyses
                 .FirstOrDefaultAsync(r => r.MedicalReportId == medicalReportId);
 
-            if (existing != null && existing.Status == "Completed")
+            if (!force && existing != null && existing.Status == "Completed")
                 return Ok(_mapper.Map<ReportAnalysisDto>(existing));
 
             // Create a "Processing" record immediately so doctor knows it's running

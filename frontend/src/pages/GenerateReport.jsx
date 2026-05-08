@@ -72,14 +72,14 @@ export default function GenerateReport() {
     }, 3000);
   };
 
-  const handleAnalyze = async () => {
+  const handleAnalyze = async (force = false) => {
     if (!medicalReportId) {
        alert("No medical report ID available to analyze.");
        return;
     }
     setAnalyzing(true);
     try {
-      const res = await analyzeReport(medicalReportId);
+      const res = await analyzeReport(medicalReportId, force);
       setAnalysisData(res.data);
       if (res.data.status === "Processing") {
         pollAnalysis(medicalReportId);
@@ -388,6 +388,21 @@ export default function GenerateReport() {
                             </div>
                             ) : (
                             <div className="flex flex-col gap-4 mt-2">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">AI Analysis Result</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleAnalyze(true)}
+                                        disabled={analyzing}
+                                        className="text-xs flex items-center gap-1.5 text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-3 py-1.5 rounded-md transition-colors font-medium border border-indigo-100 disabled:opacity-50"
+                                    >
+                                        {analyzing ? (
+                                            <><Loader2 size={12} className="animate-spin" /> Regenerating...</>
+                                        ) : (
+                                            <><RefreshCw size={12} /> Regenerate</>
+                                        )}
+                                    </button>
+                                </div>
                                 {(() => {
                                     let data = null;
                                     try {

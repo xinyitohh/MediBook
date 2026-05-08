@@ -9,7 +9,7 @@ export const getSecurePatientReportUrl = (appointmentId) => api.get(`/api/upload
 export const getPatientUploadedReports = (appointmentId) => api.get(`/api/medical-report/patient-uploaded/${appointmentId}`);
 
 // --- REPORT ANALYSIS ---
-export const analyzeReport = (medicalReportId) => api.post(`/api/analysis/analyze/${medicalReportId}`);
+export const analyzeReport = (medicalReportId, force = false) => api.post(`/api/analysis/analyze/${medicalReportId}?force=${force}`);
 export const getReportAnalysis = (medicalReportId) => api.get(`/api/analysis/${medicalReportId}`);
 
 // --- FILE UPLOADS (FORMDATA) ---
