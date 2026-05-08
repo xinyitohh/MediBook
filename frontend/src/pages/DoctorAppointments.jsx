@@ -529,8 +529,13 @@ export default function DoctorAppointments() {
                             )}
 
                             {selectedEvent.status === "Confirmed" && (
-                                <button onClick={() => handleComplete(selectedEvent.id)} className="btn-primary flex-1 bg-mint-500 hover:bg-mint-600 shadow-mint-500/20">
-                                    <Check size={16} className="mr-2 inline" /> Mark Completed
+                                <button
+                                    onClick={() => navigate(`/appointments/${selectedEvent.id}/report`, {
+                                        state: { patient: selectedEvent.patient, doctor: selectedEvent.doctor, date: selectedEvent.date, time: selectedEvent.time, specialty: selectedEvent.specialty, status: "Confirmed" }
+                                    })}
+                                    className="btn-primary flex-1 flex items-center justify-center gap-2"
+                                >
+                                    <Check size={16} /> Mark Complete & Write Report
                                 </button>
                             )}
 
@@ -554,10 +559,10 @@ export default function DoctorAppointments() {
                                         <FileText size={16} className="mr-2 inline" /> {loadingReport ? 'Loading...' : 'View Generated Report'}
                                     </button>
                                 ) : (
-                                    <button 
+                                    <button
                                         onClick={() => navigate(`/appointments/${selectedEvent.id}/report`, {
-                                            state: { patient: selectedEvent.patient, doctor: selectedEvent.doctor, date: selectedEvent.date, time: selectedEvent.time, specialty: selectedEvent.specialty }
-                                        })} 
+                                            state: { patient: selectedEvent.patient, doctor: selectedEvent.doctor, date: selectedEvent.date, time: selectedEvent.time, specialty: selectedEvent.specialty, status: "Completed" }
+                                        })}
                                         className="btn-primary flex-1 bg-purple-600 hover:bg-purple-700 shadow-purple-600/20"
                                     >
                                         <FileText size={16} className="mr-2 inline" /> Write Medical Report

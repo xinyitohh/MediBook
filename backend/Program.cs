@@ -79,6 +79,7 @@ builder.Services.AddAWSService<IAmazonSQS>();
 
 // ── Report Analysis ────────────────────────────────────────
 builder.Services.AddScoped<ReportAnalysisService>();
+builder.Services.AddScoped<DoctorChatService>();
 
 // ── CORS ──────────────────────────────────────────────────
 builder.Services.AddCors(options =>

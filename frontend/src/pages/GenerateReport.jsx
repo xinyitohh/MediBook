@@ -3,6 +3,8 @@ import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { FileText, Plus, X, Eye, Sparkles, Brain, Loader2, RefreshCw, AlertCircle, Activity, CheckCircle } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import { generateReport, getSecurePatientReportUrl, analyzeReport, getReportAnalysis } from "../services/medicalService";
+import { completeAppointment } from "../services/appointmentService";
+import DoctorChatBot from "../components/DoctorChatBot";
 import { generateStyledPDF } from "../utils/generateStyledPDF";
 import DatePicker from "../components/DatePicker";
 
@@ -118,6 +120,9 @@ export default function GenerateReport() {
   const handleConfirm = async () => {
     setSaving(true);
     try {
+      if (appt.status === "Confirmed") {
+        await completeAppointment(id);
+      }
       await generateReport(id, form);
 
       generateStyledPDF(form, appt, id);
@@ -133,9 +138,9 @@ export default function GenerateReport() {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[1fr_400px] gap-8">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
       {/* Left Column: Form */}
-      <div className="max-w-3xl">
+      <div className="max-w-2xl">
       <PageHeader
         title="Generate Medical Report"
         subtitle={
@@ -155,7 +160,9 @@ export default function GenerateReport() {
               {appt.date} · {appt.time} · {appt.specialty}
             </p>
           </div>
-          <span className="badge-completed">Completed</span>
+          <span className={appt.status === "Completed" ? "badge-completed" : "badge-confirmed"}>
+            {appt.status || "Confirmed"}
+          </span>
         </div>
       )}
 
@@ -375,7 +382,7 @@ export default function GenerateReport() {
                                 </div>
                                 <button
                                     type="button"
-                                    onClick={handleAnalyze}
+                                    onClick={() => handleAnalyze()}
                                     disabled={analyzing}
                                     className="w-full bg-white border border-red-200 text-red-600 hover:bg-red-50 py-2 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
                                 >
@@ -556,7 +563,7 @@ export default function GenerateReport() {
                             </p>
                             <button
                             type="button"
-                            onClick={handleAnalyze}
+                            onClick={() => handleAnalyze()}
                             disabled={analyzing}
                             className="w-full btn-primary bg-indigo-600 hover:bg-indigo-700 py-2 text-sm font-semibold shadow-indigo-500/20 disabled:opacity-70 flex items-center justify-center gap-2"
                             >
@@ -607,6 +614,8 @@ export default function GenerateReport() {
             </div>
         </div>
       )}
+
+      <DoctorChatBot analysisData={analysisData} patientName={appt.patient} />
     </div>
   );
 }

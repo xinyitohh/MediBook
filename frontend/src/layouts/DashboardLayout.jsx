@@ -3,9 +3,11 @@ import { Outlet } from "react-router-dom";
 import Sidebar from "../components/Sidebar";
 import NotificationBell from "../components/NotificationBell";
 import ChatBot from "../components/ChatBot";
+import { useAuth } from "../context/AuthContext";
 
 export default function DashboardLayout() {
   const [collapsed, setCollapsed] = useState(false);
+  const { user } = useAuth();
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -19,7 +21,7 @@ export default function DashboardLayout() {
           <Outlet />
         </main>
       </div>
-      <ChatBot />
+      {user?.role === "Patient" && <ChatBot />}
     </div>
   );
 }
