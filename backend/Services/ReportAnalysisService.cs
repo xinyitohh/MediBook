@@ -134,10 +134,11 @@ namespace backend.Services
             Detected Medical Entities:
             {entitiesJson}
 
-            Please provide a concise structured summary with these sections:
-            1. Key Findings (important values, diagnoses, abnormal results)
-            2. Medications Detected
-            3. Recommendations or follow-up actions
+            Please provide a concise structured summary with these exact sections:
+            1. Report Date: (extract the date the medical document was written/created from the raw text. If not found, say 'Not specified')
+            2. Key Findings: (important values, diagnoses, abnormal results)
+            3. Medications Detected:
+            4. Recommendations:
             Keep it under 250 words. Be professional and factual.";
 
             var requestBody = JsonSerializer.Serialize(new

@@ -1,6 +1,6 @@
 import { useState, lazy, Suspense, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { FileText, Plus, X, Eye, Sparkles, Brain, Loader2 } from "lucide-react";
+import { FileText, Plus, X, Eye, Sparkles, Brain, Loader2, RefreshCw } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import { generateReport, getSecurePatientReportUrl, analyzeReport, getReportAnalysis } from "../services/medicalService";
 import { generateStyledPDF } from "../utils/generateStyledPDF";
@@ -369,57 +369,124 @@ export default function GenerateReport() {
                                 Analyzing report with AI...
                             </div>
                             ) : analysisData.status === "Failed" ? (
-                            <div className="text-red-500 text-sm bg-red-50 p-2 rounded-lg">
-                                {analysisData.summary || "Analysis failed."}
+                            <div className="flex flex-col gap-2">
+                                <div className="text-red-500 text-sm bg-red-50 p-3 rounded-lg border border-red-100">
+                                    {analysisData.summary || "Analysis failed."}
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={handleAnalyze}
+                                    disabled={analyzing}
+                                    className="w-full bg-white border border-red-200 text-red-600 hover:bg-red-50 py-2 rounded-lg text-sm font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                                >
+                                    {analyzing ? (
+                                        <><Loader2 size={16} className="animate-spin" /> Retrying...</>
+                                    ) : (
+                                        <><RefreshCw size={16} /> Retry Analysis</>
+                                    )}
+                                </button>
                             </div>
                             ) : (
-                            <>
-                                <div className="prose prose-sm prose-indigo max-w-none text-gray-700 text-sm whitespace-pre-wrap">
-                                {analysisData.summary}
-                                </div>
-                                
+                            <div className="flex flex-col gap-4 mt-2">
                                 {(() => {
-                                try {
-                                    const meds = JSON.parse(analysisData.normalFindings || "[]");
-                                    if (meds.length > 0) {
-                                    return (
-                                        <div className="mt-3">
-                                        <span className="text-xs font-bold text-gray-500 uppercase">Medications</span>
-                                        <div className="flex flex-wrap gap-1 mt-1">
-                                            {meds.map((med, i) => (
-                                            <span key={i} className="bg-white border border-gray-200 text-gray-700 px-2 py-0.5 rounded text-xs">
-                                                {med}
-                                            </span>
-                                            ))}
-                                        </div>
-                                        </div>
-                                    );
-                                    }
-                                } catch(e) {}
-                                return null;
-                                })()}
+                                    const text = analysisData.summary;
+                                    const keyFindings = [];
+                                    const medications = [];
+                                    const recommendations = [];
+                                    let currentSection = null;
+                                    let reportDate = null;
 
-                                {(() => {
-                                try {
-                                    const findings = JSON.parse(analysisData.abnormalFindings || "[]");
-                                    if (findings.length > 0) {
-                                    return (
-                                        <div className="mt-3">
-                                        <span className="text-xs font-bold text-gray-500 uppercase">Key Findings</span>
-                                        <div className="flex flex-wrap gap-1 mt-1">
-                                            {findings.map((f, i) => (
-                                            <span key={i} className="bg-red-50 border border-red-100 text-red-700 px-2 py-0.5 rounded text-xs font-medium">
-                                                {f}
-                                            </span>
-                                            ))}
-                                        </div>
-                                        </div>
-                                    );
+                                    text.split('\n').forEach(line => {
+                                        const lowerLine = line.toLowerCase();
+                                        if (lowerLine.startsWith('report date:')) {
+                                            reportDate = line.substring(12).trim();
+                                        } else if (lowerLine.includes('key findings')) {
+                                            currentSection = 'keyFindings';
+                                        } else if (lowerLine.includes('medications detected') || lowerLine.includes('medications:')) {
+                                            currentSection = 'medications';
+                                        } else if (lowerLine.includes('recommendations') || lowerLine.includes('follow-up')) {
+                                            currentSection = 'recommendations';
+                                        } else if (line.trim().length > 0) {
+                                            const cleanLine = line.replace(/^-\s*/, '').replace(/^\d+\.\s*/, '').trim();
+                                            if (cleanLine) {
+                                                if (currentSection === 'keyFindings') keyFindings.push(cleanLine);
+                                                else if (currentSection === 'medications') medications.push(cleanLine);
+                                                else if (currentSection === 'recommendations') recommendations.push(cleanLine);
+                                            }
+                                        }
+                                    });
+
+                                    // Fallback if parsing fails to find sections
+                                    if (keyFindings.length === 0 && medications.length === 0 && recommendations.length === 0 && !reportDate) {
+                                        return <div className="text-sm text-gray-700 whitespace-pre-wrap">{text}</div>;
                                     }
-                                } catch(e) {}
-                                return null;
+
+                                    return (
+                                        <>
+                                            {reportDate && reportDate.toLowerCase() !== 'not specified' && (
+                                                <div className="bg-blue-50/50 border border-blue-100 rounded-lg p-3 mb-2 flex items-center justify-between">
+                                                    <h4 className="text-xs font-bold text-blue-800 uppercase tracking-wider flex items-center gap-1">
+                                                        <FileText size={14} /> Document Date
+                                                    </h4>
+                                                    <span className="text-sm font-semibold text-blue-900">{reportDate}</span>
+                                                </div>
+                                            )}
+
+                                            {keyFindings.length > 0 && (
+                                                <div className="bg-red-50/50 border border-red-100 rounded-lg p-3">
+                                                    <h4 className="text-xs font-bold text-red-800 uppercase tracking-wider mb-2 flex items-center gap-1">
+                                                        <FileText size={14} /> Key Findings
+                                                    </h4>
+                                                    <ul className="space-y-1.5">
+                                                        {keyFindings.map((item, i) => (
+                                                            <li key={i} className="text-sm text-red-900/90 flex items-start gap-2">
+                                                                <span className="text-red-400 mt-1">•</span>
+                                                                <span>{item}</span>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                </div>
+                                            )}
+
+                                            {medications.length > 0 && (
+                                                <div className="bg-indigo-50/50 border border-indigo-100 rounded-lg p-3">
+                                                    <h4 className="text-xs font-bold text-indigo-800 uppercase tracking-wider mb-2 flex items-center gap-1">
+                                                        <Plus size={14} /> Medications Detected
+                                                    </h4>
+                                                    <ul className="space-y-1.5">
+                                                        {medications.map((item, i) => (
+                                                            <li key={i} className="text-sm text-indigo-900/90 flex items-start gap-2">
+                                                                <span className="text-indigo-400 mt-1">•</span>
+                                                                <span>{item}</span>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                </div>
+                                            )}
+
+                                            {recommendations.length > 0 && (
+                                                <div className="bg-green-50/50 border border-green-100 rounded-lg p-3">
+                                                    <h4 className="text-xs font-bold text-green-800 uppercase tracking-wider mb-2 flex items-center gap-1">
+                                                        <Sparkles size={14} /> Recommendations
+                                                    </h4>
+                                                    <ul className="space-y-1.5">
+                                                        {recommendations.map((item, i) => (
+                                                            <li key={i} className="text-sm text-green-900/90 flex items-start gap-2">
+                                                                <span className="text-green-400 mt-1">•</span>
+                                                                <span>{item}</span>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                </div>
+                                            )}
+                                        </>
+                                    );
                                 })()}
-                            </>
+                                
+                                <div className="text-xs text-gray-400 text-right mt-2 italic">
+                                    Analyzed on {new Date(analysisData.analyzedAt || Date.now()).toLocaleDateString()}
+                                </div>
+                            </div>
                             )}
                         </div>
                         ) : (
