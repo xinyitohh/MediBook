@@ -211,48 +211,6 @@ namespace backend.Data
             builder.Entity<Doctor>().HasData(
                 new Doctor
                 {
-                    Id = 1,
-                    FullName = "Dr. Sarah Johnson",
-                    SpecialtyId = 1, // Cardiology
-                    Email = "sarah.johnson@medibook.com",
-                    Phone = "012-3456789",
-                    Description = "Specialist in heart diseases with 10 years experience",
-                    IsAvailable = true,
-                    Rating = 4.9,
-                    ReviewCount = 312,
-                    ConsultationFee = 200,
-                    Experience = "10 years"
-                },
-                new Doctor
-                {
-                    Id = 2,
-                    FullName = "Dr. Michael Chen",
-                    SpecialtyId = 5, // General Practice
-                    Email = "michael.chen@medibook.com",
-                    Phone = "012-9876543",
-                    Description = "General practitioner with focus on preventive care",
-                    IsAvailable = true,
-                    Rating = 4.8,
-                    ReviewCount = 187,
-                    ConsultationFee = 85,
-                    Experience = "15 years"
-                },
-                new Doctor
-                {
-                    Id = 3,
-                    FullName = "Dr. Aisha Rahman",
-                    SpecialtyId = 2, // Dermatology
-                    Email = "aisha.rahman@medibook.com",
-                    Phone = "011-2345678",
-                    Description = "Skin specialist with expertise in cosmetic dermatology",
-                    IsAvailable = true,
-                    Rating = 4.7,
-                    ReviewCount = 156,
-                    ConsultationFee = 150,
-                    Experience = "10 years"
-                },
-                new Doctor
-                {
                     Id = 4,
                     UserId = DOCTOR_USER_ID,
                     FullName = "Doctor 1",
